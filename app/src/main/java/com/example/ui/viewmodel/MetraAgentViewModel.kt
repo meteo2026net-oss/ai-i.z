@@ -226,24 +226,33 @@ class MetraAgentViewModel(
                 currentGoogleName = displayName
             )
         }
-        // Restore the most recently updated Studio project from the authenticated account.
+        // Restore only the lightweight library first, then fetch the latest project's files.
         viewModelScope.launch {
             userDataRepository.listStudioProjects().onSuccess { projects ->
                 _workspace.update { it.copy(savedStudioProjects = projects) }
                 val latest = projects.firstOrNull() ?: return@onSuccess
                 if (_workspace.value.activeStudioProject == null) {
-                    val firstFile = latest.files.firstOrNull { it.isEntrypoint } ?: latest.files.firstOrNull()
-                    _workspace.update {
-                        it.copy(
-                            activeStudioProject = latest,
-                            studioSelectedFilePath = firstFile?.path.orEmpty(),
-                            studioEditedContent = firstFile?.content.orEmpty(),
-                            statusBannerMessage = "تمت استعادة آخر مشروع محفوظ في AI I.Z."
-                        )
-                    }
+                    userDataRepository.getStudioProject(latest.id)
+                        .onSuccess { project ->
+                            if (project != null && _workspace.value.activeStudioProject == null) {
+                                val firstFile = project.files.firstOrNull { it.isEntrypoint }
+                                    ?: project.files.firstOrNull()
+                                _workspace.update {
+                                    it.copy(
+                                        activeStudioProject = project,
+                                        studioSelectedFilePath = firstFile?.path.orEmpty(),
+                                        studioEditedContent = firstFile?.content.orEmpty(),
+                                        statusBannerMessage = "تمت استعادة آخر مشروع محفوظ في AI I.Z."
+                                    )
+                                }
+                            }
+                        }
+                        .onFailure { error ->
+                            Log.w(TAG, "Latest Studio project detail restore unavailable", error)
+                        }
                 }
             }.onFailure { error ->
-                Log.w(TAG, "Studio project restore unavailable", error)
+                Log.w(TAG, "Studio project library restore unavailable", error)
             }
         }
         if (gitHubRepo.hasToken()) {

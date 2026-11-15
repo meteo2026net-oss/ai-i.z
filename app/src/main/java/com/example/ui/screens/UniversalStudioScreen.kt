@@ -286,7 +286,7 @@ private fun SavedStudioProjectsTab(
             }
         } else {
             items(projects, key = { it.id }) { project ->
-                CommandCard(borderColor = if (project.id == activeProjectId) ElectricCyan.copy(alpha = 0.7f) else null) {
+                CommandCard(borderColor = if (project.id == activeProjectId) ElectricCyan.copy(alpha = 0.7f) else MaterialTheme.colorScheme.outline.copy(alpha = 0.45f)) {
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.SpaceBetween,

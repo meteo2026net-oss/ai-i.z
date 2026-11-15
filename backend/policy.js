@@ -1,6 +1,6 @@
 "use strict";
 
-const BLOCKED_SQL = /\b(?:insert|update|delete|merge|upsert|truncate|alter|create|drop|grant|revoke|comment|copy|call|do|execute|prepare|deallocate|vacuum|analyze|refresh|listen|notify|set|reset|into|for\s+(?:update|share)|pg_sleep|pg_read_file|pg_write_file|pg_ls_dir|dblink|lo_import|lo_export|nextval|setval)\b/i;
+const BLOCKED_SQL = /\b(?:insert|update|delete|merge|upsert|truncate|alter|create|drop|grant|revoke|comment|copy|call|do|execute|prepare|deallocate|vacuum|analyze|refresh|listen|notify|set|reset|into|for\s+(?:update|share)|pg_sleep|pg_read_file|pg_read_binary_file|pg_write_file|pg_ls_dir|pg_ls_logdir|pg_ls_waldir|pg_cancel_backend|pg_terminate_backend|pg_notify|pg_advisory_lock|pg_advisory_unlock|pg_try_advisory_lock|pg_reload_conf|pg_rotate_logfile|pg_stat_reset|set_config|dblink|lo_import|lo_export|nextval|setval)\b/i;
 const TARGET_ID = /^[a-zA-Z][a-zA-Z0-9_-]{0,63}$/;
 
 function validateTargetId(value) {

@@ -740,6 +740,9 @@ private fun AuthenticatedMetraShell(
                                 composable("universal_studio") {
                                     UniversalStudioScreen(
                                         activeProject = workspace.activeStudioProject,
+                                        savedProjects = workspace.savedStudioProjects,
+                                        onOpenSavedProject = { viewModel.openSavedStudioProject(it) },
+                                        onRefreshSavedProjects = { viewModel.refreshSavedStudioProjects() },
                                         isGenerating = workspace.isGeneratingStudioProject,
                                         selectedFilePath = workspace.studioSelectedFilePath,
                                         editedFileContent = workspace.studioEditedContent,

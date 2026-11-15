@@ -252,6 +252,13 @@ private fun AuthenticatedMetraShell(
         TopNavTab("files", "المستودع", Icons.Rounded.FolderOpen),
         TopNavTab("database", "القاعدة", Icons.Rounded.Storage)
     )
+    // Keep the phone navigation focused on the three destinations in the approved
+    // mobile reference. Secondary tools remain available from the dashboard and desktop rail.
+    val mobileTabs = listOf(
+        TopNavTab("dashboard", "الرئيسية", Icons.Rounded.Dashboard),
+        TopNavTab("linked_accounts", "مشاريعي", Icons.Rounded.FolderOpen),
+        TopNavTab("chat", "المساعد", Icons.Rounded.AutoAwesome)
+    )
     val isTopTab = primaryTabs.any { it.route == currentRoute }
 
     val screenTitles = mapOf(
@@ -362,7 +369,7 @@ private fun AuthenticatedMetraShell(
                 bottomBar = {
                     if (!useRail) {
                         NavigationBar(windowInsets = WindowInsets.navigationBars) {
-                            primaryTabs.forEach { tab ->
+                            mobileTabs.forEach { tab ->
                                 NavigationBarItem(
                                     selected = currentRoute == tab.route,
                                     onClick = { navigateTo(tab.route) },

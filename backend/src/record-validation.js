@@ -3,6 +3,40 @@ const stringList = (value, maxItems) => Array.isArray(value) && value.length <= 
 
 export function validateUserRecord(collection, data) {
   if (!data || typeof data !== 'object' || Array.isArray(data)) return false;
+  if (collection === 'studio_projects') {
+    const files = data.files;
+    if (!boundedString(data.projectName, 1, 120) ||
+        !boundedString(data.environment, 1, 64) ||
+        !boundedString(data.primaryLanguage, 1, 32) ||
+        !boundedString(data.description, 0, 4000) ||
+        !Array.isArray(files) || files.length < 1 || files.length > 24) return false;
+    let totalBytes = 0;
+    let entrypoints = 0;
+    const paths = new Set();
+    for (const file of files) {
+      if (!file || typeof file !== 'object' || Array.isArray(file) ||
+          !boundedString(file.path, 1, 240) ||
+          !boundedString(file.language, 1, 32) ||
+          !boundedString(file.content, 0, 48000) ||
+          !boundedString(file.purpose, 0, 500) ||
+          typeof file.isEntrypoint !== 'boolean') return false;
+      if (file.isEntrypoint) entrypoints++;
+      if (file.path.startsWith('/') || file.path.includes('\\\\') ||
+          file.path.split('/').some(part => !part || part === '.' || part === '..') ||
+          /(^|\\/)\\.git(\\/|$)/i.test(file.path) ||
+          /(^|\\/)\\.env(?:\\.|$)/i.test(file.path) && !/\\.env\\.(?:example|template|sample)$/i.test(file.path) ||
+          /\\.(?:pem|key|p12|pfx|jks|keystore)$/i.test(file.path)) return false;
+      const key = file.path.toLowerCase();
+      if (paths.has(key)) return false;
+      paths.add(key);
+      totalBytes += Buffer.byteLength(file.content, 'utf8');
+      if (totalBytes > 220000) return false;
+    }
+    return entrypoints === 1 &&
+      boundedString(data.buildInstructions, 0, 2000) &&
+      boundedString(data.runInstructions, 0, 2000) &&
+      boundedString(data.testInstructions, 0, 2000);
+  }
   if (collection === 'settings') return boundedString(data.activeRepo, 0, 128) &&
     boundedString(data.activeBranch, 0, 128) && ['gemini', 'openai'].includes(data.aiProvider) &&
     boundedString(data.aiModel, 1, 64) && boundedString(data.backendUrl, 0, 300) &&

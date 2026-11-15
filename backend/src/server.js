@@ -26,7 +26,7 @@ const app = express();
 
 app.disable('x-powered-by');
 app.use(helmet());
-app.use(express.json({ limit: '16kb', strict: true }));
+app.use(express.json({ limit: '64kb', strict: true }));
 app.use('/api/auth', rateLimit({ windowMs: 60_000, limit: 20, standardHeaders: 'draft-8', legacyHeaders: false }));
 app.use('/api', rateLimit({ windowMs: 60_000, limit: 120, standardHeaders: 'draft-8', legacyHeaders: false }));
 
@@ -182,6 +182,68 @@ app.post('/api/auth/logout', requireSession, async (req, res) => {
 
 app.get('/api/me', requireSession, (req, res) => {
   res.json({ user: { id: req.user.id, email: req.user.email, displayName: req.user.display_name, avatarUrl: req.user.avatar_url } });
+});
+
+
+const allowedCollections = new Set(['settings', 'tasks', 'approvals', 'chat_messages', 'operation_logs']);
+const validRecordId = value => typeof value === 'string' && value.length >= 1 && value.length <= 128 && /^[A-Za-z0-9_.:-]+$/.test(value);
+
+app.get('/api/data/:collection', requireSession, async (req, res) => {
+  const { collection } = req.params;
+  if (!allowedCollections.has(collection)) return jsonError(res, 404, 'COLLECTION_NOT_FOUND', 'The requested collection is not available.');
+  const limit = Math.min(Math.max(Number(req.query.limit) || 100, 1), 200);
+  const result = await pool.query(
+    'SELECT record_id, payload, created_at, updated_at FROM user_records WHERE user_id=$1 AND collection=$2 ORDER BY updated_at DESC LIMIT $3',
+    [req.user.id, collection, limit]
+  );
+  res.json({ records: result.rows.map(row => ({ id: row.record_id, ...row.payload, createdAt: row.created_at, updatedAt: row.updated_at })) });
+});
+
+app.get('/api/data/:collection/:recordId', requireSession, async (req, res) => {
+  const { collection, recordId } = req.params;
+  if (!allowedCollections.has(collection) || !validRecordId(recordId)) return jsonError(res, 404, 'RECORD_NOT_FOUND', 'The requested record does not exist.');
+  const result = await pool.query(
+    'SELECT record_id, payload, created_at, updated_at FROM user_records WHERE user_id=$1 AND collection=$2 AND record_id=$3',
+    [req.user.id, collection, recordId]
+  );
+  if (!result.rowCount) return jsonError(res, 404, 'RECORD_NOT_FOUND', 'The requested record does not exist.');
+  const row = result.rows[0];
+  res.json({ record: { id: row.record_id, ...row.payload, createdAt: row.created_at, updatedAt: row.updated_at } });
+});
+
+app.put('/api/data/:collection/:recordId', requireSession, async (req, res) => {
+  const { collection, recordId } = req.params;
+  if (!allowedCollections.has(collection) || !validRecordId(recordId)) return jsonError(res, 400, 'INVALID_RECORD', 'The collection or record identifier is invalid.');
+  if (!req.body || typeof req.body !== 'object' || Array.isArray(req.body)) return jsonError(res, 400, 'INVALID_RECORD', 'A JSON object is required.');
+  const payload = { ...req.body, userId: req.user.id };
+  delete payload.id;
+  delete payload.createdAt;
+  delete payload.updatedAt;
+  const result = await pool.query(
+    `INSERT INTO user_records(user_id,collection,record_id,payload)
+     VALUES($1,$2,$3,$4::jsonb)
+     ON CONFLICT(user_id,collection,record_id) DO UPDATE
+       SET payload=EXCLUDED.payload, updated_at=now()
+     RETURNING record_id,payload,created_at,updated_at`,
+    [req.user.id, collection, recordId, JSON.stringify(payload)]
+  );
+  const row = result.rows[0];
+  await pool.query(
+    'INSERT INTO security_audit_events(user_id,event_type,details) VALUES($1,$2,$3::jsonb)',
+    [req.user.id, 'data_write', JSON.stringify({ collection, recordId })]
+  );
+  res.json({ record: { id: row.record_id, ...row.payload, createdAt: row.created_at, updatedAt: row.updated_at } });
+});
+
+app.delete('/api/data/:collection/:recordId', requireSession, async (req, res) => {
+  const { collection, recordId } = req.params;
+  if (!allowedCollections.has(collection) || !validRecordId(recordId)) return jsonError(res, 404, 'RECORD_NOT_FOUND', 'The requested record does not exist.');
+  await pool.query('DELETE FROM user_records WHERE user_id=$1 AND collection=$2 AND record_id=$3', [req.user.id, collection, recordId]);
+  await pool.query(
+    'INSERT INTO security_audit_events(user_id,event_type,details) VALUES($1,$2,$3::jsonb)',
+    [req.user.id, 'data_delete', JSON.stringify({ collection, recordId })]
+  );
+  res.status(204).end();
 });
 
 app.use((_req, res) => jsonError(res, 404, 'NOT_FOUND', 'The requested API route does not exist.'));

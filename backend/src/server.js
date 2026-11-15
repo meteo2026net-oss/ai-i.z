@@ -19,6 +19,9 @@ const issuer = process.env.ACCESS_TOKEN_ISSUER;
 const audience = process.env.ACCESS_TOKEN_AUDIENCE;
 const accessTtl = Number(process.env.ACCESS_TOKEN_TTL_SECONDS || 600);
 const refreshDays = Number(process.env.REFRESH_TOKEN_TTL_DAYS || 30);
+if (!Number.isInteger(accessTtl) || accessTtl < 60 || accessTtl > 1800) throw new Error('ACCESS_TOKEN_TTL_SECONDS must be between 60 and 1800.');
+if (!Number.isInteger(refreshDays) || refreshDays < 1 || refreshDays > 90) throw new Error('REFRESH_TOKEN_TTL_DAYS must be between 1 and 90.');
+if (process.env.NODE_ENV === 'production' && !issuer.startsWith('https://')) throw new Error('ACCESS_TOKEN_ISSUER must use HTTPS in production.');
 const app = express();
 
 app.disable('x-powered-by');
@@ -78,6 +81,8 @@ app.post('/api/auth/session', async (req, res) => {
   const client = await pool.connect();
   try {
     await client.query('BEGIN');
+    // Serialize first-time provisioning for this Google subject to avoid duplicate-account races.
+    await client.query('SELECT pg_advisory_xact_lock(hashtextextended($1, 0))', [claims.sub]);
     const identity = await client.query(
       `SELECT u.* FROM external_identities e JOIN app_users u ON u.id=e.user_id
        WHERE e.provider='google' AND e.provider_subject=$1 FOR UPDATE OF u`, [claims.sub]);

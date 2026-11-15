@@ -70,9 +70,11 @@ Returns only the schema metadata the authenticated user is authorized to inspect
 The identity API implements these authenticated endpoints:
 
 - `POST /api/runner/approvals` — create a pending request with `actionType`, exact `targetResource`, JSON `operation`, and human-readable `preview`. The server canonicalizes the operation and stores its SHA-256 hash; requests expire after ten minutes.
+- `GET /api/runner/approvals` — list only the caller's own approval records.
 - `GET /api/runner/approvals/{approvalId}` — retrieve only the caller's own approval metadata.
 - `POST /api/runner/approvals/{approvalId}/decision` — explicitly approve or reject a pending request, with an optional bounded note.
 - `POST /api/runner/approvals/{approvalId}/consume` — atomically consume an approved request once, but only when action, target, caller, and operation hash match the stored record. It returns the stored operation to the authenticated caller.
+- `POST /api/runner/approvals/{approvalId}/report` — store a client-reported success/failure after consumption. The response explicitly sets `executionVerified: false`; this is an audit note, not proof that the remote operation actually succeeded.
 
 These endpoints provide the approval data layer, not an execution engine. The Runner's execution endpoints remain disabled until they call the consume endpoint and independently enforce the exact approved operation, target isolation, and action-specific policy.
 

@@ -8,7 +8,7 @@ The application is designed to guide a project from idea discovery and requireme
 
 - Native Android application (Kotlin + Jetpack Compose).
 - Google sign-in through Android Credential Manager, exchanged directly with the AI I.Z API for app-owned sessions (Firebase Authentication is not used by the login flow).
-- Firestore persistence and App Check remain Firebase-dependent in this migration stage; their replacement and removal are not complete.
+- User settings, tasks, approvals, chat messages, and operation logs are being moved to the AI I.Z PostgreSQL API with session-derived ownership and periodic polling. Legacy Firestore models, rules, App Check, Firebase AI, dependencies, and project configuration still remain in the repository and require final cleanup/migration.
 - AI orchestration and provider failover components.
 - GitHub repository, branch, commit, pull-request, and Actions integration.
 - Backend Runner API client for health checks, tests, schema inspection, read-only SQL, and explicitly approved database operations.
@@ -65,12 +65,12 @@ Then run the Gradle test command in another terminal. GitHub Actions performs th
 
 ## Remaining Firebase-backed data setup
 
-Firebase Authentication is no longer part of the login flow on the no-Firebase session branch. Google identity is verified by the AI I.Z API. The existing Firestore repositories and App Check setup still depend on Firebase during the staged data migration.
+Firebase Authentication is no longer part of the login flow on the no-Firebase session branch. Google identity is verified by the AI I.Z API. The main app data repository now targets the AI I.Z PostgreSQL API, but legacy Firebase models, App Check and Firebase AI integrations remain until their usages and data migration are completed.
 
 1. Keep the existing Firebase project configuration only while Firestore/App Check-backed features remain in use.
 2. Do not configure Firebase Authentication as the app login provider.
 3. Deploy and test `firestore.rules` for the existing Firestore data until the PostgreSQL data migration is complete.
-4. Do not remove `google-services.json`, Firebase dependencies, App Check, or Firestore rules until all data consumers have a tested PostgreSQL replacement.
+4. Do not remove `google-services.json`, Firebase dependencies, App Check, or Firestore rules until all remaining Firebase AI/App Check/model usages are replaced and historical data migration is verified.
 
 The repository intentionally does not contain a production Firebase service-account key or user credentials. Never put privileged service-account credentials in the Android application.
 

@@ -116,7 +116,7 @@ data class WorkspaceUiState(
     val currentGoogleName: String = "",
     val notificationPrefs: AgentNotificationPrefs = AgentNotificationPrefs(),
     val activeStudioProject: com.example.domain.model.StudioProjectSpec? = null,
-    val savedStudioProjects: List<com.example.domain.model.StudioProjectSpec> = emptyList(),
+    val savedStudioProjects: List<com.example.domain.model.StudioProjectSummary> = emptyList(),
     val isGeneratingStudioProject: Boolean = false,
     val studioSelectedFilePath: String = "",
     val studioEditedContent: String = "",
@@ -2153,16 +2153,40 @@ class MetraAgentViewModel(
         }
     }
 
+    private var studioProjectOpenRequestId = 0
+
     fun openSavedStudioProject(projectId: String) {
-        val project = _workspace.value.savedStudioProjects.firstOrNull { it.id == projectId } ?: return
-        val firstFile = project.files.firstOrNull { it.isEntrypoint } ?: project.files.firstOrNull()
-        _workspace.update {
-            it.copy(
-                activeStudioProject = project,
-                studioSelectedFilePath = firstFile?.path.orEmpty(),
-                studioEditedContent = firstFile?.content.orEmpty(),
-                statusBannerMessage = "تم فتح المشروع المحفوظ: ${project.projectName}"
-            )
+        if (_workspace.value.savedStudioProjects.none { it.id == projectId }) return
+        val requestId = ++studioProjectOpenRequestId
+        viewModelScope.launch {
+            _workspace.update { it.copy(statusBannerMessage = "جار تحميل ملفات المشروع المحفوظ…") }
+            userDataRepository.getStudioProject(projectId)
+                .onSuccess { project ->
+                    if (requestId != studioProjectOpenRequestId) return@onSuccess
+                    if (project == null) {
+                        _workspace.update {
+                            it.copy(statusBannerMessage = "لم يعد المشروع موجوداً في مكتبتك السحابية.")
+                        }
+                    } else {
+                        val firstFile = project.files.firstOrNull { it.isEntrypoint } ?: project.files.firstOrNull()
+                        _workspace.update {
+                            it.copy(
+                                activeStudioProject = project,
+                                studioSelectedFilePath = firstFile?.path.orEmpty(),
+                                studioEditedContent = firstFile?.content.orEmpty(),
+                                statusBannerMessage = "تم فتح المشروع المحفوظ: ${project.projectName}"
+                            )
+                        }
+                    }
+                }
+                .onFailure { error ->
+                    if (requestId == studioProjectOpenRequestId) {
+                        Log.w(TAG, "Studio project detail load failed", error)
+                        _workspace.update {
+                            it.copy(statusBannerMessage = "تعذر تحميل ملفات المشروع: ${error.localizedMessage ?: "خطأ اتصال"}")
+                        }
+                    }
+                }
         }
     }
 
@@ -2195,7 +2219,16 @@ class MetraAgentViewModel(
                     _workspace.update { state ->
                         val withoutCurrent = state.savedStudioProjects.filterNot { it.id == project.id }
                         state.copy(
-                            savedStudioProjects = listOf(project) + withoutCurrent,
+                            savedStudioProjects = listOf(
+                                com.example.domain.model.StudioProjectSummary(
+                                    id = project.id,
+                                    projectName = project.projectName,
+                                    environment = project.environment,
+                                    primaryLanguage = project.primaryLanguage,
+                                    description = project.description,
+                                    fileCount = project.files.size
+                                )
+                            ) + withoutCurrent,
                             statusBannerMessage = "تم حفظ المشروع وملفاته في حساب AI I.Z السحابي."
                         )
                     }

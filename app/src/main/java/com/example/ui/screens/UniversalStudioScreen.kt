@@ -1,5 +1,7 @@
 package com.example.ui.screens
 
+import android.content.ClipData
+import android.content.Intent
 import android.widget.Toast
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -24,6 +26,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
+import androidx.core.content.FileProvider
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
@@ -33,9 +36,12 @@ import com.example.domain.model.DevelopmentEnvironment
 import com.example.domain.model.ModelAdvisorEngine
 import com.example.domain.model.ProgrammingLanguage
 import com.example.domain.model.StudioProjectSpec
+import com.example.data.repository.StudioProjectArchiveExporter
 import com.example.ui.components.CommandCard
 import com.example.ui.components.StatusPill
 import com.example.ui.theme.*
+import java.io.File
+import java.io.FileOutputStream
 
 /**
  * Universal AI Studio Screen (ai i.z)
@@ -209,6 +215,9 @@ fun UniversalStudioScreen(
                     onCopy = {
                         clipboardManager.setText(AnnotatedString(editedFileContent))
                         Toast.makeText(context, "تم نسخ الكود للحافظة", Toast.LENGTH_SHORT).show()
+                    },
+                    onExport = {
+                        activeProject?.let { shareStudioProjectArchive(context, it) }
                     }
                 )
 
@@ -492,6 +501,47 @@ private fun ModelAdvisorTab(
     }
 }
 
+
+private fun shareStudioProjectArchive(
+    context: android.content.Context,
+    project: StudioProjectSpec
+) {
+    try {
+        val exportDirectory = File(context.cacheDir, "studio-exports")
+        if (!exportDirectory.exists() && !exportDirectory.mkdirs()) {
+            throw IllegalStateException("تعذر إنشاء مجلد التصدير.")
+        }
+        val safeName = project.projectName
+            .replace(Regex("[^A-Za-z0-9._-]"), "_")
+            .trim('.')
+            .take(64)
+            .ifBlank { "ai-iz-project" }
+        val archive = File(exportDirectory, "$safeName.zip")
+        FileOutputStream(archive).use { output ->
+            StudioProjectArchiveExporter.writeZip(project, output)
+        }
+
+        val uri = FileProvider.getUriForFile(
+            context,
+            "${context.packageName}.fileprovider",
+            archive
+        )
+        val shareIntent = Intent(Intent.ACTION_SEND).apply {
+            type = "application/zip"
+            putExtra(Intent.EXTRA_STREAM, uri)
+            clipData = ClipData.newUri(context.contentResolver, archive.name, uri)
+            addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+        }
+        context.startActivity(Intent.createChooser(shareIntent, "تصدير مشروع ${project.projectName}"))
+    } catch (error: Exception) {
+        Toast.makeText(
+            context,
+            "تعذر تصدير المشروع: ${error.localizedMessage ?: "خطأ غير معروف"}",
+            Toast.LENGTH_LONG
+        ).show()
+    }
+}
+
 @Composable
 private fun ModelRecommendationCard(
     recommendation: com.example.domain.model.AiModelRecommendation,
@@ -619,7 +669,8 @@ private fun CodeExplorerTab(
     onSelectFile: (path: String) -> Unit,
     onContentChange: (String) -> Unit,
     onSave: () -> Unit,
-    onCopy: () -> Unit
+    onCopy: () -> Unit,
+    onExport: () -> Unit
 ) {
     if (project == null || project.files.isEmpty()) {
         Box(
@@ -692,6 +743,9 @@ private fun CodeExplorerTab(
             }
 
             Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                IconButton(onClick = onExport, modifier = Modifier.size(36.dp)) {
+                    Icon(Icons.Rounded.Share, contentDescription = "تصدير المشروع كملف ZIP", modifier = Modifier.size(18.dp), tint = ElectricCyan)
+                }
                 IconButton(onClick = onCopy, modifier = Modifier.size(36.dp)) {
                     Icon(Icons.Rounded.ContentCopy, contentDescription = "نسخ الكود", modifier = Modifier.size(18.dp))
                 }

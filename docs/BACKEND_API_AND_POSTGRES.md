@@ -2,11 +2,13 @@
 
 ## 1. Current implementation status
 
+The separate AI I.Z identity API in `backend/` issues app-owned Google OIDC sessions and PostgreSQL-backed user records. This is not the Backend Runner implementation. The legacy Android Backend Runner client still uses its separate token setting and is not yet integrated with the AI I.Z session API.
+
 The Android application contains a Retrofit client contract for Backend Runner. This repository does **not** currently contain a deployable Backend Runner server implementation. The endpoints below describe the required server contract; they must not be treated as live services until a server is implemented, deployed over HTTPS, and tested end to end.
 
 ## 2. Required API
 
-All endpoints require an authenticated caller. The server must validate the Firebase ID token (or an explicitly approved equivalent identity provider) and derive the user identity from the verified token. A static shared bearer token alone is not sufficient user authentication.
+All endpoints require an authenticated caller. The server must validate the short-lived AI I.Z access token issued by `backend/` (signature, algorithm, issuer, audience, expiry, subject, and session ID), then confirm that the session remains active and unrevoked in PostgreSQL. It must derive the user identity from the verified token and session record. A Firebase ID token or static shared bearer token is not accepted as a substitute.
 
 ### Health
 
@@ -50,7 +52,7 @@ Use a dedicated database role with read-only transaction permissions. Enforce qu
 
 `POST /api/db/execute-approved`
 
-A client-provided approval identifier is not proof of approval. The server must retrieve and verify the approval record, bind it to the authenticated user, exact target, exact operation hash, expiry, and policy tier, then revalidate the proposed operation immediately before execution. Log the decision and result without logging credentials or sensitive row contents.
+A client-provided approval identifier is not proof of approval. The server must retrieve and verify the approval record from a trusted server-side store, bind it to the authenticated AI I.Z user, exact target, exact operation hash, expiry, and policy tier, then revalidate the proposed operation immediately before execution. A client-supplied approval ID or client-side `ApprovalGuard` result is never sufficient. Log the decision and result without logging credentials or sensitive row contents.
 
 ## 3. Database isolation requirements
 

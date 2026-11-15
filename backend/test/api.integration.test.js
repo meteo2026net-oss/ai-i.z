@@ -144,7 +144,7 @@ test('PostgreSQL API enforces authenticated tenant ownership and record invarian
       description: 'Approval', payloadPreview: '', targetResource: 'owner/repo',
       status: 'pending', decisionNote: ''
     };
-    assert.equal((await api('/api/data/approvals/appr_state', aliceToken, 'PUT', { ...pending, status: 'execution_reported' })).status, 400);
+    assert.equal((await api('/api/data/approvals/appr_state', aliceToken, 'PUT', { ...pending, status: 'execution_reported' })).status, 409);
     assert.equal((await api('/api/data/approvals/appr_state', aliceToken, 'PUT', pending)).status, 200);
     assert.equal((await api('/api/data/approvals/appr_state', aliceToken, 'PUT', { ...pending, status: 'execution_reported' })).status, 409);
     assert.equal((await api('/api/data/approvals/appr_state', aliceToken, 'PUT', { ...pending, status: 'approved' })).status, 200);

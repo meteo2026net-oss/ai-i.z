@@ -156,11 +156,12 @@ app.post('/api/auth/refresh', async (req, res) => {
     }
     const nextId = randomUUID();
     const nextToken = generateRefreshToken();
-    await client.query('UPDATE app_sessions SET revoked_at=now(),replaced_by=$2,last_used_at=now() WHERE id=$1', [row.id,nextId]);
+    // Insert the replacement first so the immediate replaced_by foreign key is valid.
     await client.query(
       `INSERT INTO app_sessions(id,user_id,family_id,refresh_token_hash,expires_at)
        VALUES($1,$2,$3,$4,$5)`,
       [nextId,row.uid,row.family_id,hashRefreshToken(nextToken),refreshExpiry()]);
+    await client.query('UPDATE app_sessions SET revoked_at=now(),replaced_by=$2,last_used_at=now() WHERE id=$1', [row.id,nextId]);
     await client.query(
       `INSERT INTO security_audit_events(user_id,event_type,session_id) VALUES($1,'refresh',$2)`,
       [row.uid,nextId]);

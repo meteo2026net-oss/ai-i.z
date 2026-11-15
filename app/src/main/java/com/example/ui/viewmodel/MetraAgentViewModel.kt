@@ -2261,7 +2261,7 @@ class MetraAgentViewModel(
                 onFailure = { error ->
                     Log.w(TAG, "Studio project cloud save failed", error)
                     _workspace.update {
-                        it.copy(statusBannerMessage = "حُفظت التعديلات محلياً في مساحة العمل الحالية، لكن تعذر الحفظ السحابي: ${error.localizedMessage ?: "خطأ اتصال"}")
+                        it.copy(statusBannerMessage = "التعديلات ما زالت في مساحة العمل الحالية فقط ولم تُحفظ سحابياً: ${error.localizedMessage ?: "خطأ اتصال"}")
                     }
                     false
                 }

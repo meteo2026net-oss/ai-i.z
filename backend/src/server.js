@@ -4,12 +4,13 @@ import rateLimit from 'express-rate-limit';
 import { Pool } from 'pg';
 import { OAuth2Client } from 'google-auth-library';
 import { SignJWT, jwtVerify } from 'jose';
-import { createHash, randomBytes, randomUUID, timingSafeEqual } from 'node:crypto';
+import { randomUUID } from 'node:crypto';
+import { generateRefreshToken, hashRefreshToken, isValidSigningSecretHex } from './security.js';
 
 const required = ['DATABASE_URL', 'GOOGLE_OIDC_CLIENT_ID', 'ACCESS_TOKEN_HMAC_SECRET_HEX', 'ACCESS_TOKEN_ISSUER', 'ACCESS_TOKEN_AUDIENCE'];
 for (const name of required) if (!process.env[name]) throw new Error(`Missing required environment variable: ${name}`);
 const secretHex = process.env.ACCESS_TOKEN_HMAC_SECRET_HEX;
-if (!/^[a-f0-9]{64}$/i.test(secretHex)) throw new Error('ACCESS_TOKEN_HMAC_SECRET_HEX must be exactly 32 random bytes encoded as 64 hex characters.');
+if (!isValidSigningSecretHex(secretHex)) throw new Error('ACCESS_TOKEN_HMAC_SECRET_HEX must be exactly 32 random bytes encoded as 64 hex characters.');
 
 const pool = new Pool({ connectionString: process.env.DATABASE_URL, max: 10, ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: true } : undefined });
 const googleClient = new OAuth2Client(process.env.GOOGLE_OIDC_CLIENT_ID);
@@ -26,9 +27,6 @@ app.use(express.json({ limit: '16kb', strict: true }));
 app.use('/api/auth', rateLimit({ windowMs: 60_000, limit: 20, standardHeaders: 'draft-8', legacyHeaders: false }));
 app.use('/api', rateLimit({ windowMs: 60_000, limit: 120, standardHeaders: 'draft-8', legacyHeaders: false }));
 
-const sha256 = value => createHash('sha256').update(value, 'utf8').digest();
-const safeEqual = (a, b) => a.length === b.length && timingSafeEqual(a, b);
-const newRefreshToken = () => randomBytes(48).toString('base64url');
 const refreshExpiry = () => new Date(Date.now() + refreshDays * 86400_000);
 const jsonError = (res, status, code, message) => res.status(status).json({ error: { code, message } });
 
@@ -105,11 +103,11 @@ app.post('/api/auth/session', async (req, res) => {
     if (user.status !== 'active') throw Object.assign(new Error('Account disabled'), { statusCode: 403 });
     const sessionId = randomUUID();
     const familyId = randomUUID();
-    const refreshToken = newRefreshToken();
+    const refreshToken = generateRefreshToken();
     await client.query(
       `INSERT INTO app_sessions(id,user_id,family_id,refresh_token_hash,expires_at)
        VALUES($1,$2,$3,$4,$5)`,
-      [sessionId, user.id, familyId, sha256(refreshToken), refreshExpiry()]);
+      [sessionId, user.id, familyId, hashRefreshToken(refreshToken), refreshExpiry()]);
     await client.query(
       `INSERT INTO security_audit_events(user_id,event_type,session_id) VALUES($1,'login', $2)`,
       [user.id, sessionId]);
@@ -137,7 +135,7 @@ app.post('/api/auth/refresh', async (req, res) => {
     const found = await client.query(
       `SELECT s.*,u.id AS uid,u.email,u.display_name,u.avatar_url,u.status
        FROM app_sessions s JOIN app_users u ON u.id=s.user_id
-       WHERE s.refresh_token_hash=$1 FOR UPDATE OF s,u`, [sha256(token)]);
+       WHERE s.refresh_token_hash=$1 FOR UPDATE OF s,u`, [hashRefreshToken(token)]);
     const row = found.rows[0];
     if (!row) { await client.query('ROLLBACK'); return jsonError(res, 401, 'REFRESH_REJECTED', 'The refresh token is invalid. Sign in again.'); }
     if (row.revoked_at) {

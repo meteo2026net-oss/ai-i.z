@@ -81,7 +81,7 @@ class UserDataRepository(context: Context) {
             block("Bearer $token")
         } catch (error: HttpException) {
             if (error.code() != 401) throw error
-            AuthSessionRepository(vault).restoreSession().getOrThrow()
+            AuthSessionRepository(vault).restoreSession(expectedAccessToken = token).getOrThrow()
             token = vault.getSecret(SecretVault.KEY_AUTH_ACCESS_TOKEN)
             require(token.isNotBlank()) { "تعذر تجديد جلسة AI I.Z." }
             block("Bearer $token")

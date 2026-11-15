@@ -43,3 +43,44 @@ test('operation logs accept known categories and error outcomes', () => {
   assert.equal(validateUserRecord('operation_logs', log), true);
   assert.equal(validateUserRecord('operation_logs', { ...log, outcome: 'anything' }), false);
 });
+
+const validStudioProject = {
+  projectName: 'sample-app',
+  environment: 'WEB_REACT_NEXT',
+  primaryLanguage: 'TYPESCRIPT',
+  description: 'A small sample',
+  files: [
+    { path: 'src/index.ts', language: 'TYPESCRIPT', content: 'export {}', purpose: 'entry', isEntrypoint: true },
+    { path: '.env.example', language: 'TEXT', content: 'PUBLIC_API_URL=', purpose: 'sample config', isEntrypoint: false }
+  ],
+  buildInstructions: 'npm run build',
+  runInstructions: 'npm run dev',
+  testInstructions: 'npm test'
+};
+
+test('validates durable Studio projects and rejects unsafe file manifests', () => {
+  assert.equal(validateUserRecord('studio_projects', validStudioProject), true);
+  assert.equal(validateUserRecord('studio_projects', {
+    ...validStudioProject,
+    files: [{ ...validStudioProject.files[0], path: '../outside.ts' }]
+  }), false);
+  assert.equal(validateUserRecord('studio_projects', {
+    ...validStudioProject,
+    files: [
+      validStudioProject.files[0],
+      { ...validStudioProject.files[1], path: 'SRC/INDEX.TS' }
+    ]
+  }), false);
+  assert.equal(validateUserRecord('studio_projects', {
+    ...validStudioProject,
+    files: [{ ...validStudioProject.files[0], path: '.env.local' }]
+  }), false);
+  assert.equal(validateUserRecord('studio_projects', {
+    ...validStudioProject,
+    files: validStudioProject.files.map((file, index) => ({ ...file, isEntrypoint: index === 0 || index === 1 }))
+  }), false);
+  assert.equal(validateUserRecord('studio_projects', {
+    ...validStudioProject,
+    files: [{ ...validStudioProject.files[0], content: 'x'.repeat(48001) }]
+  }), false);
+});

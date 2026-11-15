@@ -3,6 +3,7 @@ package com.example.data.repository
 import com.example.domain.model.ProgrammingLanguage
 import com.example.domain.model.StudioFileItem
 import com.squareup.moshi.Moshi
+import java.util.Locale
 
 /**
  * Validates untrusted AI output before it becomes a project workspace.
@@ -41,7 +42,7 @@ object StudioAiProjectResponseParser {
             val path = (item["path"] as? String)?.trim()
                 ?: throw IllegalArgumentException("الملف رقم ${index + 1} لا يحتوي على path.")
             validatePath(path)
-            val normalizedPath = path.lowercase()
+            val normalizedPath = path.lowercase(Locale.ROOT)
             require(seenPaths.add(normalizedPath)) { "يوجد مسار ملف مكرر: $path" }
 
             val source = item["content"] as? String

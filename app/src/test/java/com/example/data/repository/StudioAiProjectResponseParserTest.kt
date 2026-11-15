@@ -5,6 +5,7 @@ import org.junit.Assert.assertEquals
 import org.junit.Assert.assertThrows
 import org.junit.Assert.assertTrue
 import org.junit.Test
+import java.util.Locale
 
 class StudioAiProjectResponseParserTest {
 
@@ -113,6 +114,27 @@ class StudioAiProjectResponseParserTest {
         val response = " ".repeat(260_001)
         assertThrows(IllegalArgumentException::class.java) {
             StudioAiProjectResponseParser.parseFiles(response, ProgrammingLanguage.KOTLIN)
+        }
+    }
+
+
+    @Test
+    fun rejectsCaseInsensitiveDuplicatePathsUnderTurkishDefaultLocale() {
+        val previousLocale = Locale.getDefault()
+        try {
+            Locale.setDefault(Locale.forLanguageTag("tr-TR"))
+            val response = """
+                {"files":[
+                  {"path":"src/IMAGE.kt","content":"one","isEntrypoint":true},
+                  {"path":"src/image.kt","content":"two","isEntrypoint":false}
+                ]}
+            """.trimIndent()
+
+            assertThrows(IllegalArgumentException::class.java) {
+                StudioAiProjectResponseParser.parseFiles(response, ProgrammingLanguage.KOTLIN)
+            }
+        } finally {
+            Locale.setDefault(previousLocale)
         }
     }
 

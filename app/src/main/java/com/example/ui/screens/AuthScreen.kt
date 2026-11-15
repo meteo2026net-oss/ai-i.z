@@ -60,18 +60,16 @@ import com.google.android.libraries.identity.googleid.GetGoogleIdOption
 import com.google.android.libraries.identity.googleid.GetSignInWithGoogleOption
 import com.google.android.libraries.identity.googleid.GoogleIdTokenCredential
 import com.google.android.libraries.identity.googleid.GoogleIdTokenCredential.Companion.TYPE_GOOGLE_ID_TOKEN_CREDENTIAL
-import com.google.firebase.Firebase
-import com.google.firebase.auth.GoogleAuthProvider
-import com.google.firebase.auth.auth
+import com.example.core.security.SecretVault
+import com.example.data.repository.AuthSessionRepository
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.tasks.await
 
 private const val AUTH_TAG = "MetraAuth"
 
 @Composable
 fun AuthScreen(
-    onAuthSuccess: () -> Unit
+    onAuthSuccess: (String) -> Unit
 ) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
@@ -141,7 +139,7 @@ fun AuthScreen(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 StatusPill("حماية 3 مستويات", EmeraldSuccess, Icons.Rounded.Security)
-                StatusPill("مزامنة Firestore", ElectricCyan, Icons.Rounded.Terminal)
+                StatusPill("هوية AI I.Z", ElectricCyan, Icons.Rounded.Terminal)
             }
 
             CommandCard {
@@ -189,9 +187,9 @@ fun AuthScreen(
                         onGoogleSignInClicked(
                             context = context,
                             credentialManager = credentialManager,
-                            onAuthSuccess = {
+                            onAuthSuccess = { userId ->
                                 isLoading = false
-                                onAuthSuccess()
+                                onAuthSuccess(userId)
                             },
                             onAuthError = { msg ->
                                 isLoading = false
@@ -228,39 +226,43 @@ fun AuthScreen(
 fun attemptAutoSignIn(
     context: Context,
     credentialManager: CredentialManager,
-    onAuthSuccess: () -> Unit,
+    onAuthSuccess: (String) -> Unit,
     onUnauthenticated: () -> Unit,
     scope: CoroutineScope
 ) {
-    if (Firebase.auth.currentUser != null) {
-        onAuthSuccess()
-        return
-    }
-    val clientId = try {
-        context.getString(context.resources.getIdentifier("default_web_client_id", "string", context.packageName).takeIf { it != 0 } ?: throw IllegalStateException("default_web_client_id is not configured"))
-    } catch (_: Exception) {
-        onUnauthenticated()
-        return
-    }
-    val googleIdOption = GetGoogleIdOption.Builder()
-        .setFilterByAuthorizedAccounts(true)
-        .setServerClientId(clientId)
-        .setAutoSelectEnabled(true)
-        .build()
-
-    val request = GetCredentialRequest.Builder()
-        .addCredentialOption(googleIdOption)
-        .build()
-
     scope.launch {
+        val repository = AuthSessionRepository(SecretVault(context))
+        val restored = repository.restoreSession()
+        if (restored.isSuccess) {
+            onAuthSuccess(restored.getOrThrow())
+            return@launch
+        }
+
+        val clientId = runCatching {
+            context.getString(
+                context.resources.getIdentifier("default_web_client_id", "string", context.packageName)
+                    .takeIf { it != 0 } ?: throw IllegalStateException("default_web_client_id is not configured")
+            )
+        }.getOrNull()
+        if (clientId.isNullOrBlank()) {
+            onUnauthenticated()
+            return@launch
+        }
+
         try {
+            val option = GetGoogleIdOption.Builder()
+                .setFilterByAuthorizedAccounts(true)
+                .setServerClientId(clientId)
+                .setAutoSelectEnabled(true)
+                .build()
+            val request = GetCredentialRequest.Builder().addCredentialOption(option).build()
             val result = credentialManager.getCredential(context, request)
             val credential = result.credential
             if (credential is CustomCredential && credential.type == TYPE_GOOGLE_ID_TOKEN_CREDENTIAL) {
                 val idToken = GoogleIdTokenCredential.createFrom(credential.data).idToken
-                val authCredential = GoogleAuthProvider.getCredential(idToken, null)
-                Firebase.auth.signInWithCredential(authCredential).await()
-                onAuthSuccess()
+                repository.signInWithGoogleIdToken(idToken)
+                    .onSuccess(onAuthSuccess)
+                    .onFailure { onUnauthenticated() }
             } else {
                 onUnauthenticated()
             }
@@ -273,13 +275,16 @@ fun attemptAutoSignIn(
 fun onGoogleSignInClicked(
     context: Context,
     credentialManager: CredentialManager,
-    onAuthSuccess: () -> Unit,
+    onAuthSuccess: (String) -> Unit,
     onAuthError: (String) -> Unit,
     scope: CoroutineScope,
     onAuthCancelled: () -> Unit = {}
 ) {
     val clientId = try {
-        context.getString(context.resources.getIdentifier("default_web_client_id", "string", context.packageName).takeIf { it != 0 } ?: throw IllegalStateException("default_web_client_id is not configured"))
+        context.getString(
+            context.resources.getIdentifier("default_web_client_id", "string", context.packageName)
+                .takeIf { it != 0 } ?: throw IllegalStateException("default_web_client_id is not configured")
+        )
     } catch (_: Exception) {
         onAuthError("إعدادات Google Sign-In غير مكتملة (default_web_client_id مفقود).")
         return
@@ -295,9 +300,12 @@ fun onGoogleSignInClicked(
             val credential = result.credential
             if (credential is CustomCredential && credential.type == TYPE_GOOGLE_ID_TOKEN_CREDENTIAL) {
                 val idToken = GoogleIdTokenCredential.createFrom(credential.data).idToken
-                val authCredential = GoogleAuthProvider.getCredential(idToken, null)
-                Firebase.auth.signInWithCredential(authCredential).await()
-                onAuthSuccess()
+                AuthSessionRepository(SecretVault(context)).signInWithGoogleIdToken(idToken)
+                    .onSuccess(onAuthSuccess)
+                    .onFailure { error ->
+                        Log.e(AUTH_TAG, "AI I.Z session exchange failed", error)
+                        onAuthError(error.localizedMessage ?: "تعذر ربط حساب Google بخادم AI I.Z.")
+                    }
             } else {
                 onAuthError("نوع بيانات اعتماد غير متوقع.")
             }

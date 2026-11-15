@@ -27,6 +27,7 @@ import retrofit2.converter.moshi.MoshiConverterFactory
 import java.text.SimpleDateFormat
 import java.util.Locale
 import java.util.Date
+import java.util.TimeZone
 import java.util.UUID
 import java.util.concurrent.TimeUnit
 
@@ -55,7 +56,7 @@ class UserDataRepository(context: Context) {
             }
             override fun toJson(writer: com.squareup.moshi.JsonWriter, value: Date?) {
                 if (value == null) writer.nullValue()
-                else writer.value(value.toInstant().toString())
+                else writer.value(SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'", Locale.US).apply { timeZone = TimeZone.getTimeZone("UTC") }.format(value))
             }
         })
         .addLast(KotlinJsonAdapterFactory())

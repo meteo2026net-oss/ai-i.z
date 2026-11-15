@@ -71,7 +71,7 @@ The Android client only defines the Backend Runner API contract. A compatible se
 - [Backend API and isolated PostgreSQL contract](docs/BACKEND_API_AND_POSTGRES.md)
 - [Setup and deployment guide](docs/SETUP_AND_DEPLOY_GUIDE.md)
 
-The legacy Backend Runner client still has its own token-based contract and is not yet migrated to AI I.Z sessions. The new `backend/` API independently verifies Google OIDC and issues AI I.Z sessions. Do not assume the Backend Runner is protected by the new session system until that integration is completed.
+The Android Backend Runner client now sends the current AI I.Z access token instead of a separate static token. A compatible Runner server must validate the session against the AI I.Z identity API; no deployable Runner server is included yet. The new `backend/` API independently verifies Google OIDC and issues AI I.Z sessions. Do not assume the Backend Runner is protected by the new session system until that integration is completed.
 
 ## Security and approvals
 

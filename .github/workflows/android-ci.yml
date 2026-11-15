@@ -34,6 +34,11 @@ jobs:
         with:
           node-version: '22'
 
+      - name: Run Backend Runner policy tests and syntax validation
+        run: |
+          node --test backend/policy.test.js
+          node --check backend/server.js
+
       - name: Set up Gradle
         uses: gradle/actions/setup-gradle@v4
 

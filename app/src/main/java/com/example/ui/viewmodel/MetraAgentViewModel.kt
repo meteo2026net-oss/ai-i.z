@@ -44,7 +44,6 @@ import com.example.domain.model.GitHubWorkflowRun
 import com.example.domain.model.OperationLog
 import com.example.domain.model.UserSettings
 import com.example.worker.AgentLoopWorker
-import com.google.firebase.firestore.FirebaseFirestoreException
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -138,9 +137,8 @@ class MetraAgentViewModel(
     val settingsState: StateFlow<StreamUiState<UserSettings>> = firestoreRepo.observeSettings(currentUserId)
         .map<UserSettings, StreamUiState<UserSettings>> { StreamUiState.Success(it) }
         .catch { error ->
-            val fsError = unwrapFirestoreError(error)
-            if (fsError == null && error is CancellationException) throw error
-            val root = fsError ?: error
+            if (error is CancellationException) throw error
+            val root = error
             Log.w(TAG, "observeSettings error", root)
             emit(StreamUiState.Error(root.localizedMessage ?: "تعذر تحميل الإعدادات"))
         }
@@ -149,9 +147,8 @@ class MetraAgentViewModel(
     val tasksState: StateFlow<StreamUiState<List<AgentTask>>> = firestoreRepo.observeTasks(currentUserId)
         .map<List<AgentTask>, StreamUiState<List<AgentTask>>> { StreamUiState.Success(it) }
         .catch { error ->
-            val fsError = unwrapFirestoreError(error)
-            if (fsError == null && error is CancellationException) throw error
-            val root = fsError ?: error
+            if (error is CancellationException) throw error
+            val root = error
             Log.w(TAG, "observeTasks error", root)
             emit(StreamUiState.Error(root.localizedMessage ?: "تعذر تحميل المهام"))
         }
@@ -160,9 +157,8 @@ class MetraAgentViewModel(
     val approvalsState: StateFlow<StreamUiState<List<ApprovalRequest>>> = firestoreRepo.observeApprovals(currentUserId)
         .map<List<ApprovalRequest>, StreamUiState<List<ApprovalRequest>>> { StreamUiState.Success(it) }
         .catch { error ->
-            val fsError = unwrapFirestoreError(error)
-            if (fsError == null && error is CancellationException) throw error
-            val root = fsError ?: error
+            if (error is CancellationException) throw error
+            val root = error
             Log.w(TAG, "observeApprovals error", root)
             emit(StreamUiState.Error(root.localizedMessage ?: "تعذر تحميل طلبات الموافقة"))
         }
@@ -171,9 +167,8 @@ class MetraAgentViewModel(
     val chatState: StateFlow<StreamUiState<List<ChatMessage>>> = firestoreRepo.observeChatMessages(currentUserId)
         .map<List<ChatMessage>, StreamUiState<List<ChatMessage>>> { StreamUiState.Success(it) }
         .catch { error ->
-            val fsError = unwrapFirestoreError(error)
-            if (fsError == null && error is CancellationException) throw error
-            val root = fsError ?: error
+            if (error is CancellationException) throw error
+            val root = error
             Log.w(TAG, "observeChatMessages error", root)
             emit(StreamUiState.Error(root.localizedMessage ?: "تعذر تحميل المحادثة"))
         }
@@ -182,9 +177,8 @@ class MetraAgentViewModel(
     val logsState: StateFlow<StreamUiState<List<OperationLog>>> = firestoreRepo.observeLogs(currentUserId)
         .map<List<OperationLog>, StreamUiState<List<OperationLog>>> { StreamUiState.Success(it) }
         .catch { error ->
-            val fsError = unwrapFirestoreError(error)
-            if (fsError == null && error is CancellationException) throw error
-            val root = fsError ?: error
+            if (error is CancellationException) throw error
+            val root = error
             Log.w(TAG, "observeLogs error", root)
             emit(StreamUiState.Error(root.localizedMessage ?: "تعذر تحميل السجل"))
         }
@@ -2140,12 +2134,6 @@ class MetraAgentViewModel(
             }
         }
         return sb.toString()
-    }
-
-    private fun unwrapFirestoreError(error: Throwable): FirebaseFirestoreException? {
-        return generateSequence(error) { it.cause }
-            .filterIsInstance<FirebaseFirestoreException>()
-            .firstOrNull()
     }
 
     fun createStudioProject(

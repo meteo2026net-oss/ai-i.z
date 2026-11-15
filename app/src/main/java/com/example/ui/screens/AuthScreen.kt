@@ -52,6 +52,7 @@ import androidx.credentials.CustomCredential
 import androidx.credentials.GetCredentialRequest
 import androidx.credentials.exceptions.GetCredentialCancellationException
 import com.example.R
+import com.example.BuildConfig
 import com.example.ui.components.CommandCard
 import com.example.ui.components.StatusPill
 import com.example.ui.theme.ElectricCyan
@@ -238,12 +239,7 @@ fun attemptAutoSignIn(
             return@launch
         }
 
-        val clientId = runCatching {
-            context.getString(
-                context.resources.getIdentifier("default_web_client_id", "string", context.packageName)
-                    .takeIf { it != 0 } ?: throw IllegalStateException("default_web_client_id is not configured")
-            )
-        }.getOrNull()
+        val clientId = BuildConfig.GOOGLE_WEB_CLIENT_ID.takeIf { it.isNotBlank() }
         if (clientId.isNullOrBlank()) {
             onUnauthenticated()
             return@launch
@@ -280,13 +276,8 @@ fun onGoogleSignInClicked(
     scope: CoroutineScope,
     onAuthCancelled: () -> Unit = {}
 ) {
-    val clientId = try {
-        context.getString(
-            context.resources.getIdentifier("default_web_client_id", "string", context.packageName)
-                .takeIf { it != 0 } ?: throw IllegalStateException("default_web_client_id is not configured")
-        )
-    } catch (_: Exception) {
-        onAuthError("إعدادات Google Sign-In غير مكتملة (default_web_client_id مفقود).")
+    val clientId = BuildConfig.GOOGLE_WEB_CLIENT_ID.takeIf { it.isNotBlank() } ?: run {
+        onAuthError("إعداد Google OAuth غير مكتمل. يلزم ضبط GOOGLE_WEB_CLIENT_ID.")
         return
     }
 

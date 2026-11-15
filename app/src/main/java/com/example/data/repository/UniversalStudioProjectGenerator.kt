@@ -98,7 +98,7 @@ object UniversalStudioProjectGenerator {
             buildInstructions = buildInst,
             runInstructions = runInst,
             testInstructions = testInst,
-            securityAuditScore = 98
+            securityAuditScore = null
         )
     }
 

@@ -22,7 +22,7 @@ import com.example.data.repository.AiFailoverAlert
 import com.example.data.repository.AiOrchestratorRepository
 import com.example.data.repository.BackendRepository
 import com.example.data.repository.CollaborationContribution
-import com.example.data.repository.FirestoreAgentRepository
+import com.example.data.repository.UserDataRepository
 import com.example.data.repository.FlutterSpecExporter
 import com.example.data.repository.GitHubRepository
 import com.example.data.repository.SharedWorkplanCodec
@@ -124,7 +124,7 @@ data class WorkspaceUiState(
 
 class MetraAgentViewModel(
     private val currentUserId: String,
-    private val firestoreRepo: FirestoreAgentRepository,
+    private val userDataRepository: UserDataRepository,
     private val gitHubRepo: GitHubRepository,
     private val aiRepo: AiOrchestratorRepository,
     private val backendRepo: BackendRepository,
@@ -134,7 +134,7 @@ class MetraAgentViewModel(
     private val platformConfigStore: PlatformConfigStore = PlatformConfigStore(vault)
 ) : ViewModel() {
 
-    val settingsState: StateFlow<StreamUiState<UserSettings>> = firestoreRepo.observeSettings(currentUserId)
+    val settingsState: StateFlow<StreamUiState<UserSettings>> = userDataRepository.observeSettings(currentUserId)
         .map<UserSettings, StreamUiState<UserSettings>> { StreamUiState.Success(it) }
         .catch { error ->
             if (error is CancellationException) throw error
@@ -144,7 +144,7 @@ class MetraAgentViewModel(
         }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000L), StreamUiState.Loading)
 
-    val tasksState: StateFlow<StreamUiState<List<AgentTask>>> = firestoreRepo.observeTasks(currentUserId)
+    val tasksState: StateFlow<StreamUiState<List<AgentTask>>> = userDataRepository.observeTasks(currentUserId)
         .map<List<AgentTask>, StreamUiState<List<AgentTask>>> { StreamUiState.Success(it) }
         .catch { error ->
             if (error is CancellationException) throw error
@@ -154,7 +154,7 @@ class MetraAgentViewModel(
         }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000L), StreamUiState.Loading)
 
-    val approvalsState: StateFlow<StreamUiState<List<ApprovalRequest>>> = firestoreRepo.observeApprovals(currentUserId)
+    val approvalsState: StateFlow<StreamUiState<List<ApprovalRequest>>> = userDataRepository.observeApprovals(currentUserId)
         .map<List<ApprovalRequest>, StreamUiState<List<ApprovalRequest>>> { StreamUiState.Success(it) }
         .catch { error ->
             if (error is CancellationException) throw error
@@ -164,7 +164,7 @@ class MetraAgentViewModel(
         }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000L), StreamUiState.Loading)
 
-    val chatState: StateFlow<StreamUiState<List<ChatMessage>>> = firestoreRepo.observeChatMessages(currentUserId)
+    val chatState: StateFlow<StreamUiState<List<ChatMessage>>> = userDataRepository.observeChatMessages(currentUserId)
         .map<List<ChatMessage>, StreamUiState<List<ChatMessage>>> { StreamUiState.Success(it) }
         .catch { error ->
             if (error is CancellationException) throw error
@@ -174,7 +174,7 @@ class MetraAgentViewModel(
         }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000L), StreamUiState.Loading)
 
-    val logsState: StateFlow<StreamUiState<List<OperationLog>>> = firestoreRepo.observeLogs(currentUserId)
+    val logsState: StateFlow<StreamUiState<List<OperationLog>>> = userDataRepository.observeLogs(currentUserId)
         .map<List<OperationLog>, StreamUiState<List<OperationLog>>> { StreamUiState.Success(it) }
         .catch { error ->
             if (error is CancellationException) throw error
@@ -294,7 +294,7 @@ class MetraAgentViewModel(
                 reason = alert.reason
             )
         }
-        firestoreRepo.addLog(
+        userDataRepository.addLog(
             OperationLog(
                 userId = currentUserId,
                 category = "ai",
@@ -309,7 +309,7 @@ class MetraAgentViewModel(
 
     fun saveUserSettings(updated: UserSettings) {
         viewModelScope.launch {
-            firestoreRepo.saveSettings(updated.copy(userId = currentUserId))
+            userDataRepository.saveSettings(updated.copy(userId = currentUserId))
                 .onSuccess {
                     _workspace.update { it.copy(statusBannerMessage = "تم حفظ الإعدادات والمزامنة السحابية.") }
                 }
@@ -352,7 +352,7 @@ class MetraAgentViewModel(
                             statusBannerMessage = "تم ربط حساب GitHub: ${user.login}"
                         )
                     }
-                    firestoreRepo.addLog(
+                    userDataRepository.addLog(
                         OperationLog(
                             userId = currentUserId,
                             category = "github",
@@ -560,7 +560,7 @@ class MetraAgentViewModel(
         }
         if (filePath.isNotBlank()) {
             viewModelScope.launch {
-                firestoreRepo.addLog(
+                userDataRepository.addLog(
                     OperationLog(
                         userId = currentUserId,
                         category = "github",
@@ -640,7 +640,7 @@ class MetraAgentViewModel(
             val preview = state.fileDiffPreview.ifBlank {
                 "تحديث ${state.selectedFilePath} على فرع ${settings.activeBranch}"
             }
-            firestoreRepo.createApproval(
+            userDataRepository.createApproval(
                 ApprovalRequest(
                     userId = currentUserId,
                     taskId = "direct_edit",
@@ -680,7 +680,7 @@ class MetraAgentViewModel(
             _workspace.update { it.copy(isBusyGitHub = true) }
             gitHubRepo.createWorkingBranch(settings.activeRepo, newBranchName, baseSha)
                 .onSuccess {
-                    firestoreRepo.addLog(
+                    userDataRepository.addLog(
                         OperationLog(
                             userId = currentUserId,
                             category = "github",
@@ -775,7 +775,7 @@ class MetraAgentViewModel(
     ) {
         val settings = currentSettings()
         viewModelScope.launch {
-            firestoreRepo.createApproval(
+            userDataRepository.createApproval(
                 ApprovalRequest(
                     userId = currentUserId,
                     taskId = "pr_create",
@@ -804,7 +804,7 @@ class MetraAgentViewModel(
     fun requestMergePrApproval(pr: GitHubPullRequest, context: Context? = null) {
         val settings = currentSettings()
         viewModelScope.launch {
-            firestoreRepo.createApproval(
+            userDataRepository.createApproval(
                 ApprovalRequest(
                     userId = currentUserId,
                     taskId = "pr_merge_${pr.number}",
@@ -833,7 +833,7 @@ class MetraAgentViewModel(
     fun approveAndExecute(approval: ApprovalRequest, context: Context? = null) {
         val settings = currentSettings()
         viewModelScope.launch {
-            firestoreRepo.decideApproval(approval.id, "approved", "تمت الموافقة من المطور", currentUserId)
+            userDataRepository.decideApproval(approval.id, "approved", "تمت الموافقة من المطور", currentUserId)
                 .onSuccess {
                     var stepExecutionSucceeded = false
                     when (approval.actionType) {
@@ -854,7 +854,7 @@ class MetraAgentViewModel(
                                     existingSha = targetSha.ifBlank { null }
                                 ).onSuccess {
                                     stepExecutionSucceeded = true
-                                    firestoreRepo.decideApproval(approval.id, "executed", "تم الرفع إلى GitHub", currentUserId)
+                                    userDataRepository.decideApproval(approval.id, "executed", "تم الرفع إلى GitHub", currentUserId)
                                     if (isSharedWorkFilePush) {
                                         _workspace.update {
                                             it.copy(
@@ -864,7 +864,7 @@ class MetraAgentViewModel(
                                             )
                                         }
                                     }
-                                    firestoreRepo.addLog(
+                                    userDataRepository.addLog(
                                         OperationLog(
                                             userId = currentUserId,
                                             category = "github",
@@ -909,7 +909,7 @@ class MetraAgentViewModel(
                                 body = approval.payloadPreview
                             ).onSuccess {
                                 stepExecutionSucceeded = true
-                                firestoreRepo.decideApproval(approval.id, "executed", "تم إنشاء Draft PR #${it.number}", currentUserId)
+                                userDataRepository.decideApproval(approval.id, "executed", "تم إنشاء Draft PR #${it.number}", currentUserId)
                                 refreshGitHubWorkspace()
                                 if (context != null) {
                                     QuotaNotificationHelper.showCommandCompletedNotification(
@@ -939,7 +939,7 @@ class MetraAgentViewModel(
                                     commitTitle = approval.description
                                 ).onSuccess {
                                     stepExecutionSucceeded = true
-                                    firestoreRepo.decideApproval(approval.id, "executed", "تم الدمج بنجاح", currentUserId)
+                                    userDataRepository.decideApproval(approval.id, "executed", "تم الدمج بنجاح", currentUserId)
                                     refreshGitHubWorkspace()
                                     if (context != null) {
                                         QuotaNotificationHelper.showCommandCompletedNotification(
@@ -982,7 +982,7 @@ class MetraAgentViewModel(
                                     approvalId = approval.id
                                 ).onSuccess { res ->
                                     stepExecutionSucceeded = true
-                                    firestoreRepo.decideApproval(approval.id, "executed", res.impactSummary, currentUserId)
+                                    userDataRepository.decideApproval(approval.id, "executed", res.impactSummary, currentUserId)
                                     _workspace.update { it.copy(sqlResult = res) }
                                     if (context != null) {
                                         QuotaNotificationHelper.showCommandCompletedNotification(
@@ -1013,7 +1013,7 @@ class MetraAgentViewModel(
                         approval.taskId !in listOf("direct_edit", "shared_workfile", "pr_create", "sql_review") &&
                         !approval.taskId.startsWith("pr_merge_")
                     ) {
-                        val linkedTask = firestoreRepo.getTaskById(approval.taskId, currentUserId).getOrNull()
+                        val linkedTask = userDataRepository.getTaskById(approval.taskId, currentUserId).getOrNull()
                         val continuous = platformConfigStore.loadSnapshot().activeProject?.continuousExecutionEnabled ?: true
                         if (linkedTask != null && linkedTask.status == "awaiting_approval") {
                             val nextIdx = (linkedTask.currentStepIndex + 1L).coerceAtMost(linkedTask.totalSteps.coerceAtLeast(1L))
@@ -1027,7 +1027,7 @@ class MetraAgentViewModel(
                                 lastResultSummary = "تمت الموافقة والتنفيذ: ${approval.title}",
                                 nextSteps = linkedTask.nextSteps.drop(1)
                             )
-                            firestoreRepo.updateTask(updatedTask)
+                            userDataRepository.updateTask(updatedTask)
                             if (done && context != null) {
                                 QuotaNotificationHelper.showCommandCompletedNotification(
                                     context = context,
@@ -1056,8 +1056,8 @@ class MetraAgentViewModel(
 
     fun rejectApproval(approval: ApprovalRequest) {
         viewModelScope.launch {
-            firestoreRepo.decideApproval(approval.id, "rejected", "تم الرفض من المطور", currentUserId)
-            firestoreRepo.addLog(
+            userDataRepository.decideApproval(approval.id, "rejected", "تم الرفض من المطور", currentUserId)
+            userDataRepository.addLog(
                 OperationLog(
                     userId = currentUserId,
                     category = "security",
@@ -1080,7 +1080,7 @@ class MetraAgentViewModel(
         val activeDb = pSnap.activeDatabase
 
         viewModelScope.launch {
-            firestoreRepo.addChatMessage(
+            userDataRepository.addChatMessage(
                 ChatMessage(
                     userId = currentUserId,
                     role = "user",
@@ -1105,7 +1105,7 @@ class MetraAgentViewModel(
             }
 
             // Create durable task and schedule WorkManager for multi-step execution
-            val taskId = firestoreRepo.createTask(
+            val taskId = userDataRepository.createTask(
                 AgentTask(
                     userId = currentUserId,
                     repo = settings.activeRepo,
@@ -1153,7 +1153,7 @@ class MetraAgentViewModel(
                 }
                 if (finalResponse.isNotBlank()) {
                     val headerPrefix = if (finalEndpointUsed.isNotBlank()) "[$finalEndpointUsed]\n" else ""
-                    firestoreRepo.addChatMessage(
+                    userDataRepository.addChatMessage(
                         ChatMessage(
                             userId = currentUserId,
                             role = "assistant",
@@ -1194,7 +1194,7 @@ class MetraAgentViewModel(
     fun resumeTaskInBackground(task: AgentTask, context: Context) {
         val settings = currentSettings()
         viewModelScope.launch {
-            firestoreRepo.updateTask(task.copy(status = "running"))
+            userDataRepository.updateTask(task.copy(status = "running"))
             AgentLoopWorker.enqueue(
                 context = context,
                 taskId = task.id,
@@ -1605,7 +1605,7 @@ class MetraAgentViewModel(
                         statusBannerMessage = col.summary
                     )
                 }
-                firestoreRepo.addChatMessage(
+                userDataRepository.addChatMessage(
                     ChatMessage(
                         userId = currentUserId,
                         role = "assistant",
@@ -1616,7 +1616,7 @@ class MetraAgentViewModel(
                         repoContext = settings.activeRepo
                     )
                 )
-                firestoreRepo.addLog(
+                userDataRepository.addLog(
                     OperationLog(
                         userId = currentUserId,
                         category = "agent",
@@ -1664,7 +1664,7 @@ class MetraAgentViewModel(
             val preview = state.sharedWorkFileDiff.ifBlank {
                 "تحديث ملف العمل المشترك ${state.sharedWorkFilePath} على فرع ${settings.activeBranch}"
             }
-            firestoreRepo.createApproval(
+            userDataRepository.createApproval(
                 ApprovalRequest(
                     userId = currentUserId,
                     taskId = "shared_workfile",
@@ -1893,7 +1893,7 @@ class MetraAgentViewModel(
             backendRepo.runTests(settings.backendUrl, settings.activeRepo, settings.activeBranch, target)
                 .onSuccess { run ->
                     _workspace.update { it.copy(isBusyBackend = false, lastTestRun = run) }
-                    firestoreRepo.addLog(
+                    userDataRepository.addLog(
                         OperationLog(
                             userId = currentUserId,
                             category = "test",
@@ -1972,7 +1972,7 @@ class MetraAgentViewModel(
                 it.copy(backendError = "محظور تماماً الاتصال بقاعدة البيانات المحمية/القديمة أو تعديلها أو حذفها.")
             }
             viewModelScope.launch {
-                firestoreRepo.addLog(
+                userDataRepository.addLog(
                     OperationLog(
                         userId = currentUserId,
                         category = "security",
@@ -2036,7 +2036,7 @@ class MetraAgentViewModel(
                     }
                 }
                 is GuardDecision.RequiresApproval -> {
-                    firestoreRepo.createApproval(
+                    userDataRepository.createApproval(
                         ApprovalRequest(
                             userId = currentUserId,
                             taskId = "sql_review",

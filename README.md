@@ -19,7 +19,7 @@ The application is designed to guide a project from idea discovery and requireme
 
 - JDK 17.
 - Android SDK / Android Studio capable of compiling SDK 36.
-- Gradle Wrapper (included).
+- Gradle 9.3.1 or newer (the repository currently does not include Gradle Wrapper scripts/JAR).
 - Firebase project configuration for live authentication and Firestore features.
 - A deployed HTTPS Backend Runner for remote test execution and database operations.
 - User-supplied provider credentials where applicable. Never commit API keys, access tokens, signing keys, or `.env` files.
@@ -29,15 +29,15 @@ The application is designed to guide a project from idea discovery and requireme
 On Windows:
 
 ```powershell
-.\gradlew.bat testDebugUnitTest
-.\gradlew.bat assembleDebug
+gradle testDebugUnitTest
+gradle assembleDebug
 ```
 
 On macOS/Linux:
 
 ```bash
-./gradlew testDebugUnitTest
-./gradlew assembleDebug
+gradle testDebugUnitTest
+gradle assembleDebug
 ```
 
 The debug APK is generated at `app/build/outputs/apk/debug/app-debug.apk`.

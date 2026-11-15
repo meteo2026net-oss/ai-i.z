@@ -182,6 +182,14 @@ test('PostgreSQL API enforces authenticated tenant ownership and record invarian
     const consumedBody = (await consumed.json()).approval;
     assert.equal(consumedBody.status, 'consumed');
     assert.deepEqual(consumedBody.operation, operation);
+    const listed = await (await api('/api/runner/approvals', aliceToken)).json();
+    assert.equal(listed.approvals.length, 1);
+    assert.equal((await api('/api/runner/approvals', bobToken)).then(r => r.json()).then(b => b.approvals.length), 0);
+    const reported = await api(`/api/runner/approvals/${approval.id}/report`, aliceToken, 'POST', { outcome: 'success', note: 'Git provider returned success' });
+    assert.equal(reported.status, 200);
+    const reportBody = await reported.json();
+    assert.equal(reportBody.approval.status, 'execution_reported');
+    assert.equal(reportBody.executionVerified, false);
 
     const replay = await api(`/api/runner/approvals/${approval.id}/consume`, aliceToken, 'POST', {
       actionType: 'db_sql', targetResource: 'isolated-db:dev-01', operationHash: approval.operation_hash

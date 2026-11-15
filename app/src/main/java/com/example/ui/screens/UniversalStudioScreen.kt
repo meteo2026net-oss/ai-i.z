@@ -53,6 +53,9 @@ import java.io.FileOutputStream
 @Composable
 fun UniversalStudioScreen(
     activeProject: StudioProjectSpec?,
+    savedProjects: List<StudioProjectSpec>,
+    onOpenSavedProject: (projectId: String) -> Unit,
+    onRefreshSavedProjects: () -> Unit,
     isGenerating: Boolean,
     selectedFilePath: String,
     editedFileContent: String,
@@ -69,7 +72,7 @@ fun UniversalStudioScreen(
     val clipboardManager = LocalClipboardManager.current
 
     var selectedTab by remember { mutableStateOf(0) }
-    val tabTitles = listOf("منشئ المشاريع", "مستشار النماذج", "مستكشف الأكواد", "التشغيل والتدقيق")
+    val tabTitles = listOf("منشئ المشاريع", "مستشار النماذج", "مستكشف الأكواد", "التشغيل والتدقيق", "مشاريعي")
 
     // Project creation state
     var projectNameInput by remember { mutableStateOf("") }
@@ -226,6 +229,89 @@ fun UniversalStudioScreen(
                     auditStatus = auditStatus,
                     onRunAudit = onRunAudit
                 )
+
+                4 -> SavedStudioProjectsTab(
+                    projects = savedProjects,
+                    activeProjectId = activeProject?.id,
+                    onOpenProject = onOpenSavedProject,
+                    onRefresh = onRefreshSavedProjects
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun SavedStudioProjectsTab(
+    projects: List<StudioProjectSpec>,
+    activeProjectId: String?,
+    onOpenProject: (String) -> Unit,
+    onRefresh: () -> Unit
+) {
+    LazyColumn(
+        modifier = Modifier.fillMaxSize(),
+        contentPadding = PaddingValues(16.dp),
+        verticalArrangement = Arrangement.spacedBy(12.dp)
+    ) {
+        item {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Column(modifier = Modifier.weight(1f)) {
+                    Text("مكتبة مشاريع AI I.Z", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                    Text(
+                        "المشاريع محفوظة في حسابك السحابي ويمكن فتحها من جديد بعد تسجيل الدخول.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+                IconButton(onClick = onRefresh) {
+                    Icon(Icons.Rounded.Refresh, contentDescription = "تحديث قائمة المشاريع")
+                }
+            }
+        }
+        if (projects.isEmpty()) {
+            item {
+                CommandCard {
+                    Icon(Icons.Rounded.FolderOff, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Text("لا توجد مشاريع محفوظة في حسابك بعد.", style = MaterialTheme.typography.bodyMedium)
+                    Text(
+                        "أنشئ مشروعاً من تبويب منشئ المشاريع، ثم احفظ ملفاته ليظهر هنا.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+            }
+        } else {
+            items(projects, key = { it.id }) { project ->
+                CommandCard(borderColor = if (project.id == activeProjectId) ElectricCyan.copy(alpha = 0.7f) else null) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(project.projectName, style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold)
+                            Text(
+                                "${project.environment.title} • ${project.primaryLanguage.displayName}",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                            Text(
+                                "${project.files.size} ملفاً • ${project.description.take(140)}",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                        Button(onClick = { onOpenProject(project.id) }) {
+                            Icon(Icons.Rounded.FolderOpen, contentDescription = null)
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Text(if (project.id == activeProjectId) "مفتوح" else "فتح")
+                        }
+                    }
+                }
             }
         }
     }

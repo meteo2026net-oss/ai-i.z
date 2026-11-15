@@ -16,6 +16,8 @@ test("rejects writes, DDL, privileged functions, and multiple statements", () =>
     "DROP TABLE projects",
     "SELECT * FROM projects; DELETE FROM projects",
     "SELECT pg_sleep(20)",
+    "SELECT pg_advisory_lock(42)",
+    "SELECT set_config('search_path', 'public', false)",
     "SELECT * FROM projects FOR UPDATE",
     "WITH changed AS (DELETE FROM projects RETURNING *) SELECT * FROM changed",
     "SELECT * FROM projects -- comment"

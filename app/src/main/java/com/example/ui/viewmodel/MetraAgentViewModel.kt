@@ -201,7 +201,8 @@ class MetraAgentViewModel(
 
     // Serialize cloud writes/deletes and prevent a queued save from resurrecting a deleted project.
     private val studioProjectPersistenceMutex = Mutex()
-    private val deletedStudioProjectIds = mutableSetOf<String>()
+    // Accessed by UI-triggered deletes and coroutine-based saves; use a concurrent set.
+    private val deletedStudioProjectIds = java.util.concurrent.ConcurrentHashMap.newKeySet<String>()
 
     init {
         val email = vault.getSecret(SecretVault.KEY_AUTH_EMAIL)

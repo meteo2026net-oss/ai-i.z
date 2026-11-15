@@ -92,6 +92,9 @@ class SecretVault(context: Context) : SecretStorage {
         const val KEY_GITHUB_PAT = "github_pat"
         const val KEY_OPENAI_API = "openai_api_key"
         const val KEY_BACKEND_TOKEN = "backend_runner_token"
+        const val KEY_AUTH_ACCESS_TOKEN = "ai_iz_access_token"
+        const val KEY_AUTH_REFRESH_TOKEN = "ai_iz_refresh_token"
+        const val KEY_AUTH_USER_ID = "ai_iz_user_id"
         const val KEY_LINKED_ACCOUNTS_JSON = "linked_accounts_json"
         const val KEY_PLATFORM_CONFIG_JSON = "platform_config_json"
     }

@@ -60,3 +60,28 @@ CREATE TABLE IF NOT EXISTS user_records (
 );
 CREATE INDEX IF NOT EXISTS user_records_collection_updated_idx
   ON user_records(user_id, collection, updated_at DESC);
+
+
+-- Immutable, user-bound approvals for future Runner operations. No operation is executable
+-- until a Runner endpoint independently validates and consumes this exact approval.
+CREATE TABLE IF NOT EXISTS runner_approvals (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id UUID NOT NULL REFERENCES app_users(id) ON DELETE CASCADE,
+  action_type TEXT NOT NULL CHECK (action_type IN (
+    'git_push','create_pr','staging_deploy','service_config',
+    'db_sql','db_rls_grants','db_migration','merge_pr','prod_deploy'
+  )),
+  target_resource TEXT NOT NULL CHECK (length(target_resource) BETWEEN 1 AND 300),
+  operation JSONB NOT NULL CHECK (jsonb_typeof(operation) = 'object'),
+  operation_hash CHAR(64) NOT NULL CHECK (operation_hash ~ '^[0-9a-f]{64}$'),
+  preview TEXT NOT NULL CHECK (length(preview) BETWEEN 1 AND 4000),
+  status TEXT NOT NULL DEFAULT 'pending' CHECK (status IN ('pending','approved','rejected','consumed','expired')),
+  decision_note TEXT NOT NULL DEFAULT '' CHECK (length(decision_note) <= 500),
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  expires_at TIMESTAMPTZ NOT NULL,
+  decided_at TIMESTAMPTZ,
+  consumed_at TIMESTAMPTZ,
+  CONSTRAINT runner_approvals_expiry_check CHECK (expires_at > created_at)
+);
+CREATE INDEX IF NOT EXISTS runner_approvals_user_status_idx
+  ON runner_approvals(user_id,status,created_at DESC);

@@ -1,196 +1,152 @@
 package com.example.data.repository
 
 import android.content.Context
-import com.example.R
-import com.example.core.firebase.OperationType
-import com.example.core.firebase.handleFirestoreError
+import com.example.BuildConfig
+import com.example.core.security.SecretVault
+import com.example.data.remote.UserDataService
 import com.example.domain.model.AgentTask
 import com.example.domain.model.ApprovalRequest
 import com.example.domain.model.ChatMessage
 import com.example.domain.model.OperationLog
 import com.example.domain.model.UserSettings
-import com.google.firebase.Firebase
-import com.google.firebase.auth.auth
-import com.google.firebase.firestore.DocumentSnapshot
-import com.google.firebase.firestore.FieldValue
-import com.google.firebase.firestore.FirebaseFirestore
-import com.google.firebase.firestore.FirebaseFirestoreException
-import com.google.firebase.firestore.Query
-import com.google.firebase.firestore.snapshots
+import com.google.firebase.Timestamp
+import com.squareup.moshi.JsonAdapter
+import com.squareup.moshi.Moshi
+import com.squareup.moshi.kotlin.reflect.KotlinJsonAdapterFactory
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.catch
-import kotlinx.coroutines.flow.emitAll
 import kotlinx.coroutines.flow.flow
-import kotlinx.coroutines.flow.map
-import kotlinx.coroutines.tasks.await
+import kotlinx.coroutines.isActive
+import okhttp3.MediaType.Companion.toMediaType
+import okhttp3.RequestBody.Companion.toRequestBody
+import okhttp3.OkHttpClient
+import retrofit2.HttpException
+import retrofit2.Retrofit
+import retrofit2.converter.moshi.MoshiConverterFactory
+import java.time.Instant
+import java.util.Date
 import java.util.UUID
+import java.util.concurrent.TimeUnit
 
-class FirestoreAgentRepository(private val db: FirebaseFirestore) {
-
-    constructor(context: Context) : this(
-        FirebaseFirestore.getInstance(
-            context.applicationContext.getString(R.string.firestore_database_id)
-        )
-    )
-
-    private val auth = Firebase.auth
-
-    private fun requireUserId(explicitUserId: String? = null): String {
-        return explicitUserId?.takeIf { it.isNotBlank() }
-            ?: auth.currentUser?.uid
-            ?: throw IllegalStateException("يجب تسجيل الدخول بحساب Google أولاً قبل الوصول إلى Firestore.")
-    }
-
-    private fun userDoc(uid: String) = db.collection("users").document(uid)
-
-    fun observeSettings(userId: String): Flow<UserSettings> = flow {
-        val uid = requireUserId(userId)
-        val docRef = userDoc(uid)
-        emitAll(
-            docRef.snapshots()
-                .map { snapshot ->
-                    snapshot.toObject(
-                        UserSettings::class.java,
-                        DocumentSnapshot.ServerTimestampBehavior.ESTIMATE
-                    ) ?: UserSettings(id = uid, userId = uid)
+/**
+ * Compatibility name retained while the app migrates away from Firestore.
+ * All persistence is performed by the AI I.Z API; ownership is derived from
+ * the authenticated server session and never trusted from a client userId.
+ */
+class FirestoreAgentRepository(context: Context) {
+    private val vault = SecretVault(context.applicationContext)
+    private val moshi = Moshi.Builder()
+        .add(Timestamp::class.java, object : JsonAdapter<Timestamp>() {
+            override fun fromJson(reader: com.squareup.moshi.JsonReader): Timestamp? {
+                if (reader.peek() == com.squareup.moshi.JsonReader.Token.NULL) return reader.nextNull()
+                val raw = reader.nextString()
+                return runCatching { Timestamp(Date.from(Instant.parse(raw))) }.getOrElse {
+                    Timestamp(Date(raw.toLong()))
                 }
-                .catch { error ->
-                    val fsError = unwrapFirestoreError(error)
-                    if (fsError == null && error is CancellationException) throw error
-                    val toLog = fsError ?: (error as? Exception)
-                    if (toLog != null && auth.currentUser?.uid == uid) {
-                        handleFirestoreError(toLog, OperationType.GET, docRef.path)
-                    }
-                    throw error
-                }
-        )
-    }
-
-    suspend fun saveSettings(settings: UserSettings): Result<Unit> = runCatching {
-        val uid = requireUserId(settings.userId.ifBlank { null })
-        val docRef = userDoc(uid)
-        try {
-            val existing = docRef.get().await()
-            if (existing.exists()) {
-                docRef.update(settings.toUpdateMap()).await()
-            } else {
-                docRef.set(settings.toCreateMap(uid)).await()
             }
-        } catch (e: CancellationException) {
-            throw e
-        } catch (e: Exception) {
-            handleFirestoreError(e, OperationType.WRITE, docRef.path)
-            throw e
+            override fun toJson(writer: com.squareup.moshi.JsonWriter, value: Timestamp?) {
+                if (value == null) writer.nullValue()
+                else writer.value(value.toDate().toInstant().toString())
+            }
+        })
+        .addLast(KotlinJsonAdapterFactory())
+        .build()
+    private val service: UserDataService by lazy {
+        val baseUrl = BuildConfig.AI_IZ_API_BASE_URL.trim()
+        require(baseUrl.startsWith("https://") || (BuildConfig.DEBUG && baseUrl.startsWith("http://10.0.2.2"))) {
+            "خدمة بيانات AI I.Z غير مهيأة. يلزم ضبط عنوان HTTPS للخادم."
+        }
+        Retrofit.Builder()
+            .baseUrl(if (baseUrl.endsWith("/")) baseUrl else "$baseUrl/")
+            .client(OkHttpClient.Builder().connectTimeout(15, TimeUnit.SECONDS).readTimeout(20, TimeUnit.SECONDS).build())
+            .addConverterFactory(MoshiConverterFactory.create(moshi))
+            .build()
+            .create(UserDataService::class.java)
+    }
+
+    private suspend fun <T> authorized(block: suspend (String) -> T): T {
+        var token = vault.getSecret(SecretVault.KEY_AUTH_ACCESS_TOKEN)
+        require(token.isNotBlank()) { "انتهت جلسة AI I.Z. سجّل الدخول مجدداً." }
+        return try {
+            block("Bearer $token")
+        } catch (error: HttpException) {
+            if (error.code() != 401) throw error
+            AuthSessionRepository(vault).restoreSession().getOrThrow()
+            token = vault.getSecret(SecretVault.KEY_AUTH_ACCESS_TOKEN)
+            require(token.isNotBlank()) { "تعذر تجديد جلسة AI I.Z." }
+            block("Bearer $token")
         }
     }
 
-    fun observeTasks(userId: String): Flow<List<AgentTask>> = flow {
-        val uid = requireUserId(userId)
-        val colRef = userDoc(uid).collection("tasks")
-        emitAll(
-            colRef.orderBy("updatedAt", Query.Direction.DESCENDING)
-                .snapshots()
-                .map { snapshot ->
-                    snapshot.toObjects(
-                        AgentTask::class.java,
-                        DocumentSnapshot.ServerTimestampBehavior.ESTIMATE
-                    )
-                }
-                .catch { error ->
-                    val fsError = unwrapFirestoreError(error)
-                    if (fsError == null && error is CancellationException) throw error
-                    val toLog = fsError ?: (error as? Exception)
-                    if (toLog != null && auth.currentUser?.uid == uid) {
-                        handleFirestoreError(toLog, OperationType.LIST, colRef.path)
-                    }
-                    throw error
-                }
-        )
+    private suspend fun <T : Any> fetchList(collection: String, limit: Int, adapter: JsonAdapter<T>): List<T> =
+        authorized { bearer ->
+            val root = moshi.adapter(Map::class.java).fromJson(service.listRecords(collection, limit, bearer).string())
+            val records = root?.get("records") as? List<*> ?: emptyList<Any>()
+            records.mapNotNull { adapter.fromJsonValue(it) }
+        }
+
+    private suspend fun <T : Any> fetchOne(collection: String, id: String, adapter: JsonAdapter<T>): T? =
+        authorized { bearer ->
+            val root = moshi.adapter(Map::class.java).fromJson(service.getRecord(collection, id, bearer).string())
+            adapter.fromJsonValue(root?.get("record"))
+        }
+
+    private suspend fun <T : Any> save(collection: String, id: String, value: T, adapter: JsonAdapter<T>) {
+        val body = adapter.toJson(value).toRequestBody("application/json; charset=utf-8".toMediaType())
+        authorized { bearer -> service.putRecord(collection, id, body, bearer) }
     }
 
-    suspend fun createTask(task: AgentTask, explicitId: String? = null): Result<String> = runCatching {
-        val uid = requireUserId(task.userId.ifBlank { null })
-        val taskId = explicitId ?: "task_${UUID.randomUUID().toString().replace("-", "").take(16)}"
-        val docRef = userDoc(uid).collection("tasks").document(taskId)
-        try {
-            docRef.set(task.toCreateMap(uid)).await()
-            taskId
-        } catch (e: CancellationException) {
-            throw e
-        } catch (e: Exception) {
-            handleFirestoreError(e, OperationType.CREATE, docRef.path)
-            throw e
+    private fun <T> observe(pollMillis: Long = 15_000, loader: suspend () -> T): Flow<T> = flow {
+        while (currentCoroutineContext().isActive) {
+            emit(loader())
+            delay(pollMillis)
         }
     }
 
-    suspend fun updateTask(task: AgentTask): Result<Unit> = runCatching {
-        val uid = requireUserId(task.userId.ifBlank { null })
+    private val settingsAdapter by lazy { moshi.adapter(UserSettings::class.java) }
+    private val taskAdapter by lazy { moshi.adapter(AgentTask::class.java) }
+    private val approvalAdapter by lazy { moshi.adapter(ApprovalRequest::class.java) }
+    private val chatAdapter by lazy { moshi.adapter(ChatMessage::class.java) }
+    private val logAdapter by lazy { moshi.adapter(OperationLog::class.java) }
+
+    fun observeSettings(userId: String): Flow<UserSettings> = observe {
+        fetchOne("settings", "profile", settingsAdapter) ?: UserSettings(id = "profile", userId = userId)
+    }
+
+    suspend fun saveSettings(settings: UserSettings): Result<Unit> = result {
+        save("settings", "profile", settings.copy(id = "profile"), settingsAdapter)
+    }
+
+    fun observeTasks(userId: String): Flow<List<AgentTask>> = observe {
+        fetchList("tasks", 200, taskAdapter)
+    }
+
+    suspend fun createTask(task: AgentTask, explicitId: String? = null): Result<String> = result {
+        val id = explicitId ?: "task_${UUID.randomUUID().toString().replace("-", "").take(16)}"
+        save("tasks", id, task.copy(id = id), taskAdapter)
+        id
+    }
+
+    suspend fun updateTask(task: AgentTask): Result<Unit> = result {
         require(task.id.isNotBlank()) { "Task ID must not be blank for update" }
-        val docRef = userDoc(uid).collection("tasks").document(task.id)
-        try {
-            docRef.update(task.toUpdateMap()).await()
-        } catch (e: CancellationException) {
-            throw e
-        } catch (e: Exception) {
-            handleFirestoreError(e, OperationType.UPDATE, docRef.path)
-            throw e
-        }
+        save("tasks", task.id, task, taskAdapter)
     }
 
-    suspend fun getTaskById(taskId: String, userId: String? = null): Result<AgentTask?> = runCatching {
-        val uid = requireUserId(userId)
-        val docRef = userDoc(uid).collection("tasks").document(taskId)
-        try {
-            docRef.get().await().toObject(
-                AgentTask::class.java,
-                DocumentSnapshot.ServerTimestampBehavior.ESTIMATE
-            )
-        } catch (e: CancellationException) {
-            throw e
-        } catch (e: Exception) {
-            handleFirestoreError(e, OperationType.GET, docRef.path)
-            throw e
-        }
+    suspend fun getTaskById(taskId: String, userId: String? = null): Result<AgentTask?> = result {
+        try { fetchOne("tasks", taskId, taskAdapter) }
+        catch (error: HttpException) { if (error.code() == 404) null else throw error }
     }
 
-    fun observeApprovals(userId: String): Flow<List<ApprovalRequest>> = flow {
-        val uid = requireUserId(userId)
-        val colRef = userDoc(uid).collection("approvals")
-        emitAll(
-            colRef.orderBy("createdAt", Query.Direction.DESCENDING)
-                .snapshots()
-                .map { snapshot ->
-                    snapshot.toObjects(
-                        ApprovalRequest::class.java,
-                        DocumentSnapshot.ServerTimestampBehavior.ESTIMATE
-                    )
-                }
-                .catch { error ->
-                    val fsError = unwrapFirestoreError(error)
-                    if (fsError == null && error is CancellationException) throw error
-                    val toLog = fsError ?: (error as? Exception)
-                    if (toLog != null && auth.currentUser?.uid == uid) {
-                        handleFirestoreError(toLog, OperationType.LIST, colRef.path)
-                    }
-                    throw error
-                }
-        )
+    fun observeApprovals(userId: String): Flow<List<ApprovalRequest>> = observe {
+        fetchList("approvals", 200, approvalAdapter)
     }
 
-    suspend fun createApproval(approval: ApprovalRequest): Result<String> = runCatching {
-        val uid = requireUserId(approval.userId.ifBlank { null })
-        val apprId = "appr_${UUID.randomUUID().toString().replace("-", "").take(16)}"
-        val docRef = userDoc(uid).collection("approvals").document(apprId)
-        try {
-            docRef.set(approval.toCreateMap(uid)).await()
-            apprId
-        } catch (e: CancellationException) {
-            throw e
-        } catch (e: Exception) {
-            handleFirestoreError(e, OperationType.CREATE, docRef.path)
-            throw e
-        }
+    suspend fun createApproval(approval: ApprovalRequest): Result<String> = result {
+        val id = "appr_${UUID.randomUUID().toString().replace("-", "").take(16)}"
+        save("approvals", id, approval.copy(id = id), approvalAdapter)
+        id
     }
 
     suspend fun decideApproval(
@@ -198,107 +154,38 @@ class FirestoreAgentRepository(private val db: FirebaseFirestore) {
         newStatus: String,
         decisionNote: String,
         userId: String? = null
-    ): Result<Unit> = runCatching {
-        val uid = requireUserId(userId)
-        val docRef = userDoc(uid).collection("approvals").document(approvalId)
-        try {
-            docRef.update(
-                mapOf(
-                    "status" to newStatus,
-                    "decisionNote" to decisionNote.take(500),
-                    "updatedAt" to FieldValue.serverTimestamp()
-                )
-            ).await()
-        } catch (e: CancellationException) {
-            throw e
-        } catch (e: Exception) {
-            handleFirestoreError(e, OperationType.UPDATE, docRef.path)
-            throw e
-        }
+    ): Result<Unit> = result {
+        require(newStatus in setOf("approved", "rejected", "executed", "pending")) { "Invalid approval status." }
+        val current = fetchOne("approvals", approvalId, approvalAdapter)
+            ?: throw IllegalArgumentException("Approval request not found.")
+        save("approvals", approvalId, current.copy(status = newStatus, decisionNote = decisionNote.take(500)), approvalAdapter)
     }
 
-    fun observeChatMessages(userId: String): Flow<List<ChatMessage>> = flow {
-        val uid = requireUserId(userId)
-        val colRef = userDoc(uid).collection("chat_messages")
-        emitAll(
-            colRef.orderBy("createdAt", Query.Direction.ASCENDING)
-                .snapshots()
-                .map { snapshot ->
-                    snapshot.toObjects(
-                        ChatMessage::class.java,
-                        DocumentSnapshot.ServerTimestampBehavior.ESTIMATE
-                    )
-                }
-                .catch { error ->
-                    val fsError = unwrapFirestoreError(error)
-                    if (fsError == null && error is CancellationException) throw error
-                    val toLog = fsError ?: (error as? Exception)
-                    if (toLog != null && auth.currentUser?.uid == uid) {
-                        handleFirestoreError(toLog, OperationType.LIST, colRef.path)
-                    }
-                    throw error
-                }
-        )
+    fun observeChatMessages(userId: String): Flow<List<ChatMessage>> = observe {
+        fetchList("chat_messages", 200, chatAdapter).sortedBy { it.createdAt?.toDate()?.time ?: 0L }
     }
 
-    suspend fun addChatMessage(message: ChatMessage): Result<String> = runCatching {
-        val uid = requireUserId(message.userId.ifBlank { null })
-        val msgId = "msg_${UUID.randomUUID().toString().replace("-", "").take(16)}"
-        val docRef = userDoc(uid).collection("chat_messages").document(msgId)
-        try {
-            docRef.set(message.toCreateMap(uid)).await()
-            msgId
-        } catch (e: CancellationException) {
-            throw e
-        } catch (e: Exception) {
-            handleFirestoreError(e, OperationType.CREATE, docRef.path)
-            throw e
-        }
+    suspend fun addChatMessage(message: ChatMessage): Result<String> = result {
+        val id = "msg_${UUID.randomUUID().toString().replace("-", "").take(16)}"
+        save("chat_messages", id, message.copy(id = id), chatAdapter)
+        id
     }
 
-    fun observeLogs(userId: String): Flow<List<OperationLog>> = flow {
-        val uid = requireUserId(userId)
-        val colRef = userDoc(uid).collection("operation_logs")
-        emitAll(
-            colRef.orderBy("createdAt", Query.Direction.DESCENDING)
-                .limit(150)
-                .snapshots()
-                .map { snapshot ->
-                    snapshot.toObjects(
-                        OperationLog::class.java,
-                        DocumentSnapshot.ServerTimestampBehavior.ESTIMATE
-                    )
-                }
-                .catch { error ->
-                    val fsError = unwrapFirestoreError(error)
-                    if (fsError == null && error is CancellationException) throw error
-                    val toLog = fsError ?: (error as? Exception)
-                    if (toLog != null && auth.currentUser?.uid == uid) {
-                        handleFirestoreError(toLog, OperationType.LIST, colRef.path)
-                    }
-                    throw error
-                }
-        )
+    fun observeLogs(userId: String): Flow<List<OperationLog>> = observe {
+        fetchList("operation_logs", 150, logAdapter)
     }
 
-    suspend fun addLog(log: OperationLog): Result<String> = runCatching {
-        val uid = requireUserId(log.userId.ifBlank { null })
-        val logId = "log_${UUID.randomUUID().toString().replace("-", "").take(16)}"
-        val docRef = userDoc(uid).collection("operation_logs").document(logId)
-        try {
-            docRef.set(log.toCreateMap(uid)).await()
-            logId
-        } catch (e: CancellationException) {
-            throw e
-        } catch (e: Exception) {
-            handleFirestoreError(e, OperationType.CREATE, docRef.path)
-            throw e
-        }
+    suspend fun addLog(log: OperationLog): Result<String> = result {
+        val id = "log_${UUID.randomUUID().toString().replace("-", "").take(16)}"
+        save("operation_logs", id, log.copy(id = id), logAdapter)
+        id
     }
 
-    private fun unwrapFirestoreError(error: Throwable): FirebaseFirestoreException? {
-        return generateSequence(error) { it.cause }
-            .filterIsInstance<FirebaseFirestoreException>()
-            .firstOrNull()
+    private suspend fun <T> result(block: suspend () -> T): Result<T> = try {
+        Result.success(block())
+    } catch (error: CancellationException) {
+        throw error
+    } catch (error: Throwable) {
+        Result.failure(error)
     }
 }

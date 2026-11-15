@@ -237,7 +237,7 @@ fun attemptAutoSignIn(
         return
     }
     val clientId = try {
-        context.getString(R.string.default_web_client_id)
+        context.getString(context.resources.getIdentifier("default_web_client_id", "string", context.packageName).takeIf { it != 0 } ?: throw IllegalStateException("default_web_client_id is not configured"))
     } catch (_: Exception) {
         onUnauthenticated()
         return
@@ -279,7 +279,7 @@ fun onGoogleSignInClicked(
     onAuthCancelled: () -> Unit = {}
 ) {
     val clientId = try {
-        context.getString(R.string.default_web_client_id)
+        context.getString(context.resources.getIdentifier("default_web_client_id", "string", context.packageName).takeIf { it != 0 } ?: throw IllegalStateException("default_web_client_id is not configured"))
     } catch (_: Exception) {
         onAuthError("إعدادات Google Sign-In غير مكتملة (default_web_client_id مفقود).")
         return

@@ -124,7 +124,15 @@ class UserDataRepository(context: Context) {
     }
 
     suspend fun saveSettings(settings: UserSettings): Result<Unit> = result {
-        save("settings", "profile", settings.copy(id = "profile"), settingsAdapter)
+        val normalized = settings.copy(
+            id = "profile",
+            activeRepo = settings.activeRepo.take(128),
+            activeBranch = settings.activeBranch.take(128),
+            aiProvider = if (settings.aiProvider == "openai") "openai" else "gemini",
+            aiModel = settings.aiModel.ifBlank { "gemini-3.8-flash" }.take(64),
+            backendUrl = settings.backendUrl.take(300)
+        )
+        save("settings", "profile", normalized, settingsAdapter)
     }
 
     fun observeTasks(userId: String): Flow<List<AgentTask>> = observe {
@@ -133,13 +141,13 @@ class UserDataRepository(context: Context) {
 
     suspend fun createTask(task: AgentTask, explicitId: String? = null): Result<String> = result {
         val id = explicitId ?: "task_${UUID.randomUUID().toString().replace("-", "").take(16)}"
-        save("tasks", id, task.copy(id = id), taskAdapter)
+        save("tasks", id, normalizeTask(task.copy(id = id)), taskAdapter)
         id
     }
 
     suspend fun updateTask(task: AgentTask): Result<Unit> = result {
         require(task.id.isNotBlank()) { "Task ID must not be blank for update" }
-        save("tasks", task.id, task, taskAdapter)
+        save("tasks", task.id, normalizeTask(task), taskAdapter)
     }
 
     suspend fun getTaskById(taskId: String, userId: String? = null): Result<AgentTask?> = result {
@@ -153,7 +161,17 @@ class UserDataRepository(context: Context) {
 
     suspend fun createApproval(approval: ApprovalRequest): Result<String> = result {
         val id = "appr_${UUID.randomUUID().toString().replace("-", "").take(16)}"
-        save("approvals", id, approval.copy(id = id), approvalAdapter)
+        val normalized = approval.copy(
+            id = id,
+            tier = if (approval.tier == 3L) 3L else 2L,
+            title = approval.title.ifBlank { "طلب موافقة" }.take(200),
+            description = approval.description.ifBlank { "موافقة مطلوبة قبل التنفيذ" }.take(2000),
+            payloadPreview = approval.payloadPreview.take(8000),
+            targetResource = approval.targetResource.take(300),
+            status = "pending",
+            decisionNote = approval.decisionNote.take(500)
+        )
+        save("approvals", id, normalized, approvalAdapter)
         id
     }
 
@@ -176,7 +194,14 @@ class UserDataRepository(context: Context) {
 
     suspend fun addChatMessage(message: ChatMessage): Result<String> = result {
         val id = "msg_${UUID.randomUUID().toString().replace("-", "").take(16)}"
-        save("chat_messages", id, message.copy(id = id), chatAdapter)
+        val normalized = message.copy(
+            id = id,
+            role = if (message.role in listOf("user", "assistant", "system")) message.role else "user",
+            content = message.content.ifBlank { "..." }.take(12000),
+            repoContext = message.repoContext.take(128),
+            linkedTaskId = message.linkedTaskId.take(128)
+        )
+        save("chat_messages", id, normalized, chatAdapter)
         id
     }
 
@@ -186,9 +211,30 @@ class UserDataRepository(context: Context) {
 
     suspend fun addLog(log: OperationLog): Result<String> = result {
         val id = "log_${UUID.randomUUID().toString().replace("-", "").take(16)}"
-        save("operation_logs", id, log.copy(id = id), logAdapter)
+        val normalized = log.copy(
+            id = id,
+            category = if (log.category in setOf("agent", "github", "security", "ai", "backend", "test")) log.category else "agent",
+            tier = log.tier.coerceIn(1L, 3L),
+            action = log.action.ifBlank { "عملية" }.take(200),
+            details = log.details.take(3000),
+            outcome = if (log.outcome in setOf("success", "failed", "error", "blocked", "pending")) log.outcome else "failed",
+            repo = log.repo.take(128)
+        )
+        save("operation_logs", id, normalized, logAdapter)
         id
     }
+
+    private fun normalizeTask(task: AgentTask): AgentTask = task.copy(
+        repo = task.repo.take(128),
+        branch = task.branch.take(128),
+        title = task.title.ifBlank { "مهمة AI I.Z" }.take(200),
+        prompt = task.prompt.ifBlank { "فحص المشروع" }.take(2000),
+        lastCompletedStep = task.lastCompletedStep.take(300),
+        lastResultSummary = task.lastResultSummary.take(2000),
+        lastError = task.lastError.take(1000),
+        modifiedFiles = task.modifiedFiles.take(30).map { it.take(500) },
+        nextSteps = task.nextSteps.take(30).map { it.take(500) }
+    )
 
     private suspend fun <T> result(block: suspend () -> T): Result<T> = try {
         Result.success(block())

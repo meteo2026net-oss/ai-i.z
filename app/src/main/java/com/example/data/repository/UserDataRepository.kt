@@ -143,6 +143,11 @@ class UserDataRepository(context: Context) {
         catch (error: HttpException) { if (error.code() == 404) null else throw error }
     }
 
+    suspend fun deleteStudioProject(projectId: String): Result<Unit> = result {
+        require(projectId.matches(Regex("^[A-Za-z0-9_.:-]{1,128}$"))) { "Invalid Studio project ID." }
+        authorized { bearer -> service.deleteRecord("studio_projects", projectId, bearer) }
+    }
+
     fun observeSettings(userId: String): Flow<UserSettings> = observe {
         fetchOne("settings", "profile", settingsAdapter) ?: UserSettings(id = "profile", userId = userId)
     }

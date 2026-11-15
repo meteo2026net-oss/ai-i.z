@@ -61,7 +61,7 @@ function createApp({ auth, pools, version = "1.0.0" }) {
     if (!pool) return res.status(503).json({ error: "database_not_configured" });
     try {
       const tablesResult = await pool.query(
-        "SELECT table_name FROM information_schema.tables WHERE table_schema = 'public' AND table_type = 'BASE TABLE' ORDER BY table_name LIMIT 200"
+        "SELECT c.relname AS table_name, GREATEST(c.reltuples, 0)::bigint AS row_estimate, c.relrowsecurity AS rls_enabled FROM pg_class c JOIN pg_namespace n ON n.oid = c.relnamespace WHERE n.nspname = 'public' AND c.relkind = 'r' ORDER BY c.relname LIMIT 200"
       );
       const tables = [];
       for (const table of tablesResult.rows) {
@@ -74,19 +74,32 @@ function createApp({ auth, pools, version = "1.0.0" }) {
           [table.table_name]
         );
         const primaryKeys = new Set(primaryResult.rows.map(row => row.column_name));
+        const indexesResult = await pool.query(
+          "SELECT indexname FROM pg_indexes WHERE schemaname = 'public' AND tablename = $1 ORDER BY indexname",
+          [table.table_name]
+        );
+        const relationsResult = await pool.query(
+          "SELECT tc.constraint_name, kcu.column_name AS source_column, ccu.table_name AS target_table, ccu.column_name AS target_column FROM information_schema.table_constraints tc JOIN information_schema.key_column_usage kcu ON tc.constraint_name = kcu.constraint_name AND tc.constraint_schema = kcu.constraint_schema JOIN information_schema.constraint_column_usage ccu ON ccu.constraint_name = tc.constraint_name AND ccu.constraint_schema = tc.constraint_schema WHERE tc.constraint_type = 'FOREIGN KEY' AND tc.table_schema = 'public' AND tc.table_name = $1 ORDER BY tc.constraint_name",
+          [table.table_name]
+        );
         tables.push({
           schema: "public",
           name: table.table_name,
-          rowEstimate: 0,
+          rowEstimate: Number(table.row_estimate || 0),
           columns: columnsResult.rows.map(column => ({
             name: column.column_name,
             dataType: column.data_type,
             isNullable: column.is_nullable === "YES",
             isPrimaryKey: primaryKeys.has(column.column_name)
           })),
-          indexes: [],
-          relations: [],
-          rlsEnabled: false
+          indexes: indexesResult.rows.map(index => index.indexname),
+          relations: relationsResult.rows.map(relation => ({
+            constraintName: relation.constraint_name,
+            sourceColumn: relation.source_column,
+            targetTable: relation.target_table,
+            targetColumn: relation.target_column
+          })),
+          rlsEnabled: table.rls_enabled === true
         });
       }
       const database = await pool.query("SELECT current_database() AS name, current_setting('server_version') AS version");

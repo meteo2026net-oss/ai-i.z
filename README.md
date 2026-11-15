@@ -26,6 +26,21 @@ The application is designed to guide a project from idea discovery and requireme
 - A separately deployed HTTPS Backend Runner and dedicated isolated PostgreSQL database for the limited Runner capabilities currently implemented.
 - User-supplied provider credentials where applicable. Never commit API keys, access tokens, signing keys, or `.env` files.
 
+## Signed release build
+
+A manual GitHub Actions workflow is provided at **Actions → Android signed release build → Run workflow**. Before running it, configure these repository secrets:
+
+- `ANDROID_KEYSTORE_BASE64`: base64-encoded Android upload/release keystore.
+- `ANDROID_STORE_PASSWORD`: keystore password.
+- `ANDROID_KEY_PASSWORD`: key password.
+
+Configure these repository variables:
+
+- `AI_IZ_API_BASE_URL`: deployed HTTPS AI I.Z API origin.
+- `GOOGLE_WEB_CLIENT_ID`: matching Google Web OAuth client ID.
+
+The workflow runs release unit tests and builds a signed APK and AAB, then uploads them as the `ai-iz-signed-release` artifact. It does **not** publish to Google Play or create a GitHub release. Keep the keystore and passwords in GitHub Actions secrets only; never paste them into chat or commit them. The signing alias expected by the current Gradle configuration is `upload`.
+
 ## Build locally
 
 On Windows:

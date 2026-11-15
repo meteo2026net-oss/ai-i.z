@@ -92,4 +92,19 @@ gradle assembleDebug
 - مراجعة سياسة الخصوصية وحذف الحساب والبيانات والنسخ الاحتياطية.
 - إنشاء إصدار Release موقّع بمفتاح محفوظ خارج المستودع، ثم اختبار التثبيت والتحديث.
 
-نجاح بناء APK وحده لا يعني أن التكاملات الخارجية أو جميع وظائف المنتج جاهزة للإنتاج.
+نجاح بناء APK وحده لا يعني أن التكاملات الخارجية أو جميع وظائف المنتج جاهزة للإنتاج.\n
+## 8. بناء نسخة Release موقعة
+
+يوفر المستودع سير عمل يدوي باسم **Android signed release build** في GitHub Actions. قبل تشغيله، أضف إلى إعدادات المستودع:
+
+**Actions secrets**
+- `ANDROID_KEYSTORE_BASE64`: ملف keystore مشفر بصيغة Base64.
+- `ANDROID_STORE_PASSWORD`: كلمة مرور keystore.
+- `ANDROID_KEY_PASSWORD`: كلمة مرور المفتاح.
+
+**Actions variables**
+- `AI_IZ_API_BASE_URL`: عنوان HTTPS المنشور لخدمة الهوية.
+- `GOOGLE_WEB_CLIENT_ID`: معرّف OAuth Web المطابق لإعداد الخادم.
+
+يشغّل المسار اختبارات Release ثم يبني APK وAAB موقعين ويرفعهما كـ artifact باسم `ai-iz-signed-release`. لا ينشر إلى Google Play ولا ينشئ إصدار GitHub تلقائياً. يجب أن يطابق alias المفتاح القيمة `upload` المستخدمة في إعداد Gradle الحالي. لا ترسل ملف المفتاح أو كلمات المرور في المحادثة ولا ترفعها إلى Git.
+

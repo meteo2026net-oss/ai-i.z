@@ -742,6 +742,7 @@ private fun AuthenticatedMetraShell(
                                         activeProject = workspace.activeStudioProject,
                                         savedProjects = workspace.savedStudioProjects,
                                         onOpenSavedProject = { viewModel.openSavedStudioProject(it) },
+                                        onDeleteSavedProject = { viewModel.deleteSavedStudioProject(it) },
                                         onRefreshSavedProjects = { viewModel.refreshSavedStudioProjects() },
                                         isGenerating = workspace.isGeneratingStudioProject,
                                         selectedFilePath = workspace.studioSelectedFilePath,

@@ -6,7 +6,6 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class ApprovalGuardTest {
-
     @Test
     fun tier1Actions_autoExecuteWhenEnabled() {
         val decision = ApprovalGuard.evaluateAction(
@@ -37,13 +36,14 @@ class ApprovalGuardTest {
         )
         assertTrue(withoutApproval is GuardDecision.RequiresApproval)
         assertEquals(PermissionTier.TIER_2_APPROVAL, (withoutApproval as GuardDecision.RequiresApproval).tier)
-
-        val withApproval = ApprovalGuard.evaluateAction(
-            action = AgentActionType.CREATE_PR,
-            autoExecuteTier1 = true,
-            hasExplicitApproval = true
+        assertEquals(
+            GuardDecision.AllowedAuto,
+            ApprovalGuard.evaluateAction(
+                action = AgentActionType.CREATE_PR,
+                autoExecuteTier1 = true,
+                hasExplicitApproval = true
+            )
         )
-        assertEquals(GuardDecision.AllowedAuto, withApproval)
     }
 
     @Test
@@ -73,32 +73,34 @@ class ApprovalGuardTest {
     }
 
     @Test
-    fun validateSqlExecution_allowsReadOnlySelectOnNewDb() {
+    fun validateSqlExecution_allowsOnlySingleReadOnlySelectOrWith() {
         assertFalse(ApprovalGuard.isMutatingSql("SELECT id, station_name FROM weather_stations LIMIT 20;"))
-        val decision = ApprovalGuard.validateSqlExecution(
-            sql = "SELECT * FROM metra_forecasts WHERE region = 'north';",
-            targetDatabase = "metra_2027_isolated",
-            hasExplicitTier3Approval = false
+        val statements = listOf(
+            "SELECT * FROM metra_forecasts WHERE region = 'north';",
+            "WITH recent AS (SELECT id FROM forecasts) SELECT * FROM recent"
         )
-        assertEquals(GuardDecision.AllowedAuto, decision)
+        statements.forEach { sql ->
+            assertEquals(
+                GuardDecision.AllowedAuto,
+                ApprovalGuard.validateSqlExecution(sql, "metra_2027_isolated", false)
+            )
+        }
     }
 
     @Test
-    fun validateSqlExecution_requiresTier3ForDdlOrRlsOrDml() {
-        val mutations = listOf(
+    fun validateSqlExecution_requiresTier3ForMutationsUnknownOrMultipleStatements() {
+        val restricted = listOf(
             "DROP TABLE users;",
             "ALTER TABLE forecasts ADD COLUMN confidence double precision;",
             "GRANT SELECT ON forecasts TO anon;",
-            "INSERT INTO logs(msg) VALUES ('x');"
+            "INSERT INTO logs(msg) VALUES ('x');",
+            "VACUUM ANALYZE forecasts;",
+            "SELECT * FROM forecasts; DELETE FROM forecasts;",
+            "SELECT 1; SELECT 2;"
         )
-        for (sql in mutations) {
-            assertTrue("Expected mutating SQL: $sql", ApprovalGuard.isMutatingSql(sql))
-            val decision = ApprovalGuard.validateSqlExecution(
-                sql = sql,
-                targetDatabase = "metra_2027_staging",
-                hasExplicitTier3Approval = false
-            )
-            assertTrue(decision is GuardDecision.RequiresApproval)
+        restricted.forEach { sql ->
+            val decision = ApprovalGuard.validateSqlExecution(sql, "metra_2027_staging", false)
+            assertTrue("Expected Tier 3 approval for: $sql", decision is GuardDecision.RequiresApproval)
             assertEquals(PermissionTier.TIER_3_EXPLICIT, (decision as GuardDecision.RequiresApproval).tier)
         }
     }

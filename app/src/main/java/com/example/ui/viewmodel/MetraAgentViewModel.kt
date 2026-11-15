@@ -2221,34 +2221,35 @@ class MetraAgentViewModel(
         }
     }
 
-    private fun persistStudioProject(project: com.example.domain.model.StudioProjectSpec) {
-        viewModelScope.launch {
-            userDataRepository.saveStudioProject(project)
-                .onSuccess {
-                    _workspace.update { state ->
-                        val withoutCurrent = state.savedStudioProjects.filterNot { it.id == project.id }
-                        state.copy(
-                            savedStudioProjects = listOf(
-                                com.example.domain.model.StudioProjectSummary(
-                                    id = project.id,
-                                    projectName = project.projectName,
-                                    environment = project.environment,
-                                    primaryLanguage = project.primaryLanguage,
-                                    description = project.description,
-                                    fileCount = project.files.size
-                                )
-                            ) + withoutCurrent,
-                            statusBannerMessage = "تم حفظ المشروع وملفاته في حساب AI I.Z السحابي."
-                        )
-                    }
+    private suspend fun persistStudioProject(project: com.example.domain.model.StudioProjectSpec): Boolean {
+        return userDataRepository.saveStudioProject(project).fold(
+            onSuccess = {
+                _workspace.update { state ->
+                    val withoutCurrent = state.savedStudioProjects.filterNot { it.id == project.id }
+                    state.copy(
+                        savedStudioProjects = listOf(
+                            com.example.domain.model.StudioProjectSummary(
+                                id = project.id,
+                                projectName = project.projectName,
+                                environment = project.environment,
+                                primaryLanguage = project.primaryLanguage,
+                                description = project.description,
+                                fileCount = project.files.size
+                            )
+                        ) + withoutCurrent,
+                        statusBannerMessage = "تم حفظ المشروع وملفاته في حساب AI I.Z السحابي."
+                    )
                 }
-                .onFailure { error ->
-                    Log.w(TAG, "Studio project cloud save failed", error)
-                    _workspace.update {
-                        it.copy(statusBannerMessage = "حُفظت التعديلات في مساحة العمل الحالية، لكن تعذر الحفظ السحابي: ${error.localizedMessage ?: "خطأ اتصال"}")
-                    }
+                true
+            },
+            onFailure = { error ->
+                Log.w(TAG, "Studio project cloud save failed", error)
+                _workspace.update {
+                    it.copy(statusBannerMessage = "حُفظت التعديلات محلياً في مساحة العمل الحالية، لكن تعذر الحفظ السحابي: ${error.localizedMessage ?: "خطأ اتصال"}")
                 }
-        }
+                false
+            }
+        )
     }
 
     fun selectStudioFile(path: String) {
@@ -2280,7 +2281,9 @@ class MetraAgentViewModel(
                 statusBannerMessage = "تم حفظ التعديلات على " + currentPath
             )
         }
-        persistStudioProject(updatedProj)
+        viewModelScope.launch {
+            persistStudioProject(updatedProj)
+        }
     }
 
     fun runStudioAudit() {

@@ -120,6 +120,28 @@ class UserDataRepository(context: Context) {
     private val approvalAdapter by lazy { moshi.adapter(ApprovalRequest::class.java) }
     private val chatAdapter by lazy { moshi.adapter(ChatMessage::class.java) }
     private val logAdapter by lazy { moshi.adapter(OperationLog::class.java) }
+    private val studioProjectAdapter by lazy {
+        moshi.adapter(com.example.domain.model.StudioProjectSpec::class.java)
+    }
+
+    /** Durable, account-scoped Studio project storage on the AI I.Z API. */
+    suspend fun saveStudioProject(project: com.example.domain.model.StudioProjectSpec): Result<Unit> = result {
+        require(project.id.matches(Regex("^[A-Za-z0-9_.:-]{1,128}$"))) { "Invalid Studio project ID." }
+        require(project.files.size in 1..24) { "Studio project file count is outside the supported limit." }
+        val totalBytes = project.files.sumOf { it.content.toByteArray(Charsets.UTF_8).size }
+        require(totalBytes <= 220_000) { "Studio project exceeds the cloud storage limit." }
+        save("studio_projects", project.id, project, studioProjectAdapter)
+    }
+
+    suspend fun listStudioProjects(): Result<List<com.example.domain.model.StudioProjectSpec>> = result {
+        fetchList("studio_projects", 50, studioProjectAdapter)
+    }
+
+    suspend fun getStudioProject(projectId: String): Result<com.example.domain.model.StudioProjectSpec?> = result {
+        require(projectId.matches(Regex("^[A-Za-z0-9_.:-]{1,128}$"))) { "Invalid Studio project ID." }
+        try { fetchOne("studio_projects", projectId, studioProjectAdapter) }
+        catch (error: HttpException) { if (error.code() == 404) null else throw error }
+    }
 
     fun observeSettings(userId: String): Flow<UserSettings> = observe {
         fetchOne("settings", "profile", settingsAdapter) ?: UserSettings(id = "profile", userId = userId)

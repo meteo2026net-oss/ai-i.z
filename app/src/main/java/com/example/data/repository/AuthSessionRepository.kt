@@ -47,8 +47,8 @@ class AuthSessionRepository(private val vault: SecretVault) {
     }.rethrowCancellation()
 
     suspend fun signOut() {
-        val accessToken = vault.getSecret(SecretVault.KEY_AUTH_ACCESS_TOKEN)
-        if (accessToken.isNotBlank()) runCatching { service.logout("Bearer $accessToken") }
+        val refreshToken = vault.getSecret(SecretVault.KEY_AUTH_REFRESH_TOKEN)
+        if (refreshToken.isNotBlank()) runCatching { service.logout(RefreshSessionRequest(refreshToken)) }
         vault.putSecret(SecretVault.KEY_AUTH_ACCESS_TOKEN, "")
         vault.putSecret(SecretVault.KEY_AUTH_REFRESH_TOKEN, "")
         vault.putSecret(SecretVault.KEY_AUTH_USER_ID, "")

@@ -146,6 +146,16 @@ data class StudioFileItem(
     val isEntrypoint: Boolean = false
 )
 
+/** Lightweight library row; source files are fetched only when the user opens a project. */
+data class StudioProjectSummary(
+    val id: String,
+    val projectName: String,
+    val environment: DevelopmentEnvironment,
+    val primaryLanguage: ProgrammingLanguage,
+    val description: String,
+    val fileCount: Int
+)
+
 data class StudioProjectSpec(
     val id: String,
     val projectName: String,

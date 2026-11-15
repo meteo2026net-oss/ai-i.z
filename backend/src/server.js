@@ -1,3 +1,4 @@
+import { validateUserRecord, isApprovalTransitionAllowed } from './record-validation.js';
 import express from 'express';
 import helmet from 'helmet';
 import rateLimit from 'express-rate-limit';
@@ -189,38 +190,6 @@ app.get('/api/me', requireSession, (req, res) => {
 const allowedCollections = new Set(['settings', 'tasks', 'approvals', 'chat_messages', 'operation_logs']);
 const validRecordId = value => typeof value === 'string' && value.length >= 1 && value.length <= 128 && /^[A-Za-z0-9_.:-]+$/.test(value);
 
-const boundedString = (value, min, max) => typeof value === 'string' && value.length >= min && value.length <= max;
-const stringList = (value, maxItems) => Array.isArray(value) && value.length <= maxItems && value.every(item => boundedString(item, 0, 500));
-function validateUserRecord(collection, data) {
-  if (collection === 'settings') return boundedString(data.activeRepo, 0, 128) &&
-    boundedString(data.activeBranch, 0, 128) && ['gemini', 'openai'].includes(data.aiProvider) &&
-    boundedString(data.aiModel, 1, 64) && boundedString(data.backendUrl, 0, 300) &&
-    typeof data.darkTheme === 'boolean' && typeof data.autoExecuteTier1 === 'boolean';
-  if (collection === 'tasks') return boundedString(data.repo, 0, 128) &&
-    boundedString(data.branch, 0, 128) && boundedString(data.title, 1, 200) &&
-    boundedString(data.prompt, 1, 2000) &&
-    ['queued', 'running', 'awaiting_approval', 'completed', 'failed', 'paused'].includes(data.status) &&
-    Number.isSafeInteger(data.currentStepIndex) && data.currentStepIndex >= 0 &&
-    Number.isSafeInteger(data.totalSteps) && data.totalSteps >= 0 &&
-    Number.isSafeInteger(data.progressPercent) && data.progressPercent >= 0 && data.progressPercent <= 100 &&
-    boundedString(data.lastCompletedStep, 0, 300) && boundedString(data.lastResultSummary, 0, 2000) &&
-    boundedString(data.lastError, 0, 1000) && stringList(data.modifiedFiles, 30) && stringList(data.nextSteps, 30);
-  if (collection === 'approvals') return boundedString(data.taskId, 0, 128) &&
-    [2, 3].includes(data.tier) &&
-    ['git_push', 'create_pr', 'staging_deploy', 'service_config', 'db_sql', 'db_rls_grants', 'db_migration', 'merge_pr', 'prod_deploy'].includes(data.actionType) &&
-    boundedString(data.title, 1, 200) && boundedString(data.description, 1, 2000) &&
-    boundedString(data.payloadPreview, 0, 8000) && boundedString(data.targetResource, 0, 300) &&
-    ['pending', 'approved', 'rejected', 'execution_reported'].includes(data.status) &&
-    boundedString(data.decisionNote, 0, 500);
-  if (collection === 'chat_messages') return ['user', 'assistant', 'system'].includes(data.role) &&
-    boundedString(data.content, 1, 12000) && boundedString(data.repoContext, 0, 128) &&
-    boundedString(data.linkedTaskId, 0, 128);
-  if (collection === 'operation_logs') return ['agent', 'github', 'security', 'ai', 'backend', 'test'].includes(data.category) &&
-    Number.isSafeInteger(data.tier) && data.tier >= 1 && data.tier <= 3 &&
-    boundedString(data.action, 1, 200) && boundedString(data.details, 0, 3000) &&
-    ['success', 'failed', 'error', 'blocked', 'pending'].includes(data.outcome) && boundedString(data.repo, 0, 128);
-  return false;
-}
 
 app.get('/api/data/:collection', requireSession, async (req, res) => {
   const { collection } = req.params;
@@ -268,21 +237,9 @@ app.put('/api/data/:collection/:recordId', requireSession, async (req, res) => {
     }
     if (collection === 'approvals') {
       const priorStatus = existing.rows[0]?.payload?.status;
-      if (!priorStatus && payload.status !== 'pending') {
+      if (!isApprovalTransitionAllowed(priorStatus, payload.status)) {
         await client.query('ROLLBACK');
-        return jsonError(res, 409, 'INVALID_APPROVAL_TRANSITION', 'New approvals must start as pending.');
-      }
-      if (['rejected', 'execution_reported'].includes(priorStatus)) {
-        await client.query('ROLLBACK');
-        return jsonError(res, 409, 'APPROVAL_TERMINAL', 'This approval is already in a terminal state.');
-      }
-      if (priorStatus === 'pending' && !['pending', 'approved', 'rejected'].includes(payload.status)) {
-        await client.query('ROLLBACK');
-        return jsonError(res, 409, 'INVALID_APPROVAL_TRANSITION', 'A pending approval can only remain pending, be approved, or be rejected.');
-      }
-      if (priorStatus === 'approved' && !['approved', 'execution_reported'].includes(payload.status)) {
-        await client.query('ROLLBACK');
-        return jsonError(res, 409, 'INVALID_APPROVAL_TRANSITION', 'An approved request cannot be reopened or rejected.');
+        return jsonError(res, 409, 'INVALID_APPROVAL_TRANSITION', 'The requested approval state transition is not permitted.');
       }
     }
     const result = await client.query(

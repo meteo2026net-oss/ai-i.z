@@ -252,6 +252,7 @@ test('PostgreSQL API enforces authenticated tenant ownership and record invarian
   await t.test('logout revokes the refresh-token family without relying on an access token', async () => {
     const response = await api('/api/auth/logout', null, 'POST', { refreshToken: aliceRefreshToken });
     assert.equal(response.status, 204);
+    assert.match(response.headers.get('cache-control') || '', /no-store/);
     const session = await pool.query('SELECT revoked_at FROM app_sessions WHERE user_id=$1', [alice]);
     assert.ok(session.rows[0].revoked_at);
     assert.equal((await api('/api/data/tasks', aliceToken)).status, 401);
@@ -260,6 +261,8 @@ test('PostgreSQL API enforces authenticated tenant ownership and record invarian
   await t.test('refresh rotates tokens and revokes the family on token reuse', async () => {
     const first = await api('/api/auth/refresh', null, 'POST', { refreshToken: bobRefreshToken });
     assert.equal(first.status, 200);
+    assert.match(first.headers.get('cache-control') || '', /no-store/);
+    assert.equal(first.headers.get('pragma'), 'no-cache');
     const rotated = await first.json();
     assert.ok(rotated.accessToken);
     assert.ok(rotated.refreshToken);

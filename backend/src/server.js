@@ -28,6 +28,13 @@ const app = express();
 app.disable('x-powered-by');
 app.use(helmet());
 app.use(express.json({ limit: '512kb', strict: true }));
+// Session and refresh responses contain bearer credentials; never allow intermediary or browser caching.
+app.use('/api/auth', (_req, res, next) => {
+  res.set('Cache-Control', 'no-store, no-cache, must-revalidate, private');
+  res.set('Pragma', 'no-cache');
+  res.set('Expires', '0');
+  next();
+});
 app.use('/api/auth', rateLimit({ windowMs: 60_000, limit: 20, standardHeaders: 'draft-8', legacyHeaders: false }));
 app.use('/api', rateLimit({ windowMs: 60_000, limit: 120, standardHeaders: 'draft-8', legacyHeaders: false }));
 

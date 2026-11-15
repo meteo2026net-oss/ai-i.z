@@ -15,11 +15,12 @@ Never commit `.env`, database credentials, OAuth client secrets, signing keys, o
 - `GET /api/health` — database connectivity.
 - `POST /api/auth/session` — body: `{ "idToken": "..." }`; verifies Google OIDC and creates/loads an account by provider subject.
 - `POST /api/auth/refresh` — body: `{ "refreshToken": "..." }`; rotates refresh token atomically.
-- `POST /api/auth/logout` — revoke current AI I.Z session (Bearer access token).
+- `POST /api/auth/logout` — body: `{ "refreshToken": "..." }`; revokes the entire refresh-token family even if the access token has expired.
 - `GET /api/me` — current server-derived profile (Bearer access token).
 - `GET /api/data/{settings|tasks|approvals|chat_messages|operation_logs}` — list only the signed-in user's records.
 - `GET /api/data/{collection}/{recordId}` — fetch one record owned by the signed-in user.
-- `PUT /api/data/{collection}/{recordId}` — create or replace a user-owned record; the server overwrites `userId` from the verified session.
+- `PUT /api/data/{collection}/{recordId}` — validate and create/update a user-owned record; the server overwrites `userId` from the verified session. Approval state transitions are server-validated; client execution completion is recorded as `execution_reported`, not server-verified `executed`.
+- Operation logs are append-only and cannot be overwritten or deleted.
 - `DELETE /api/data/{collection}/{recordId}` — delete only a record owned by the signed-in user.
 
 Refresh token values are random and only SHA-256 hashes are stored. Reuse of a rotated token revokes its token family. The API never trusts a client-supplied user ID. Access tokens are short-lived and bound to issuer, audience, subject, and session ID.
@@ -30,6 +31,6 @@ Use HTTPS, a managed PostgreSQL instance with encrypted connections, backups and
 
 ## Migration status and scope boundary
 
-The API now includes a tenant-scoped JSONB record store for settings, tasks, approvals, chat messages, and operation logs. The Android repository has been switched to call these endpoints using the AI I.Z session. The current client uses periodic polling rather than Firestore realtime listeners.
+The API now includes a tenant-scoped JSONB record store for settings, tasks, approvals, chat messages, and operation logs. The Android repository has been switched to call these endpoints using the AI I.Z session. The current client uses periodic polling. CI includes PostgreSQL-backed integration tests for tenant isolation, record validation, approval transitions, append-only logs, logout revocation, and revoked-session rejection.
 
 The Android login and user-data paths no longer depend on Firebase Authentication, Firestore, or App Check. Firebase AI remains only as the existing Gemini provider integration. Historical Firestore records are not imported by this code; production use still requires applying the schema, deploying the API, configuring Android build variables, and passing end-to-end and cross-account isolation tests.

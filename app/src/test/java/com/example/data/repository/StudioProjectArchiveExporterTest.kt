@@ -143,6 +143,35 @@ class StudioProjectArchiveExporterTest {
     }
 
 
+
+    @Test
+    fun rejectsEnvironmentSecretsAndPrivateKeyFiles() {
+        val template = project().files.first()
+        listOf(
+            ".env", ".env.production", "config/.env.local",
+            "server.pem", "private.key", "signing.p12", "release.jks",
+            "id_rsa", "credentials.json", "secrets.yaml", ".npmrc"
+        ).forEach { unsafePath ->
+            assertThrows(IllegalArgumentException::class.java) {
+                StudioProjectArchiveExporter.writeZip(
+                    project().copy(files = listOf(template.copy(path = unsafePath))),
+                    ByteArrayOutputStream()
+                )
+            }
+        }
+    }
+
+    @Test
+    fun allowsDocumentedEnvironmentTemplates() {
+        val template = project().files.first()
+        listOf(".env.example", ".env.template", ".env.sample").forEach { safePath ->
+            StudioProjectArchiveExporter.writeZip(
+                project().copy(files = listOf(template.copy(path = safePath))),
+                ByteArrayOutputStream()
+            )
+        }
+    }
+
     @Test
     fun validatesAllEntriesBeforeWritingToOutputStream() {
         val base = project()

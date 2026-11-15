@@ -78,5 +78,20 @@ object StudioProjectArchiveExporter {
         require(segments.none { it.equals(".git", ignoreCase = true) }) {
             "لا يمكن تصدير محتويات مجلد Git الداخلي."
         }
+        val normalizedSegments = segments.map { it.lowercase(Locale.ROOT) }
+        val allowedEnvFiles = setOf(".env.example", ".env.template", ".env.sample")
+        require(normalizedSegments.none { segment ->
+            (segment.startsWith(".env") && segment !in allowedEnvFiles) ||
+                segment.endsWith(".pem") || segment.endsWith(".key") ||
+                segment.endsWith(".p12") || segment.endsWith(".pfx") ||
+                segment.endsWith(".jks") || segment.endsWith(".keystore") ||
+                segment in setOf(
+                    "id_rsa", "id_ed25519", "credentials", "credentials.json",
+                    "secrets.json", "secrets.yaml", "secrets.yml",
+                    ".npmrc", ".pypirc", ".netrc"
+                )
+        }) {
+            "تم رفض تصدير ملف قد يحتوي على أسرار أو مفاتيح خاصة."
+        }
     }
 }

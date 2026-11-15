@@ -356,7 +356,7 @@ app.post('/api/runner/approvals/:approvalId/consume', requireSession, async (req
     const updated = await client.query(
       `UPDATE runner_approvals SET status='consumed',consumed_at=now()
        WHERE id=$1 AND user_id=$2 AND status='approved'
-       RETURNING id,action_type,target_resource,operation,operation_hash,consumed_at`,
+       RETURNING id,action_type,target_resource,operation,operation_hash,status,consumed_at`,
       [approvalId,req.user.id]
     );
     await client.query(

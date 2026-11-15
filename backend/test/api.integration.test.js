@@ -199,6 +199,39 @@ test('PostgreSQL API enforces authenticated tenant ownership and record invarian
     assert.equal(replay.status, 409);
   });
 
+
+  await t.test('Studio projects persist per account and cannot cross tenant boundaries', async () => {
+    const project = {
+      projectName: 'durable-studio-project',
+      environment: 'WEB_REACT_NEXT',
+      primaryLanguage: 'TYPESCRIPT',
+      description: 'Integration test project',
+      recommendedModel: {},
+      alternateModels: [],
+      files: [
+        { path: 'src/index.ts', language: 'TYPESCRIPT', content: 'export const ready = true;', purpose: 'Entry point', isEntrypoint: true },
+        { path: 'README.md', language: 'TEXT', content: '# Project', purpose: 'Documentation', isEntrypoint: false }
+      ],
+      buildInstructions: 'npm run build',
+      runInstructions: 'npm run dev',
+      testInstructions: 'npm test'
+    };
+    const saved = await api('/api/data/studio_projects/studio_project_1', aliceToken, 'PUT', project);
+    assert.equal(saved.status, 200);
+    const loaded = await api('/api/data/studio_projects/studio_project_1', aliceToken);
+    assert.equal(loaded.status, 200);
+    assert.equal((await loaded.json()).record.files[0].path, 'src/index.ts');
+    const listed = await api('/api/data/studio_projects', aliceToken);
+    assert.equal((await listed.json()).records.length, 1);
+    assert.equal((await api('/api/data/studio_projects/studio_project_1', bobToken)).status, 404);
+
+    const unsafe = await api('/api/data/studio_projects/studio_project_unsafe', aliceToken, 'PUT', {
+      ...project,
+      files: [{ ...project.files[0], path: '../outside.ts' }]
+    });
+    assert.equal(unsafe.status, 400);
+  });
+
   await t.test('logout revokes the refresh-token family without relying on an access token', async () => {
     const response = await api('/api/auth/logout', null, 'POST', { refreshToken: aliceRefreshToken });
     assert.equal(response.status, 204);

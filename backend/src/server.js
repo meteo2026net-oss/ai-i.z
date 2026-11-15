@@ -27,7 +27,7 @@ const app = express();
 
 app.disable('x-powered-by');
 app.use(helmet());
-app.use(express.json({ limit: '64kb', strict: true }));
+app.use(express.json({ limit: '512kb', strict: true }));
 app.use('/api/auth', rateLimit({ windowMs: 60_000, limit: 20, standardHeaders: 'draft-8', legacyHeaders: false }));
 app.use('/api', rateLimit({ windowMs: 60_000, limit: 120, standardHeaders: 'draft-8', legacyHeaders: false }));
 
@@ -421,7 +421,7 @@ app.post('/api/runner/approvals/:approvalId/consume', requireSession, async (req
 });
 
 
-const allowedCollections = new Set(['settings', 'tasks', 'approvals', 'chat_messages', 'operation_logs']);
+const allowedCollections = new Set(['settings', 'tasks', 'approvals', 'chat_messages', 'operation_logs', 'studio_projects']);
 const validRecordId = value => typeof value === 'string' && value.length >= 1 && value.length <= 128 && /^[A-Za-z0-9_.:-]+$/.test(value);
 
 

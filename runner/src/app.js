@@ -5,7 +5,7 @@ import { createSessionVerifier } from './auth.js';
 
 const unsupported = (res, code, message) => res.status(501).json({ error: { code, message } });
 
-export function createApp({ pool, identityApiUrl, fetchImpl = fetch, isolatedTarget = false }) {
+export function createApp({ pool, identityApiUrl, fetchImpl = fetch, isolatedTarget = false, schemaAccessUserIds = [] }) {
   if (!pool) throw new Error('A dedicated Runner PostgreSQL pool is required.');
   const app = express();
   app.disable('x-powered-by');
@@ -31,7 +31,9 @@ export function createApp({ pool, identityApiUrl, fetchImpl = fetch, isolatedTar
     }
   });
 
-  app.get('/api/db/schema', async (_req, res) => {
+  const schemaAdmins = new Set(schemaAccessUserIds.filter(id => typeof id === 'string' && id.trim()).map(id => id.trim()));
+  app.get('/api/db/schema', async (req, res) => {
+    if (!schemaAdmins.has(req.aiIzUser.id)) return res.status(403).json({ error: { code: 'SCHEMA_ACCESS_FORBIDDEN', message: 'Schema inspection is restricted to configured Runner administrators.' } });
     try {
       const [db, tables, columns, indexes, relations] = await Promise.all([
         pool.query('SELECT current_database() AS database_name, version() AS engine_version'),

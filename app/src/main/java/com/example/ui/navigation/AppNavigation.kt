@@ -99,7 +99,6 @@ import com.example.ui.components.QuotaFailoverBanner
 import com.example.ui.theme.MetraAgentTheme
 import com.example.ui.viewmodel.MetraAgentViewModel
 import com.example.ui.viewmodel.StreamUiState
-import com.google.firebase.firestore.FirebaseFirestore
 
 private data class TopNavTab(
     val route: String,
@@ -157,13 +156,11 @@ private fun AuthenticatedMetraShell(
         factory = viewModelFactory {
             initializer {
                 val app = checkNotNull(this[APPLICATION_KEY]) as Application
-                val dbId = app.getString(R.string.firestore_database_id)
-                val firestore = FirebaseFirestore.getInstance(dbId)
                 val localDb = MetraLocalDatabase.getInstance(app)
                 val appVault = SecretVault(app)
                 MetraAgentViewModel(
                     currentUserId = currentUserId,
-                    firestoreRepo = FirestoreAgentRepository(firestore),
+                    firestoreRepo = FirestoreAgentRepository(app),
                     gitHubRepo = GitHubRepository(appVault),
                     aiRepo = AiOrchestratorRepository(appVault),
                     backendRepo = BackendRepository(appVault),

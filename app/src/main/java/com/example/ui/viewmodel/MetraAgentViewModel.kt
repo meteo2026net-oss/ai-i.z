@@ -2078,8 +2078,8 @@ class MetraAgentViewModel(
                 )
             }
 
-            val filesForReview = project.files.take(20).joinToString("\\n\\n") { file ->
-                "===== ${file.path} =====\\n${file.content.take(3500)}"
+            val filesForReview = project.files.take(20).joinToString("\n\n") { file ->
+                "===== ${file.path} =====\n${file.content.take(3500)}"
             }.take(28_000)
             val prompt = """
                 أنت مراجع هندسي مساعد لمشروع برمجي. راجع الملفات المرفقة فقط ولا تدّعِ تشغيل اختبارات أو أدوات فحص ساكن أو فحص ثغرات.
@@ -2111,7 +2111,7 @@ class MetraAgentViewModel(
                 onSuccess = { review ->
                     _workspace.update {
                         it.copy(
-                            studioAuditStatus = "مراجعة AI مساعدة (ليست فحصاً ساكناً أو اختباراً منفذاً)\\nالنموذج: ${review.usedEndpoint.modelName}\\n\\n${review.text.take(12_000)}",
+                            studioAuditStatus = "مراجعة AI مساعدة (ليست فحصاً ساكناً أو اختباراً منفذاً)\nالنموذج: ${review.usedEndpoint.modelName}\n\n${review.text.take(12_000)}",
                             statusBannerMessage = "اكتملت المراجعة المساعدة. لم تُمنح درجة أمان ولم تُدّعَ اختبارات غير منفذة."
                         )
                     }

@@ -4,6 +4,10 @@ import com.example.BuildConfig
 import com.example.core.security.ApprovalGuard
 import com.example.core.security.GuardDecision
 import com.example.core.security.SecretVault
+import com.google.firebase.auth.FirebaseAuth
+import kotlinx.coroutines.suspendCancellableCoroutine
+import kotlin.coroutines.resume
+import kotlin.coroutines.resumeWithException
 import com.example.data.remote.BackendRunnerService
 import com.example.domain.model.BackendHealthResponse
 import com.example.domain.model.BackendTestRunRequest
@@ -59,12 +63,37 @@ class BackendRepository(private val vault: SecretVault) {
             .create(BackendRunnerService::class.java)
     }
 
-    private fun authHeader(): String {
-        val token = vault.getSecret(SecretVault.KEY_BACKEND_TOKEN)
-        require(token.isNotBlank()) {
-            "أدخل رمز الوصول إلى Backend Runner قبل الاتصال."
+    /**
+     * Send a short-lived Firebase ID token. The backend verifies its signature,
+     * audience, expiry, and revocation state; a static app-wide bearer secret is
+     * never embedded in or sent by the Android client.
+     */
+    private suspend fun authHeader(): String = suspendCancellableCoroutine { continuation ->
+        val user = FirebaseAuth.getInstance().currentUser
+        if (user == null) {
+            continuation.resumeWithException(
+                SecurityException("يجب تسجيل الدخول إلى Firebase قبل الاتصال بخادم Backend.")
+            )
+            return@suspendCancellableCoroutine
         }
-        return "Bearer $token"
+
+        user.getIdToken(false).addOnCompleteListener { task ->
+            if (!continuation.isActive) return@addOnCompleteListener
+            if (task.isSuccessful) {
+                val token = task.result?.token
+                if (token.isNullOrBlank()) {
+                    continuation.resumeWithException(
+                        SecurityException("تعذر الحصول على رمز جلسة Firebase صالح.")
+                    )
+                } else {
+                    continuation.resume("Bearer $token")
+                }
+            } else {
+                continuation.resumeWithException(
+                    task.exception ?: IllegalStateException("تعذر التحقق من جلسة Firebase.")
+                )
+            }
+        }
     }
 
     suspend fun checkHealth(

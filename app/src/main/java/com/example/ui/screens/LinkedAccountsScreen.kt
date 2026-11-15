@@ -53,8 +53,6 @@ import com.example.ui.theme.CrimsonError
 import com.example.ui.theme.ElectricCyan
 import com.example.ui.theme.EmeraldSuccess
 import com.example.ui.viewmodel.WorkspaceUiState
-import com.google.firebase.Firebase
-import com.google.firebase.auth.auth
 import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -420,10 +418,10 @@ fun LinkedAccountsScreen(
                 }
 
                 val activeEmail = workspace.currentGoogleEmail.ifBlank {
-                    Firebase.auth.currentUser?.email ?: currentUserId
+                    currentUserId
                 }
                 val activeName = workspace.currentGoogleName.ifBlank {
-                    Firebase.auth.currentUser?.displayName ?: "الحساب النشط"
+                    "حساب AI I.Z"
                 }
 
                 Text(

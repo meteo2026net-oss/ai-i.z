@@ -2294,7 +2294,7 @@ class MetraAgentViewModel(
         _workspace.update {
             it.copy(
                 activeStudioProject = updatedProj,
-                statusBannerMessage = "تم حفظ التعديلات على " + currentPath
+                statusBannerMessage = "تم تحديث الملف في مساحة العمل؛ جارٍ حفظه ومزامنته سحابياً: " + currentPath
             )
         }
         viewModelScope.launch {

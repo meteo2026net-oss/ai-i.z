@@ -8,7 +8,7 @@ The Android application contains a Retrofit client contract for Backend Runner. 
 
 ## 2. Required API
 
-All endpoints require an authenticated caller. The server must validate the short-lived AI I.Z access token issued by `backend/` (signature, algorithm, issuer, audience, expiry, subject, and session ID), then confirm that the session remains active and unrevoked in PostgreSQL. A separately deployed Runner should do this through a trusted server-to-server session-introspection endpoint on the AI I.Z API; it must not independently trust decoded JWT claims or accept static shared bearer tokens. It must derive the user identity from the verified session. A Firebase ID token is not accepted as a substitute.
+All endpoints require an authenticated caller. The server must validate the short-lived AI I.Z access token issued by `backend/` (signature, algorithm, issuer, audience, expiry, subject, and session ID), then confirm that the session remains active and unrevoked in PostgreSQL. A separately deployed Runner should do this by calling the authenticated `GET /api/me` endpoint on the AI I.Z API with the supplied Bearer token and treating any non-success response as unauthenticated; the identity API performs the signature, audience, expiry, session, and revocation checks. The Runner must not independently trust decoded JWT claims or accept static shared bearer tokens. It must derive the user identity from the verified session. A Firebase ID token is not accepted as a substitute.
 
 ### Health
 

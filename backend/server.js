@@ -130,7 +130,7 @@ function createApp({ auth, pools, version = "1.0.0" }) {
       const limited = result.rows.length > 200;
       const rows = limited ? result.rows.slice(0, 200) : result.rows;
       return res.json({
-        executed: false,
+        executed: true,
         rowsAffected: rows.length,
         columns: result.fields.map(field => field.name),
         rows: rows.map(row => row.map(value => value == null ? "" : String(value))),
@@ -188,7 +188,8 @@ function loadPools(env = process.env) {
 async function start() {
   const admin = require("firebase-admin");
   if (!admin.apps.length) admin.initializeApp({ projectId: process.env.FIREBASE_PROJECT_ID });
-  const app = createApp({ auth: admin.auth(), pools: loadPools() });
+  const pools = loadPools();
+  const app = createApp({ auth: admin.auth(), pools });
   const port = Number(process.env.PORT || 8080);
   const host = process.env.HOST || "0.0.0.0";
   const server = app.listen(port, host, () => {
@@ -196,7 +197,7 @@ async function start() {
   });
   const shutdown = async () => {
     server.close();
-    await Promise.all(Object.values(loadPools()).map(pool => pool.end()));
+    await Promise.all(Object.values(pools).map(pool => pool.end()));
   };
   process.once("SIGTERM", shutdown);
   process.once("SIGINT", shutdown);

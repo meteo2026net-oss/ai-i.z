@@ -270,6 +270,20 @@ app.post('/api/runner/approvals', requireSession, async (req, res) => {
   } finally { client.release(); }
 });
 
+
+app.get('/api/runner/approvals', requireSession, async (req, res) => {
+  const parsedLimit = Number(req.query.limit);
+  const limit = Number.isInteger(parsedLimit) ? Math.min(Math.max(parsedLimit, 1), 100) : 50;
+  const result = await pool.query(
+    `SELECT id,action_type,target_resource,operation,operation_hash,preview,status,
+            decision_note,created_at,expires_at,decided_at,consumed_at
+     FROM runner_approvals WHERE user_id=$1
+     ORDER BY created_at DESC LIMIT $2`,
+    [req.user.id,limit]
+  );
+  return res.json({ approvals: result.rows });
+});
+
 app.get('/api/runner/approvals/:approvalId', requireSession, async (req, res) => {
   if (!validApprovalId(req.params.approvalId)) return jsonError(res, 404, 'APPROVAL_NOT_FOUND', 'The approval does not exist.');
   const result = await pool.query(
@@ -319,6 +333,40 @@ app.post('/api/runner/approvals/:approvalId/decision', requireSession, async (re
     await client.query('ROLLBACK').catch(() => {});
     console.error('Runner approval decision failed:', error.message);
     return jsonError(res, 500, 'APPROVAL_DECISION_FAILED', 'The approval decision could not be stored.');
+  } finally { client.release(); }
+});
+
+
+app.post('/api/runner/approvals/:approvalId/report', requireSession, async (req, res) => {
+  const { approvalId } = req.params;
+  const { outcome, note = '' } = req.body || {};
+  if (!validApprovalId(approvalId)) return jsonError(res, 404, 'APPROVAL_NOT_FOUND', 'The approval does not exist.');
+  if (!['success','failed'].includes(outcome) || typeof note !== 'string' || note.length > 500) {
+    return jsonError(res, 400, 'INVALID_EXECUTION_REPORT', 'A success or failed outcome and a bounded report note are required.');
+  }
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+    const updated = await client.query(
+      `UPDATE runner_approvals SET status='execution_reported',decision_note=$3
+       WHERE id=$1 AND user_id=$2 AND status='consumed' AND consumed_at IS NOT NULL
+       RETURNING id,status,decision_note,consumed_at`,
+      [approvalId,req.user.id,`client_report:${outcome}:${note}`.slice(0,500)]
+    );
+    if (!updated.rowCount) {
+      await client.query('ROLLBACK');
+      return jsonError(res, 409, 'APPROVAL_NOT_REPORTABLE', 'Only a consumed approval can receive one client-reported execution result.');
+    }
+    await client.query(
+      'INSERT INTO security_audit_events(user_id,event_type,details) VALUES($1,\'runner_execution_reported\',$2::jsonb)',
+      [req.user.id,JSON.stringify({ approvalId,outcome })]
+    );
+    await client.query('COMMIT');
+    return res.json({ approval: updated.rows[0], executionVerified: false });
+  } catch (error) {
+    await client.query('ROLLBACK').catch(() => {});
+    console.error('Runner execution report failed:', error.message);
+    return jsonError(res, 500, 'EXECUTION_REPORT_FAILED', 'The execution report could not be stored.');
   } finally { client.release(); }
 });
 

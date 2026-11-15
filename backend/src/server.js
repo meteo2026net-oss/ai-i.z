@@ -242,14 +242,26 @@ app.put('/api/data/:collection/:recordId', requireSession, async (req, res) => {
         return jsonError(res, 409, 'INVALID_APPROVAL_TRANSITION', 'The requested approval state transition is not permitted.');
       }
     }
-    const result = await client.query(
-      `INSERT INTO user_records(user_id,collection,record_id,payload)
-       VALUES($1,$2,$3,$4::jsonb)
-       ON CONFLICT(user_id,collection,record_id) DO UPDATE
-         SET payload=EXCLUDED.payload, updated_at=now()
-       RETURNING record_id,payload,created_at,updated_at`,
-      [req.user.id, collection, recordId, JSON.stringify(payload)]
-    );
+    const result = collection === 'operation_logs'
+      ? await client.query(
+          `INSERT INTO user_records(user_id,collection,record_id,payload)
+           VALUES($1,$2,$3,$4::jsonb)
+           ON CONFLICT(user_id,collection,record_id) DO NOTHING
+           RETURNING record_id,payload,created_at,updated_at`,
+          [req.user.id, collection, recordId, JSON.stringify(payload)]
+        )
+      : await client.query(
+          `INSERT INTO user_records(user_id,collection,record_id,payload)
+           VALUES($1,$2,$3,$4::jsonb)
+           ON CONFLICT(user_id,collection,record_id) DO UPDATE
+             SET payload=EXCLUDED.payload, updated_at=now()
+           RETURNING record_id,payload,created_at,updated_at`,
+          [req.user.id, collection, recordId, JSON.stringify(payload)]
+        );
+    if (!result.rowCount) {
+      await client.query('ROLLBACK');
+      return jsonError(res, 409, 'APPEND_ONLY', 'An operation log with this identifier already exists.');
+    }
     await client.query(
       'INSERT INTO security_audit_events(user_id,event_type,details) VALUES($1,$2,$3::jsonb)',
       [req.user.id, 'data_write', JSON.stringify({ collection, recordId })]

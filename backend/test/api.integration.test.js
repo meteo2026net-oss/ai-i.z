@@ -153,6 +153,14 @@ test('PostgreSQL API enforces authenticated tenant ownership and record invarian
     assert.equal((await api('/api/data/approvals/appr_state', aliceToken, 'PUT', { ...pending, status: 'approved' })).status, 409);
   });
 
+  await t.test('logout revokes the refresh-token family without relying on an access token', async () => {
+    const response = await api('/api/auth/logout', null, 'POST', { refreshToken: aliceRefreshToken });
+    assert.equal(response.status, 204);
+    const session = await pool.query('SELECT revoked_at FROM app_sessions WHERE user_id=$1', [alice]);
+    assert.ok(session.rows[0].revoked_at);
+    assert.equal((await api('/api/data/tasks', aliceToken)).status, 401);
+    assert.equal((await api('/api/data/tasks', bobToken)).status, 200);
+  });
   await t.test('refresh rotates tokens and revokes the family on token reuse', async () => {
     const first = await api('/api/auth/refresh', null, 'POST', { refreshToken: bobRefreshToken });
     assert.equal(first.status, 200);
@@ -172,12 +180,4 @@ test('PostgreSQL API enforces authenticated tenant ownership and record invarian
     assert.equal(revokedReplacement.status, 401);
   });
 
-  await t.test('logout revokes the refresh-token family without relying on an access token', async () => {
-    const response = await api('/api/auth/logout', null, 'POST', { refreshToken: aliceRefreshToken });
-    assert.equal(response.status, 204);
-    const session = await pool.query('SELECT revoked_at FROM app_sessions WHERE user_id=$1', [alice]);
-    assert.ok(session.rows[0].revoked_at);
-    assert.equal((await api('/api/data/tasks', aliceToken)).status, 401);
-    assert.equal((await api('/api/data/tasks', bobToken)).status, 200);
-  });
 });

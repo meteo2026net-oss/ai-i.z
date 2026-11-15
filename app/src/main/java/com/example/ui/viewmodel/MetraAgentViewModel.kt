@@ -2007,30 +2007,113 @@ class MetraAgentViewModel(
         priority: String
     ) {
         viewModelScope.launch {
-            _workspace.update { it.copy(isGeneratingStudioProject = true) }
+            _workspace.update {
+                it.copy(
+                    isGeneratingStudioProject = true,
+                    statusBannerMessage = "يتم إعداد بنية المشروع ثم توليد ملفات مخصصة بالذكاء الاصطناعي…"
+                )
+            }
             try {
-                val project = com.example.data.repository.UniversalStudioProjectGenerator.generateProject(
+                val baseProject = com.example.data.repository.UniversalStudioProjectGenerator.generateProject(
                     name = name,
                     prompt = prompt,
                     environment = environment,
                     language = language,
                     priority = priority
                 )
-                val firstFile = project.files.firstOrNull { it.isEntrypoint } ?: project.files.firstOrNull()
-                _workspace.update {
-                    it.copy(
-                        isGeneratingStudioProject = false,
-                        activeStudioProject = project,
-                        studioSelectedFilePath = firstFile?.path ?: "",
-                        studioEditedContent = firstFile?.content ?: "",
-                        statusBannerMessage = "تم إنشاء مشروع " + project.projectName + " بنجاح في بيئة " + environment.title + " مع ترشيح النموذج: " + project.recommendedModel.modelName
-                    )
+                val starterManifest = baseProject.files.joinToString("\n") {
+                    "- ${it.path}: ${it.purpose}"
                 }
+                val generationPrompt = """
+                    أنشئ ملفات مشروع برمجي حقيقية ومترابطة بناءً على مواصفات المستخدم.
+                    أعد كائن JSON خاماً فقط، بلا Markdown أو أسوار كود، وبالبنية التالية حصراً:
+                    {
+                      "files": [
+                        {
+                          "path": "relative/path",
+                          "language": "KOTLIN",
+                          "purpose": "وصف موجز",
+                          "isEntrypoint": true,
+                          "content": "محتوى الملف كاملاً كنص JSON صحيح"
+                        }
+                      ]
+                    }
+
+                    شروط إلزامية:
+                    - أنشئ 8 إلى 16 ملفاً مترابطاً قدر الإمكان، وبحد أقصى 24 ملفاً.
+                    - عيّن ملف تشغيل رئيسياً واحداً فقط عبر isEntrypoint=true.
+                    - اكتب ملفات قابلة للبناء فعلياً، لا pseudocode ولا TODOs ولا نصوصاً شكلية.
+                    - أدرج ملفات الاعتماديات وإعدادات البناء والاختبارات المناسبة للبيئة.
+                    - اجعل الملفات متوافقة مع بعضها ومع إصدارات الأدوات المعروفة؛ لا تخترع مكتبات.
+                    - أضف README يشرح المتطلبات والبناء والتشغيل والاختبار.
+                    - لا تضع أسراراً أو مفاتيح أو كلمات مرور أو ملفات .env حقيقية؛ استخدم .env.example عند الحاجة.
+                    - لا تضع أوامر تنفيذ تلقائي أو تعليمات لتجاوز الأمان.
+                    - استخدم مسارات نسبية فقط، ولا تنشئ ملفات داخل .git أو مسارات parent.
+                    - حافظ على JSON صالح: اهرب الأسطر وعلامات الاقتباس داخل content.
+                    - لا تدّعِ أن الاختبارات نُفذت؛ أنشئ ملفات الاختبارات فقط.
+
+                    اسم المشروع: ${baseProject.projectName}
+                    بيئة التطوير: ${environment.name} — ${environment.title}
+                    اللغة الأساسية: ${language.name} — ${language.displayName}
+                    أولوية اختيار النموذج: ${priority}
+                    وصف ومتطلبات المستخدم:
+                    ${prompt.take(8_000)}
+
+                    هيكل ابتدائي مقترح للاستفادة منه وتوسيعه:
+                    $starterManifest
+                """.trimIndent()
+
+                val generated = aiRepo.analyzeOnceWithFailover(generationPrompt) { alert ->
+                    _workspace.update {
+                        it.copy(
+                            statusBannerMessage = "تعذر النموذج ${alert.exhaustedLabel}؛ يجري التحويل إلى نموذج متاح لتوليد المشروع."
+                        )
+                    }
+                }
+
+                generated.fold(
+                    onSuccess = { response ->
+                        val files = com.example.data.repository.StudioAiProjectResponseParser.parseFiles(
+                            response = response.text,
+                            defaultLanguage = language
+                        )
+                        val project = baseProject.copy(
+                            files = files,
+                            description = prompt.ifBlank { baseProject.description },
+                            securityAuditScore = null
+                        )
+                        val firstFile = project.files.first { it.isEntrypoint }
+                        _workspace.update {
+                            it.copy(
+                                isGeneratingStudioProject = false,
+                                activeStudioProject = project,
+                                studioSelectedFilePath = firstFile.path,
+                                studioEditedContent = firstFile.content,
+                                statusBannerMessage = "اكتمل توليد مشروع مخصص بالذكاء الاصطناعي: ${files.size} ملفاً. لم يتم تشغيل البناء أو الاختبارات بعد."
+                            )
+                        }
+                    },
+                    onFailure = { error ->
+                        val firstFile = baseProject.files.firstOrNull { it.isEntrypoint }
+                            ?: baseProject.files.firstOrNull()
+                        _workspace.update {
+                            it.copy(
+                                isGeneratingStudioProject = false,
+                                activeStudioProject = baseProject,
+                                studioSelectedFilePath = firstFile?.path ?: "",
+                                studioEditedContent = firstFile?.content ?: "",
+                                statusBannerMessage = "تعذر التوليد المخصص (${error.localizedMessage ?: "استجابة غير صالحة"}). عُرض قالب البداية فقط؛ لم يُعرض على أنه مشروع مولّد أو مختبَر."
+                            )
+                        }
+                    }
+                )
+            } catch (e: kotlinx.coroutines.CancellationException) {
+                throw e
             } catch (e: Exception) {
                 _workspace.update {
                     it.copy(
                         isGeneratingStudioProject = false,
-                        statusBannerMessage = "تعذر توليد المشروع: " + (e.message ?: "خطأ غير معروف")
+                        statusBannerMessage = "تعذر إنشاء المشروع: ${e.localizedMessage ?: "خطأ غير معروف"}"
                     )
                 }
             }

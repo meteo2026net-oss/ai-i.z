@@ -1,0 +1,21 @@
+{
+  "name": "ai-iz-backend-runner",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Authenticated API service for AI I.Z with restricted read-only database access",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "test": "node --test policy.test.js"
+  },
+  "engines": {
+    "node": ">=22 <23"
+  },
+  "dependencies": {
+    "express": "5.1.0",
+    "express-rate-limit": "8.1.0",
+    "firebase-admin": "13.4.0",
+    "helmet": "8.1.0",
+    "pg": "8.16.3"
+  }
+}

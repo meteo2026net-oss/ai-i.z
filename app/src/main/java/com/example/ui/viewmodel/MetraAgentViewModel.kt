@@ -649,7 +649,23 @@ class MetraAgentViewModel(
                     title = "رفع تعديل: ${state.selectedFilePath}",
                     description = "رسالة Commit: ${commitMessage.ifBlank { "Update ${state.selectedFilePath}" }}",
                     payloadPreview = preview.take(7500),
-                    targetResource = "${settings.activeRepo}:${settings.activeBranch}"
+                    targetResource = "${settings.activeRepo}:${settings.activeBranch}",
+                    operationPayload = mapOf(
+                        "repo" to settings.activeRepo,
+                        "branch" to settings.activeBranch,
+                        "filePath" to state.sharedWorkFilePath,
+                        "newContent" to state.sharedWorkFileDraft,
+                        "commitMessage" to commitMessage.ifBlank { "Update shared agent workplan" },
+                        "existingSha" to state.sharedWorkFileSha
+                    ),
+                    operationPayload = mapOf(
+                        "repo" to settings.activeRepo,
+                        "branch" to settings.activeBranch,
+                        "filePath" to state.selectedFilePath,
+                        "newContent" to state.editedFileContent,
+                        "commitMessage" to commitMessage.ifBlank { "Update ${state.selectedFilePath}" },
+                        "existingSha" to state.selectedFileSha
+                    )
                 )
             ).onSuccess {
                 _workspace.update {
@@ -784,7 +800,14 @@ class MetraAgentViewModel(
                     title = "إنشاء Draft PR: $title",
                     description = "من $headBranch إلى $baseBranch",
                     payloadPreview = body,
-                    targetResource = settings.activeRepo
+                    targetResource = settings.activeRepo,
+                    operationPayload = mapOf(
+                        "repo" to settings.activeRepo,
+                        "title" to title,
+                        "headBranch" to headBranch,
+                        "baseBranch" to baseBranch,
+                        "body" to body
+                    )
                 )
             ).onSuccess {
                 _workspace.update { it.copy(statusBannerMessage = "تم إرسال طلب إنشاء Draft PR للموافقة (المستوى 2).") }
@@ -813,7 +836,14 @@ class MetraAgentViewModel(
                     title = "دمج Pull Request #${pr.number}",
                     description = pr.title,
                     payloadPreview = "merge ${pr.head.ref} -> ${pr.base.ref}",
-                    targetResource = "${settings.activeRepo}#${pr.number}"
+                    targetResource = "${settings.activeRepo}#${pr.number}",
+                    operationPayload = mapOf(
+                        "repo" to settings.activeRepo,
+                        "pullNumber" to pr.number,
+                        "commitTitle" to pr.title,
+                        "headBranch" to pr.head.ref,
+                        "baseBranch" to pr.base.ref
+                    )
                 )
             ).onSuccess {
                 _workspace.update { it.copy(statusBannerMessage = "دمج PR يتطلب موافقة صريحة مستقلة (المستوى 3).") }
@@ -2046,7 +2076,12 @@ class MetraAgentViewModel(
                             title = "تنفيذ SQL / Migration على $targetDatabase",
                             description = guard.reason,
                             payloadPreview = cleanSql.take(7500),
-                            targetResource = targetDatabase
+                            targetResource = targetDatabase,
+                            operationPayload = mapOf(
+                                "targetDatabase" to targetDatabase,
+                                "sql" to cleanSql,
+                                "operationType" to if (cleanSql.contains("POLICY", true) || cleanSql.contains("GRANT", true)) "db_rls_grants" else "db_migration"
+                            )
                         )
                     )
                     _workspace.update {

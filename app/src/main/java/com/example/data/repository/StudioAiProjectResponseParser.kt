@@ -10,6 +10,7 @@ import com.squareup.moshi.Moshi
  */
 object StudioAiProjectResponseParser {
     private const val MAX_FILES = 24
+    private const val MAX_RESPONSE_BYTES = 260_000
     private const val MAX_FILE_BYTES = 48_000
     private const val MAX_TOTAL_BYTES = 220_000
     private const val MAX_PATH_LENGTH = 180
@@ -20,6 +21,9 @@ object StudioAiProjectResponseParser {
         response: String,
         defaultLanguage: ProgrammingLanguage
     ): List<StudioFileItem> {
+        require(response.toByteArray(Charsets.UTF_8).size <= MAX_RESPONSE_BYTES) {
+            "استجابة النموذج أكبر من الحد المسموح."
+        }
         val json = extractJsonObject(response)
         val root = mapAdapter.fromJson(json) as? Map<*, *>
             ?: throw IllegalArgumentException("استجابة النموذج ليست كائن JSON صالحاً.")
@@ -98,7 +102,11 @@ object StudioAiProjectResponseParser {
             "لا يسمح بإنشاء ملفات داخل مجلد Git."
         }
         val fileName = segments.last()
-        require(!fileName.equals(".env", ignoreCase = true) &&
+        val isExampleEnvironmentFile = fileName.equals(".env.example", ignoreCase = true) ||
+            fileName.equals(".env.template", ignoreCase = true) ||
+            fileName.equals(".env.sample", ignoreCase = true)
+        require((!fileName.equals(".env", ignoreCase = true) &&
+            (!fileName.startsWith(".env.", ignoreCase = true) || isExampleEnvironmentFile)) &&
             !fileName.endsWith(".jks", ignoreCase = true) &&
             !fileName.endsWith(".keystore", ignoreCase = true) &&
             !fileName.endsWith(".pem", ignoreCase = true) &&

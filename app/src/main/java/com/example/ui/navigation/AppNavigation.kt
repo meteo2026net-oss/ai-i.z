@@ -71,7 +71,7 @@ import com.example.data.local.MetraLocalDatabase
 import com.example.data.repository.AiOrchestratorRepository
 import com.example.data.repository.AuthSessionRepository
 import com.example.data.repository.BackendRepository
-import com.example.data.repository.FirestoreAgentRepository
+import com.example.data.repository.UserDataRepository
 import com.example.data.repository.GitHubRepository
 import com.example.domain.model.UserSettings
 import com.example.ui.screens.ActionsScreen
@@ -160,7 +160,7 @@ private fun AuthenticatedMetraShell(
                 val appVault = SecretVault(app)
                 MetraAgentViewModel(
                     currentUserId = currentUserId,
-                    firestoreRepo = FirestoreAgentRepository(app),
+                    userDataRepository = UserDataRepository(app),
                     gitHubRepo = GitHubRepository(appVault),
                     aiRepo = AiOrchestratorRepository(appVault),
                     backendRepo = BackendRepository(appVault),

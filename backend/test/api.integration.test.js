@@ -1,4 +1,4 @@
-import test, { before, after } from 'node:test';
+import test from 'node:test';
 import assert from 'node:assert/strict';
 import { spawn } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
@@ -92,8 +92,9 @@ test('PostgreSQL API enforces authenticated tenant ownership and record invarian
 
   await t.after(async () => {
     if (server && server.exitCode === null) {
+      const exited = new Promise(resolve => server.once('exit', resolve));
       server.kill('SIGTERM');
-      await new Promise(resolve => server.once('exit', resolve));
+      await exited;
     }
     await pool?.end();
   });

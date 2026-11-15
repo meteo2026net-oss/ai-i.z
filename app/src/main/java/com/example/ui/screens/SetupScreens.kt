@@ -345,7 +345,6 @@ fun AiProviderScreen(
     var baseUrlInput by remember(selectedProviderType) { mutableStateOf(selectedProviderType.defaultBaseUrl) }
 
     var backendUrl by remember(settings.backendUrl) { mutableStateOf(settings.backendUrl) }
-    var backendToken by remember { mutableStateOf("") }
 
     val pConfig = workspace.platformConfig
     val activeProject = pConfig.activeProject
@@ -742,15 +741,10 @@ fun AiProviderScreen(
                         .fillMaxWidth()
                         .testTag("backend_url_input")
                 )
-                OutlinedTextField(
-                    value = backendToken,
-                    onValueChange = { backendToken = it },
-                    label = {
-                        Text(if (hasBackendSecret) "رمز Backend (محفوظ مشفر)" else "رمز مصادقة Backend (اختياري)")
-                    },
-                    visualTransformation = PasswordVisualTransformation(),
-                    singleLine = true,
-                    modifier = Modifier.fillMaxWidth()
+                Text(
+                    text = "تتم المصادقة تلقائياً بجلسة AI I.Z الحالية؛ لا حاجة إلى رمز Backend منفصل.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
                 if (!workspace.backendError.isNullOrBlank()) {
                     Text(
@@ -774,11 +768,10 @@ fun AiProviderScreen(
                         onClick = {
                             onSaveBackendConfig(
                                 backendUrl,
-                                backendToken,
+                                "",
                                 selectedProviderType.wireKey,
                                 modelName
                             )
-                            backendToken = ""
                         },
                         modifier = Modifier
                             .weight(1f)

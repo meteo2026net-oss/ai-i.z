@@ -24,10 +24,13 @@ export function validateUserRecord(collection, data) {
       const normalizedPath = file.path.toLowerCase();
       const segments = normalizedPath.split('/');
       const envFilesAllowed = ['.env.example', '.env.template', '.env.sample'];
-      if (file.path.startsWith('/') || file.path.includes(String.fromCharCode(92)) ||
+      const filename = segments[segments.length - 1];
+      if (file.path.startsWith('/') || file.path.includes(':') ||
+          file.path.includes(String.fromCharCode(92)) || file.path.trim() !== file.path ||
           segments.some(part => !part || part === '.' || part === '..' || part === '.git' ||
             (part.startsWith('.env') && !envFilesAllowed.includes(part))) ||
-          /\.(?:pem|key|p12|pfx|jks|keystore)$/i.test(file.path)) return false;
+          /\.(?:pem|key|p12|pfx|jks|keystore)$/i.test(file.path) ||
+          /^(?:id_rsa|id_ed25519|credentials(?:\.json)?|secrets?\.(?:json|ya?ml)|\.npmrc|\.pypirc|\.netrc)$/i.test(filename)) return false;
       if (paths.has(normalizedPath)) return false;
       paths.add(normalizedPath);
       totalBytes += Buffer.byteLength(file.content, 'utf8');

@@ -54,6 +54,7 @@ import com.example.ui.components.MetricsBarChart
 import com.example.ui.components.SetupRequiredBanner
 import com.example.ui.components.StatusPill
 import com.example.ui.theme.AmberWarning
+import com.example.ui.theme.AzureAccent
 import com.example.ui.theme.CrimsonError
 import com.example.ui.theme.ElectricCyan
 import com.example.ui.theme.EmeraldSuccess

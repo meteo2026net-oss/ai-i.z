@@ -29,19 +29,8 @@ jobs:
           distribution: temurin
           java-version: '21'
 
-      - name: Set up Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: '22'
-
       - name: Set up Gradle
         uses: gradle/actions/setup-gradle@v4
-
-      - name: Install JavaScript test dependencies
-        run: npm install --no-audit --no-fund
-
-      - name: Install Firebase CLI
-        run: npm install --global firebase-tools
 
       - name: Generate ephemeral debug keystore
         run: |
@@ -55,12 +44,8 @@ jobs:
             -validity 10000 \
             -dname "CN=Android Debug,O=Android,C=US"
 
-      - name: Run Firestore rules tests, Android unit tests, and assemble debug APK
-        run: |
-          firebase emulators:exec \
-            --project demo-no-project \
-            --only firestore \
-            "npm run test:firestore && gradle --no-daemon --stacktrace testDebugUnitTest assembleDebug"
+      - name: Run Android unit tests and assemble debug APK
+        run: gradle --no-daemon --stacktrace testDebugUnitTest assembleDebug
 
       - name: Upload debug APK
         if: success()

@@ -73,7 +73,7 @@ app.post('/api/auth/session', async (req, res) => {
   try {
     const ticket = await googleClient.verifyIdToken({ idToken, audience: process.env.GOOGLE_OIDC_CLIENT_ID });
     claims = ticket.getPayload();
-    if (!claims || !claims.sub || claims.iss !== 'https://accounts.google.com' || claims.email_verified !== true || !claims.email) throw new Error('Invalid OIDC claims');
+    if (!claims || !claims.sub || !['https://accounts.google.com', 'accounts.google.com'].includes(claims.iss) || claims.email_verified !== true || !claims.email) throw new Error('Invalid OIDC claims');
   } catch {
     return jsonError(res, 401, 'GOOGLE_TOKEN_REJECTED', 'Google could not verify this sign-in. Please try again.');
   }

@@ -5,6 +5,7 @@ import { fileURLToPath } from 'node:url';
 import { readFile } from 'node:fs/promises';
 import { Pool } from 'pg';
 import { SignJWT } from 'jose';
+import { generateRefreshToken, hashRefreshToken } from '../src/security.js';
 
 const databaseUrl = process.env.TEST_DATABASE_URL;
 const baseUrl = 'http://127.0.0.1:43871';
@@ -20,6 +21,7 @@ let alice;
 let bob;
 let aliceToken;
 let bobToken;
+let aliceRefreshToken;
 
 async function createAccessToken(userId, sessionId) {
   return new SignJWT({ sid: sessionId, email: userId + '@example.test' })
@@ -65,11 +67,13 @@ test('PostgreSQL API enforces authenticated tenant ownership and record invarian
     alice = a.rows[0].id;
     bob = b.rows[0].id;
     const aliceSession = '11111111-1111-4111-8111-111111111111';
+    aliceRefreshToken = generateRefreshToken();
+    const bobRefreshToken = generateRefreshToken();
     const bobSession = '22222222-2222-4222-8222-222222222222';
     await pool.query(
       'INSERT INTO app_sessions(id,user_id,family_id,refresh_token_hash,expires_at) VALUES($1,$2,$3,$4,now()+interval \'1 day\'),($5,$6,$7,$8,now()+interval \'1 day\')',
-      [aliceSession, alice, '33333333-3333-4333-8333-333333333333', Buffer.alloc(32, 1),
-       bobSession, bob, '44444444-4444-4444-8444-444444444444', Buffer.alloc(32, 2)]
+      [aliceSession, alice, '33333333-3333-4333-8333-333333333333', hashRefreshToken(aliceRefreshToken),
+       bobSession, bob, '44444444-4444-4444-8444-444444444444', hashRefreshToken(bobRefreshToken)]
     );
     aliceToken = await createAccessToken(alice, aliceSession);
     bobToken = await createAccessToken(bob, bobSession);
@@ -146,5 +150,14 @@ test('PostgreSQL API enforces authenticated tenant ownership and record invarian
     assert.equal((await api('/api/data/approvals/appr_state', aliceToken, 'PUT', { ...pending, status: 'approved' })).status, 200);
     assert.equal((await api('/api/data/approvals/appr_state', aliceToken, 'PUT', { ...pending, status: 'execution_reported' })).status, 200);
     assert.equal((await api('/api/data/approvals/appr_state', aliceToken, 'PUT', { ...pending, status: 'approved' })).status, 409);
+  });
+
+  await t.test('logout revokes the refresh-token family without relying on an access token', async () => {
+    const response = await api('/api/auth/logout', null, 'POST', { refreshToken: aliceRefreshToken });
+    assert.equal(response.status, 204);
+    const session = await pool.query('SELECT revoked_at FROM app_sessions WHERE user_id=$1', [alice]);
+    assert.ok(session.rows[0].revoked_at);
+    assert.equal((await api('/api/data/tasks', aliceToken)).status, 401);
+    assert.equal((await api('/api/data/tasks', bobToken)).status, 200);
   });
 });

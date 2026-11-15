@@ -8,6 +8,8 @@ import com.example.data.remote.RefreshSessionRequest
 import com.squareup.moshi.Moshi
 import com.squareup.moshi.kotlin.reflect.KotlinJsonAdapterFactory
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import okhttp3.OkHttpClient
 import retrofit2.Retrofit
 import retrofit2.converter.moshi.MoshiConverterFactory
@@ -33,17 +35,28 @@ class AuthSessionRepository(private val vault: SecretVault) {
         user.id
     }.rethrowCancellation()
 
-    suspend fun restoreSession(): Result<String> = runCatching {
-        val refreshToken = vault.getSecret(SecretVault.KEY_AUTH_REFRESH_TOKEN)
-        require(refreshToken.isNotBlank()) { "لا توجد جلسة محفوظة." }
-        val response = service.refresh(RefreshSessionRequest(refreshToken))
-        vault.putSecret(SecretVault.KEY_AUTH_ACCESS_TOKEN, response.accessToken)
-        vault.putSecret(SecretVault.KEY_AUTH_REFRESH_TOKEN, response.refreshToken)
-        val profile = service.me("Bearer ${response.accessToken}").user
-        vault.putSecret(SecretVault.KEY_AUTH_USER_ID, profile.id)
-        vault.putSecret(SecretVault.KEY_AUTH_EMAIL, profile.email)
-        vault.putSecret(SecretVault.KEY_AUTH_DISPLAY_NAME, profile.displayName)
-        profile.id
+    suspend fun restoreSession(expectedAccessToken: String? = null): Result<String> = runCatching {
+        refreshMutex.withLock {
+            val currentAccessToken = vault.getSecret(SecretVault.KEY_AUTH_ACCESS_TOKEN)
+            // Another request may already have rotated the refresh token while this request waited.
+            if (expectedAccessToken != null && currentAccessToken != expectedAccessToken) {
+                val currentUserId = vault.getSecret(SecretVault.KEY_AUTH_USER_ID)
+                require(currentAccessToken.isNotBlank() && currentUserId.isNotBlank()) {
+                    "انتهت جلسة AI I.Z. سجّل الدخول مجدداً."
+                }
+                return@withLock currentUserId
+            }
+            val refreshToken = vault.getSecret(SecretVault.KEY_AUTH_REFRESH_TOKEN)
+            require(refreshToken.isNotBlank()) { "لا توجد جلسة محفوظة." }
+            val response = service.refresh(RefreshSessionRequest(refreshToken))
+            vault.putSecret(SecretVault.KEY_AUTH_ACCESS_TOKEN, response.accessToken)
+            vault.putSecret(SecretVault.KEY_AUTH_REFRESH_TOKEN, response.refreshToken)
+            val profile = service.me("Bearer ${response.accessToken}").user
+            vault.putSecret(SecretVault.KEY_AUTH_USER_ID, profile.id)
+            vault.putSecret(SecretVault.KEY_AUTH_EMAIL, profile.email)
+            vault.putSecret(SecretVault.KEY_AUTH_DISPLAY_NAME, profile.displayName)
+            profile.id
+        }
     }.rethrowCancellation()
 
     suspend fun signOut() {
@@ -63,6 +76,11 @@ class AuthSessionRepository(private val vault: SecretVault) {
         vault.putSecret(SecretVault.KEY_AUTH_USER_ID, userId)
         vault.putSecret(SecretVault.KEY_AUTH_EMAIL, email)
         vault.putSecret(SecretVault.KEY_AUTH_DISPLAY_NAME, displayName)
+    }
+
+    companion object {
+        // Shared across repository instances so parallel API 401 responses rotate once per process.
+        private val refreshMutex = Mutex()
     }
 
     private fun <T> Result<T>.rethrowCancellation(): Result<T> {

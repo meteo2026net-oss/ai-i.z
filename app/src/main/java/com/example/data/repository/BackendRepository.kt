@@ -1,5 +1,6 @@
 package com.example.data.repository
 
+import com.example.BuildConfig
 import com.example.core.security.ApprovalGuard
 import com.example.core.security.GuardDecision
 import com.example.core.security.SecretVault
@@ -16,7 +17,29 @@ import kotlinx.coroutines.CancellationException
 import okhttp3.OkHttpClient
 import retrofit2.Retrofit
 import retrofit2.converter.moshi.MoshiConverterFactory
+import java.net.URI
 import java.util.concurrent.TimeUnit
+
+internal object BackendUrlPolicy {
+    private val localDevelopmentHosts = setOf("localhost", "127.0.0.1", "10.0.2.2")
+
+    fun normalizeAndValidate(baseUrl: String, allowLocalHttp: Boolean): String {
+        val cleanUrl = baseUrl.trim().let { if (it.endsWith("/")) it else "$it/" }
+        val uri = runCatching { URI(cleanUrl) }.getOrNull()
+            ?: throw IllegalArgumentException("رابط Backend غير صالح.")
+        val scheme = uri.scheme?.lowercase()
+        val host = uri.host?.lowercase()
+        require(host != null && uri.rawUserInfo == null && uri.rawQuery == null && uri.rawFragment == null) {
+            "يجب إدخال رابط Backend صالح دون بيانات اعتماد أو معاملات URL."
+        }
+        val isHttps = scheme == "https"
+        val isLocalDebugHttp = allowLocalHttp && scheme == "http" && host in localDevelopmentHosts
+        require(isHttps || isLocalDebugHttp) {
+            "يجب استخدام HTTPS لخادم Backend. يُسمح بـ HTTP فقط لعناوين loopback أثناء التطوير."
+        }
+        return cleanUrl
+    }
+}
 
 class BackendRepository(private val vault: SecretVault) {
 
@@ -27,10 +50,7 @@ class BackendRepository(private val vault: SecretVault) {
         .build()
 
     private fun buildService(baseUrl: String): BackendRunnerService {
-        val cleanUrl = baseUrl.trim().let { if (it.endsWith("/")) it else "$it/" }
-        require(cleanUrl.startsWith("https://") || cleanUrl.startsWith("http://")) {
-            "يجب أن يبدأ رابط خادم Backend بـ https:// أو http://"
-        }
+        val cleanUrl = BackendUrlPolicy.normalizeAndValidate(baseUrl, BuildConfig.DEBUG)
         return Retrofit.Builder()
             .baseUrl(cleanUrl)
             .client(client)
@@ -41,7 +61,10 @@ class BackendRepository(private val vault: SecretVault) {
 
     private fun authHeader(): String {
         val token = vault.getSecret(SecretVault.KEY_BACKEND_TOKEN)
-        return if (token.isNotBlank()) "Bearer $token" else ""
+        require(token.isNotBlank()) {
+            "أدخل رمز الوصول إلى Backend Runner قبل الاتصال."
+        }
+        return "Bearer $token"
     }
 
     suspend fun checkHealth(

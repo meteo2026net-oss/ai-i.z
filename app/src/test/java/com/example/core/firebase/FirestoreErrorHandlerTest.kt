@@ -25,7 +25,7 @@ class FirestoreErrorHandlerTest {
 
         assertTrue(summary.contains("IllegalStateException"))
         assertTrue(summary.contains("get"))
-        assertTrue(summary.contains("users/{id}/tasks/{id}"))
+        assertTrue(summary.contains("resourcePathTemplate"))
         assertFalse(summary.contains(rawEmail))
         assertFalse(summary.contains(rawUid))
         assertFalse(summary.contains(rawDocumentId))

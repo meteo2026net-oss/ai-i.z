@@ -21,14 +21,15 @@ export function validateUserRecord(collection, data) {
           !boundedString(file.purpose, 0, 500) ||
           typeof file.isEntrypoint !== 'boolean') return false;
       if (file.isEntrypoint) entrypoints++;
-      if (file.path.startsWith('/') || file.path.includes('\\\\') ||
-          file.path.split('/').some(part => !part || part === '.' || part === '..') ||
-          /(^|\\/)\\.git(\\/|$)/i.test(file.path) ||
-          /(^|\\/)\\.env(?:\\.|$)/i.test(file.path) && !/\\.env\\.(?:example|template|sample)$/i.test(file.path) ||
-          /\\.(?:pem|key|p12|pfx|jks|keystore)$/i.test(file.path)) return false;
-      const key = file.path.toLowerCase();
-      if (paths.has(key)) return false;
-      paths.add(key);
+      const normalizedPath = file.path.toLowerCase();
+      const segments = normalizedPath.split('/');
+      const envFilesAllowed = ['.env.example', '.env.template', '.env.sample'];
+      if (file.path.startsWith('/') || file.path.includes(String.fromCharCode(92)) ||
+          segments.some(part => !part || part === '.' || part === '..' || part === '.git' ||
+            (part.startsWith('.env') && !envFilesAllowed.includes(part))) ||
+          /\.(?:pem|key|p12|pfx|jks|keystore)$/i.test(file.path)) return false;
+      if (paths.has(normalizedPath)) return false;
+      paths.add(normalizedPath);
       totalBytes += Buffer.byteLength(file.content, 'utf8');
       if (totalBytes > 220000) return false;
     }

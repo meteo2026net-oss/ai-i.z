@@ -26,8 +26,6 @@ import com.example.data.repository.FirestoreAgentRepository
 import com.example.data.repository.FlutterSpecExporter
 import com.example.data.repository.GitHubRepository
 import com.example.data.repository.SharedWorkplanCodec
-import com.google.firebase.Firebase
-import com.google.firebase.auth.auth
 import com.example.domain.model.AgentTask
 import com.example.domain.model.ApprovalRequest
 import com.example.domain.model.BackendHealthResponse
@@ -205,13 +203,8 @@ class MetraAgentViewModel(
     val workspace: StateFlow<WorkspaceUiState> = _workspace.asStateFlow()
 
     init {
-        val currentFirebaseUser = try {
-            Firebase.auth.currentUser
-        } catch (_: Exception) {
-            null
-        }
-        val email = currentFirebaseUser?.email.orEmpty()
-        val displayName = currentFirebaseUser?.displayName.orEmpty()
+        val email = vault.getSecret(SecretVault.KEY_AUTH_EMAIL)
+        val displayName = vault.getSecret(SecretVault.KEY_AUTH_DISPLAY_NAME)
         val updatedSnap = accountLinkStore.recordGoogleAccount(
             uid = currentUserId,
             email = email,

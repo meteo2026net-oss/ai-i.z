@@ -25,7 +25,8 @@ import okhttp3.OkHttpClient
 import retrofit2.HttpException
 import retrofit2.Retrofit
 import retrofit2.converter.moshi.MoshiConverterFactory
-import java.time.Instant
+import java.text.SimpleDateFormat
+import java.util.Locale
 import java.util.Date
 import java.util.UUID
 import java.util.concurrent.TimeUnit
@@ -42,9 +43,11 @@ class FirestoreAgentRepository(context: Context) {
             override fun fromJson(reader: com.squareup.moshi.JsonReader): Timestamp? {
                 if (reader.peek() == com.squareup.moshi.JsonReader.Token.NULL) return reader.nextNull()
                 val raw = reader.nextString()
-                return runCatching { Timestamp(Date.from(Instant.parse(raw))) }.getOrElse {
-                    Timestamp(Date(raw.toLong()))
-                }
+                val parsed = runCatching {
+                    SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSSX", Locale.US).parse(raw)
+                        ?: SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ssX", Locale.US).parse(raw)
+                }.getOrNull()
+                return Timestamp(parsed ?: Date(raw.toLong()))
             }
             override fun toJson(writer: com.squareup.moshi.JsonWriter, value: Timestamp?) {
                 if (value == null) writer.nullValue()

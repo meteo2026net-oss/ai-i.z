@@ -8,13 +8,13 @@ The application is designed to guide a project from idea discovery and requireme
 
 - Native Android application (Kotlin + Jetpack Compose).
 - Google sign-in through Android Credential Manager, exchanged directly with the AI I.Z API for app-owned sessions (Firebase Authentication is not used by the login flow).
-- User settings, tasks, approvals, chat messages, and operation logs now use the AI I.Z PostgreSQL API with session-derived ownership and periodic polling. Firebase Authentication, Firestore persistence, and App Check have been removed from the Android login/data path. Firebase AI remains as the existing Gemini provider integration; it is not used for identity or user-data storage.
+- User settings, tasks, approvals, chat messages, and operation logs use the AI I.Z PostgreSQL API with session-derived ownership and periodic polling.
 - AI orchestration and provider failover components.
 - GitHub repository, branch, commit, pull-request, and Actions integration.
-- Backend Runner API client for health checks, tests, schema inspection, read-only SQL, and explicitly approved database operations.
+- Separate Backend Runner client and Node.js service for authenticated health checks and restricted PostgreSQL schema inspection.
 - Local Room persistence and WorkManager task coordination.
 - Arabic RTL-first interface. Full English translation and dynamic LTR switching remain unfinished and must be verified before claiming bilingual support.
-- Project lifecycle, security, setup, backend API, and marketing requirements in `docs/`.
+- Project lifecycle, security, setup, backend API, implementation-readiness, and marketing requirements in `docs/`.
 
 ## Requirements
 
@@ -22,8 +22,8 @@ The application is designed to guide a project from idea discovery and requireme
 - Android SDK / Android Studio capable of compiling SDK 36.
 - Gradle 9.3.1 or newer. The repository currently does not include the Gradle Wrapper scripts/JAR, so use a locally installed Gradle or the managed Gradle installation in CI.
 - Firebase project configuration is currently required only by the Firebase AI Gemini provider integration, not by login or user-data persistence.
-- A Google OAuth Web client ID and deployed HTTPS AI I.Z API with PostgreSQL for the new login/session flow.
-- A deployed HTTPS Backend Runner for remote test execution and database operations.
+- A Google OAuth Web client ID and deployed HTTPS AI I.Z API with PostgreSQL for the app-owned login/session flow.
+- A separately deployed HTTPS Backend Runner and dedicated isolated PostgreSQL database for the limited Runner capabilities currently implemented.
 - User-supplied provider credentials where applicable. Never commit API keys, access tokens, signing keys, or `.env` files.
 
 ## Build locally
@@ -50,31 +50,33 @@ For the app-owned login flow, provide these build-time values (do not hardcode t
 $env:AI_IZ_API_BASE_URL = "https://your-deployed-ai-iz-api"
 $env:GOOGLE_WEB_CLIENT_ID = "your-web-client-id.apps.googleusercontent.com"
 gradle testDebugUnitTest
- gradle assembleDebug
+gradle assembleDebug
 ```
 
 The backend setup and required server environment are documented in `backend/README.md`.
 
-
 ## Firebase boundary
 
 - Google Credential Manager obtains a Google ID token; the AI I.Z API verifies it directly and issues app-owned sessions. Firebase Authentication and Firebase Admin are not part of login.
-- The Android user-data repository uses PostgreSQL API endpoints. Firestore repository code, models, rules, emulator tests, and App Check initialization have been removed from this branch.
+- Firebase Authentication, Firestore persistence, and App Check have been removed from the identity/user-data path in this branch.
 - Firebase AI remains for the existing Gemini provider integration. The Google Services Gradle plugin and Firebase AI dependency are retained until that provider is replaced with direct Gemini API calls.
 - Historical Firestore records are not imported by this code and require a separate controlled export/import process if they must be retained.
 - The repository intentionally contains no production Firebase service-account key or user credentials. Never put privileged service-account credentials in the Android application.
 
-## Backend Runner
+## Backend Runner — current limits
 
-The Android client sends its current AI I.Z access token to the separately deployed Runner. The Runner validates the token against the AI I.Z identity API. The identity API also exposes PostgreSQL-backed approval requests, decisions, listing, and one-time operation-bound consumption.
+The Android client sends its current AI I.Z access token to the separately deployed Runner. The Runner validates the token against the AI I.Z identity API. The identity API exposes PostgreSQL-backed approval requests, decisions, listing, and one-time operation-bound consumption.
 
-The Android approvals screen now reads and writes those server-owned approval records. Requests contain immutable operation payloads and a server-computed SHA-256 hash. The Android client can record approval or rejection, but **does not execute privileged GitHub or database operations after approval**: remote Runner execution routes remain deliberately disabled until an isolated worker and server-side provider credentials are deployed. Client-side reports are not proof of execution.
+The Runner currently implements health checks and restricted PostgreSQL schema metadata inspection. Remote test execution, read-only SQL execution, and approved privileged execution routes deliberately return HTTP 501. They must remain disabled until an isolated worker, parser-backed SQL policy, least-privilege credentials, and audited server-side approval consumption are implemented.
+
+The Android approvals screen uses server-owned approval records. The client can record approval or rejection, but **does not execute privileged GitHub or database operations after approval**. Client-side reports are not proof of execution.
 
 See:
 
 - [Backend API and isolated PostgreSQL contract](docs/BACKEND_API_AND_POSTGRES.md)
 - [Setup and deployment guide](docs/SETUP_AND_DEPLOY_GUIDE.md)
 - [Runner service and current execution limits](runner/README.md)
+- [Implementation readiness register](docs/IMPLEMENTATION_READINESS_AR.md)
 
 ## Security and approvals
 
@@ -86,9 +88,14 @@ See:
 - Keep legacy/protected database targets isolated.
 - Do not enable destructive operations or production deployments until isolated execution, least-privilege credentials, and server-side audit verification are in place.
 
-## CI
+## CI and verified build
 
-GitHub Actions runs Android unit tests, assembles a debug APK, and runs backend session and record-validation tests without starting Firebase emulators. These checks do not verify production Google OAuth configuration or a deployed PostgreSQL-backed API.
+GitHub Actions runs Android unit tests, assembles a debug APK, and runs backend session, PostgreSQL API, and Runner security tests without starting Firebase emulators.
+
+The verified run on 2026-11-15 passed both Android and backend/Runner jobs:
+[GitHub Actions run 43749607271](https://github.com/meteo2026net-oss/ai-i.z/actions/runs/43749607271).
+
+It uploaded `ai-iz-debug-apk` for commit `60c989ad6d2877d6f75b1c967319179fbaa9840b`. The artifact is a temporary debug build, not a signed production release. CI does not verify production OAuth configuration, deployed services, physical-device behavior, or every end-to-end workflow.
 
 ## Product requirements and design references
 
@@ -99,4 +106,4 @@ GitHub Actions runs Android unit tests, assembles a debug APK, and runs backend 
 
 ## Status
 
-A successful CI build validates compilation and configured automated tests only. It does not prove that the Google OAuth client, PostgreSQL production database, AI I.Z API deployment, Backend Runner, provider credentials, Play distribution, or every end-to-end workflow is ready.
+See [docs/IMPLEMENTATION_READINESS_AR.md](docs/IMPLEMENTATION_READINESS_AR.md) for verified implementation, test evidence, and remaining release gates. A successful CI build validates compilation and configured automated tests only; it does not prove production readiness.

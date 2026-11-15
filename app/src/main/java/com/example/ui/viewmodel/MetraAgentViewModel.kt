@@ -2069,11 +2069,61 @@ class MetraAgentViewModel(
     }
 
     fun runStudioAudit() {
-        val proj = _workspace.value.activeStudioProject ?: return
-        _workspace.update {
-            it.copy(
-                studioAuditStatus = "تم تدقيق بنية المشروع: خالي من الأخطاء وثغرات الأمان. درجة الأمان: " + proj.securityAuditScore + "/100",
-                statusBannerMessage = "تم التحقق الكامل من بيئة " + proj.environment.title + " وكافة ملفات المشروع."
+        val project = _workspace.value.activeStudioProject ?: return
+        viewModelScope.launch {
+            _workspace.update {
+                it.copy(
+                    studioAuditStatus = "جارٍ إعداد مراجعة هندسية مساعدة بالذكاء الاصطناعي…",
+                    statusBannerMessage = "بدأت مراجعة ملفات المشروع؛ لن تُعرض درجة أمان دون فحص آلي موثّق."
+                )
+            }
+
+            val filesForReview = project.files.take(20).joinToString("\\n\\n") { file ->
+                "===== ${file.path} =====\\n${file.content.take(3500)}"
+            }.take(28_000)
+            val prompt = """
+                أنت مراجع هندسي مساعد لمشروع برمجي. راجع الملفات المرفقة فقط ولا تدّعِ تشغيل اختبارات أو أدوات فحص ساكن أو فحص ثغرات.
+                اكتب تقريراً عربياً منظماً يتضمن:
+                1) ملخصاً لما يمكن استنتاجه من الملفات فعلاً.
+                2) عيوباً أو مخاطر محتملة مع ذكر الملف والدليل النصي المختصر.
+                3) نواقص الاختبار والبناء والتشغيل التي لا يمكن التحقق منها من الشفرة وحدها.
+                4) إصلاحات مقترحة مرتبة حسب الأولوية.
+                5) قسم "حدود المراجعة" يوضح أن هذه مراجعة AI وليست شهادة أمان أو نتيجة تنفيذ أدوات.
+                لا تمنح درجة رقمية، ولا تصف المشروع بأنه خالٍ من الأخطاء أو الثغرات.
+                
+                اسم المشروع: ${project.projectName}
+                البيئة: ${project.environment.title}
+                اللغة: ${project.primaryLanguage.displayName}
+                وصف المستخدم: ${project.description.take(2000)}
+                
+                الملفات:
+                $filesForReview
+            """.trimIndent()
+
+            val result = aiRepo.analyzeOnceWithFailover(prompt) { alert ->
+                _workspace.update {
+                    it.copy(
+                        statusBannerMessage = "تعذر النموذج ${alert.exhaustedLabel}؛ يجري التحويل إلى نموذج متاح."
+                    )
+                }
+            }
+            result.fold(
+                onSuccess = { review ->
+                    _workspace.update {
+                        it.copy(
+                            studioAuditStatus = "مراجعة AI مساعدة (ليست فحصاً ساكناً أو اختباراً منفذاً)\\nالنموذج: ${review.usedEndpoint.modelName}\\n\\n${review.text.take(12_000)}",
+                            statusBannerMessage = "اكتملت المراجعة المساعدة. لم تُمنح درجة أمان ولم تُدّعَ اختبارات غير منفذة."
+                        )
+                    }
+                },
+                onFailure = { error ->
+                    _workspace.update {
+                        it.copy(
+                            studioAuditStatus = "تعذرت المراجعة: ${error.localizedMessage ?: "خطأ غير معروف"}. تحقق من إعدادات مزود AI ثم أعد المحاولة.",
+                            statusBannerMessage = "لم تُنفذ المراجعة؛ لم يتم تغيير حالة الأمان."
+                        )
+                    }
+                }
             )
         }
     }

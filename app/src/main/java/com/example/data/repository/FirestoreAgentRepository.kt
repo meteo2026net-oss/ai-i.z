@@ -45,7 +45,8 @@ class FirestoreAgentRepository(context: Context) {
                 val raw = reader.nextString()
                 val parsed = runCatching {
                     SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSSX", Locale.US).parse(raw)
-                        ?: SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ssX", Locale.US).parse(raw)
+                }.getOrNull() ?: runCatching {
+                    SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ssX", Locale.US).parse(raw)
                 }.getOrNull()
                 return Timestamp(parsed ?: Date(raw.toLong()))
             }

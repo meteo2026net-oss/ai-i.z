@@ -9,7 +9,6 @@ import com.example.domain.model.ApprovalRequest
 import com.example.domain.model.ChatMessage
 import com.example.domain.model.OperationLog
 import com.example.domain.model.UserSettings
-import com.google.firebase.Timestamp
 import com.squareup.moshi.JsonAdapter
 import com.squareup.moshi.Moshi
 import com.squareup.moshi.kotlin.reflect.KotlinJsonAdapterFactory
@@ -39,20 +38,24 @@ import java.util.concurrent.TimeUnit
 class FirestoreAgentRepository(context: Context) {
     private val vault = SecretVault(context.applicationContext)
     private val moshi = Moshi.Builder()
-        .add(Timestamp::class.java, object : JsonAdapter<Timestamp>() {
-            override fun fromJson(reader: com.squareup.moshi.JsonReader): Timestamp? {
+        .add(Date::class.java, object : JsonAdapter<Date>() {
+            override fun fromJson(reader: com.squareup.moshi.JsonReader): Date? {
                 if (reader.peek() == com.squareup.moshi.JsonReader.Token.NULL) return reader.nextNull()
                 val raw = reader.nextString()
-                val parsed = runCatching {
-                    SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSSX", Locale.US).parse(raw)
-                }.getOrNull() ?: runCatching {
-                    SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ssX", Locale.US).parse(raw)
-                }.getOrNull()
-                return Timestamp(parsed ?: Date(raw.toLong()))
+                val formats = listOf(
+                    "yyyy-MM-dd'T'HH:mm:ss.SSSX",
+                    "yyyy-MM-dd'T'HH:mm:ssX"
+                )
+                for (format in formats) {
+                    val parsed = runCatching { SimpleDateFormat(format, Locale.US).parse(raw) }.getOrNull()
+                    if (parsed != null) return parsed
+                }
+                return raw.toLongOrNull()?.let(::Date)
+                    ?: throw IllegalArgumentException("Invalid server timestamp.")
             }
-            override fun toJson(writer: com.squareup.moshi.JsonWriter, value: Timestamp?) {
+            override fun toJson(writer: com.squareup.moshi.JsonWriter, value: Date?) {
                 if (value == null) writer.nullValue()
-                else writer.value(value.toDate().toInstant().toString())
+                else writer.value(value.toInstant().toString())
             }
         })
         .addLast(KotlinJsonAdapterFactory())
@@ -166,7 +169,7 @@ class FirestoreAgentRepository(context: Context) {
     }
 
     fun observeChatMessages(userId: String): Flow<List<ChatMessage>> = observe {
-        fetchList("chat_messages", 200, chatAdapter).sortedBy { it.createdAt?.toDate()?.time ?: 0L }
+        fetchList("chat_messages", 200, chatAdapter).sortedBy { it.createdAt?.time ?: 0L }
     }
 
     suspend fun addChatMessage(message: ChatMessage): Result<String> = result {

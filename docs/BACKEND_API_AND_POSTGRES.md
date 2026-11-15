@@ -101,6 +101,21 @@ The server must reject expired, reused, altered, mismatched, or revoked approval
 9. Health responses accurately report dependency availability.
 10. Backup restoration and migration rollback are tested.
 
-## 6. Deployment gate
+
+## 6. Durable Universal Studio projects
+
+The authenticated user-record API also stores generated Studio projects in the `studio_projects` collection. The Android repository uses the signed-in AI I.Z session for both saving and restoring projects; the API derives ownership from that session and does not accept a client-selected owner.
+
+- `GET /api/data/studio_projects?limit=50` — list only the caller's saved projects, newest updated first.
+- `GET /api/data/studio_projects/{projectId}` — fetch one project owned by the caller.
+- `PUT /api/data/studio_projects/{projectId}` — create or replace a project owned by the caller.
+
+The API enforces a maximum of 24 files, 48 KB per file, 220 KB aggregate file content, one entrypoint, unique case-insensitive paths, relative paths, and rejection of key/certificate files and unsafe environment files. The JSON request limit is 512 KB to accommodate the bounded project manifest. The Android client restores the latest saved project on startup and writes generated or edited projects back to the account.
+
+For databases created before this feature, apply `backend/db/migrations/002_studio_projects.sql` once before enabling the new Android client. Fresh databases created from the current `backend/db/schema.sql` already include the collection. The migration only expands the permitted collection values; it does not alter existing records.
+
+This is durable project metadata and source-file storage, not a remote build system. Generated projects are not automatically compiled or executed, and successful persistence must not be represented as successful build/test validation.
+
+## 7. Deployment gate
 
 Do not enable remote execution or database operations in a production app until the server exists, its security tests pass, HTTPS and identity verification are configured, and the client/server contract is tested end to end. A successful Android build does not satisfy this gate.

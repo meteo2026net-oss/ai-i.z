@@ -58,7 +58,7 @@ test('PostgreSQL API enforces authenticated tenant ownership and record invarian
     pool = new Pool({ connectionString: databaseUrl });
     const schema = await readFile(new URL('../db/schema.sql', import.meta.url), 'utf8');
     await pool.query(schema);
-    await pool.query('TRUNCATE security_audit_events, app_sessions, user_records, external_identities, app_users RESTART IDENTITY CASCADE');
+    await pool.query('TRUNCATE security_audit_events, runner_approvals, app_sessions, user_records, external_identities, app_users RESTART IDENTITY CASCADE');
     const a = await pool.query(
       "INSERT INTO app_users(email,email_verified,display_name) VALUES('alice@example.test',true,'Alice') RETURNING id"
     );
@@ -151,6 +151,42 @@ test('PostgreSQL API enforces authenticated tenant ownership and record invarian
     assert.equal((await api('/api/data/approvals/appr_state', aliceToken, 'PUT', { ...pending, status: 'approved' })).status, 200);
     assert.equal((await api('/api/data/approvals/appr_state', aliceToken, 'PUT', { ...pending, status: 'execution_reported' })).status, 200);
     assert.equal((await api('/api/data/approvals/appr_state', aliceToken, 'PUT', { ...pending, status: 'approved' })).status, 409);
+  });
+
+
+  await t.test('server approvals bind one exact operation and target and can be consumed only once', async () => {
+    const operation = { kind: 'db_read', resource: 'schema_summary', options: { includeIndexes: true } };
+    const created = await api('/api/runner/approvals', aliceToken, 'POST', {
+      actionType: 'db_sql', targetResource: 'isolated-db:dev-01',
+      operation, preview: 'Read-only schema inspection on isolated development database'
+    });
+    assert.equal(created.status, 201);
+    const approval = (await created.json()).approval;
+    assert.equal(approval.status, 'pending');
+    assert.match(approval.operation_hash, /^[0-9a-f]{64}$/);
+
+    assert.equal((await api(`/api/runner/approvals/${approval.id}/decision`, bobToken, 'POST', { decision: 'approved' })).status, 404);
+    const approved = await api(`/api/runner/approvals/${approval.id}/decision`, aliceToken, 'POST', { decision: 'approved', note: 'Reviewed exact target and scope' });
+    assert.equal(approved.status, 200);
+
+    const mismatch = await api(`/api/runner/approvals/${approval.id}/consume`, aliceToken, 'POST', {
+      actionType: 'db_sql', targetResource: 'isolated-db:production', operationHash: approval.operation_hash
+    });
+    assert.equal(mismatch.status, 409);
+    assert.equal((await mismatch.json()).error.code, 'APPROVAL_BINDING_MISMATCH');
+
+    const consumed = await api(`/api/runner/approvals/${approval.id}/consume`, aliceToken, 'POST', {
+      actionType: 'db_sql', targetResource: 'isolated-db:dev-01', operationHash: approval.operation_hash
+    });
+    assert.equal(consumed.status, 200);
+    const consumedBody = (await consumed.json()).approval;
+    assert.equal(consumedBody.status, 'consumed');
+    assert.deepEqual(consumedBody.operation, operation);
+
+    const replay = await api(`/api/runner/approvals/${approval.id}/consume`, aliceToken, 'POST', {
+      actionType: 'db_sql', targetResource: 'isolated-db:dev-01', operationHash: approval.operation_hash
+    });
+    assert.equal(replay.status, 409);
   });
 
   await t.test('logout revokes the refresh-token family without relying on an access token', async () => {

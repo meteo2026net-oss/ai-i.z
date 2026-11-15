@@ -248,22 +248,26 @@ app.post('/api/runner/approvals', requireSession, async (req, res) => {
   if (serialized.length > 24000) return jsonError(res, 413, 'APPROVAL_OPERATION_TOO_LARGE', 'The operation payload exceeds the permitted size.');
   const operationHash = hashApprovalOperation(operation);
   const approvalId = randomUUID();
+  const client = await pool.connect();
   try {
-    const result = await pool.query(
+    await client.query('BEGIN');
+    const result = await client.query(
       `INSERT INTO runner_approvals(id,user_id,action_type,target_resource,operation,operation_hash,preview,expires_at)
        VALUES($1,$2,$3,$4,$5::jsonb,$6,$7,now()+interval '10 minutes')
        RETURNING id,action_type,target_resource,operation_hash,preview,status,created_at,expires_at`,
       [approvalId,req.user.id,actionType,targetResource,JSON.stringify(operation),operationHash,preview.trim()]
     );
-    await pool.query(
+    await client.query(
       'INSERT INTO security_audit_events(user_id,event_type,details) VALUES($1,\'runner_approval_requested\',$2::jsonb)',
       [req.user.id,JSON.stringify({ approvalId,actionType,targetResource,operationHash })]
     );
+    await client.query('COMMIT');
     return res.status(201).json({ approval: result.rows[0] });
   } catch (error) {
+    await client.query('ROLLBACK').catch(() => {});
     console.error('Runner approval request failed:', error.message);
     return jsonError(res, 500, 'APPROVAL_REQUEST_FAILED', 'The approval request could not be stored.');
-  }
+  } finally { client.release(); }
 });
 
 app.get('/api/runner/approvals/:approvalId', requireSession, async (req, res) => {

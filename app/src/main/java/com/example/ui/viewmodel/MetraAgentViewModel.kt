@@ -225,6 +225,25 @@ class MetraAgentViewModel(
                 currentGoogleName = displayName
             )
         }
+        // Restore the most recently updated Studio project from the authenticated account.
+        viewModelScope.launch {
+            userDataRepository.listStudioProjects().onSuccess { projects ->
+                val latest = projects.firstOrNull() ?: return@onSuccess
+                if (_workspace.value.activeStudioProject == null) {
+                    val firstFile = latest.files.firstOrNull { it.isEntrypoint } ?: latest.files.firstOrNull()
+                    _workspace.update {
+                        it.copy(
+                            activeStudioProject = latest,
+                            studioSelectedFilePath = firstFile?.path.orEmpty(),
+                            studioEditedContent = firstFile?.content.orEmpty(),
+                            statusBannerMessage = "تمت استعادة آخر مشروع محفوظ في AI I.Z."
+                        )
+                    }
+                }
+            }.onFailure { error ->
+                Log.w(TAG, "Studio project restore unavailable", error)
+            }
+        }
         if (gitHubRepo.hasToken()) {
             refreshGitHubWorkspace()
         }
@@ -2092,6 +2111,7 @@ class MetraAgentViewModel(
                                 statusBannerMessage = "اكتمل توليد مشروع مخصص بالذكاء الاصطناعي: ${files.size} ملفاً. لم يتم تشغيل البناء أو الاختبارات بعد."
                             )
                         }
+                        persistStudioProject(project)
                     },
                     onFailure = { error ->
                         val firstFile = baseProject.files.firstOrNull { it.isEntrypoint }
@@ -2117,6 +2137,21 @@ class MetraAgentViewModel(
                     )
                 }
             }
+        }
+    }
+
+    private fun persistStudioProject(project: com.example.domain.model.StudioProjectSpec) {
+        viewModelScope.launch {
+            userDataRepository.saveStudioProject(project)
+                .onSuccess {
+                    _workspace.update { it.copy(statusBannerMessage = "تم حفظ المشروع وملفاته في حساب AI I.Z السحابي.") }
+                }
+                .onFailure { error ->
+                    Log.w(TAG, "Studio project cloud save failed", error)
+                    _workspace.update {
+                        it.copy(statusBannerMessage = "حُفظت التعديلات في مساحة العمل الحالية، لكن تعذر الحفظ السحابي: ${error.localizedMessage ?: "خطأ اتصال"}")
+                    }
+                }
         }
     }
 
@@ -2149,6 +2184,7 @@ class MetraAgentViewModel(
                 statusBannerMessage = "تم حفظ التعديلات على " + currentPath
             )
         }
+        persistStudioProject(updatedProj)
     }
 
     fun runStudioAudit() {

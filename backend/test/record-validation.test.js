@@ -58,6 +58,26 @@ const validStudioProject = {
   testInstructions: 'npm test'
 };
 
+
+test('rejects Unicode-normalized duplicate paths and non-portable Windows names', () => {
+  const composed = 'caf\u00e9.txt';
+  const decomposed = 'cafe\u0301.txt';
+  assert.equal(validateUserRecord('studio_projects', {
+    ...validStudioProject,
+    files: [
+      { ...validStudioProject.files[0], path: composed },
+      { ...validStudioProject.files[1], path: decomposed }
+    ]
+  }), false);
+
+  for (const unsafePath of ['CON.txt', 'src/NUL', 'folder/trailing.', 'folder/trailing ', 'src/bad?.ts']) {
+    assert.equal(validateUserRecord('studio_projects', {
+      ...validStudioProject,
+      files: [{ ...validStudioProject.files[0], path: unsafePath }]
+    }), false, unsafePath);
+  }
+});
+
 test('validates durable Studio projects and rejects unsafe file manifests', () => {
   assert.equal(validateUserRecord('studio_projects', validStudioProject), true);
   assert.equal(validateUserRecord('studio_projects', {

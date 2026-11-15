@@ -21,13 +21,18 @@ export function validateUserRecord(collection, data) {
           !boundedString(file.purpose, 0, 500) ||
           typeof file.isEntrypoint !== 'boolean') return false;
       if (file.isEntrypoint) entrypoints++;
-      const normalizedPath = file.path.toLowerCase();
+      const normalizedPath = file.path.normalize('NFC').toLowerCase();
       const segments = normalizedPath.split('/');
       const envFilesAllowed = ['.env.example', '.env.template', '.env.sample'];
       const filename = segments[segments.length - 1];
-      if (file.path.startsWith('/') || file.path.includes(':') ||
+      const reservedWindowsNames = /^(?:con|prn|aux|nul|com[1-9]|lpt[1-9])(?:\..*)?$/i;
+      const invalidPortableSegment = segment =>
+        /[\u0000-\u001f<>:"|?*]/.test(segment) || /[ .]$/.test(segment) ||
+        reservedWindowsNames.test(segment);
+      if (file.path.length > 180 || file.path.startsWith('/') || file.path.includes(':') ||
           file.path.includes(String.fromCharCode(92)) || file.path.trim() !== file.path ||
           segments.some(part => !part || part === '.' || part === '..' || part === '.git' ||
+            invalidPortableSegment(part) ||
             (part.startsWith('.env') && !envFilesAllowed.includes(part))) ||
           /\.(?:pem|key|p12|pfx|jks|keystore)$/i.test(file.path) ||
           /^(?:id_rsa|id_ed25519|credentials(?:\.json)?|secrets?\.(?:json|ya?ml)|\.npmrc|\.pypirc|\.netrc)$/i.test(filename)) return false;

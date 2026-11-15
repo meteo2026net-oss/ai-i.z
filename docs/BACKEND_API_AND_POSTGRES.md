@@ -4,7 +4,7 @@
 
 The separate AI I.Z identity API in `backend/` issues app-owned Google OIDC sessions and PostgreSQL-backed user records. This is not the Backend Runner implementation. The Android client now sends its current AI I.Z access token as the Bearer credential and no longer asks the user for a separate static Backend Runner token. The Runner server must validate that token against the AI I.Z identity service (or share the same trusted session-validation module and PostgreSQL session store); it must not accept static shared tokens.
 
-The Android application contains a Retrofit client contract for Backend Runner. This repository does **not** currently contain a deployable Backend Runner server implementation. The endpoints below describe the required server contract; they must not be treated as live services until a server is implemented, deployed over HTTPS, and tested end to end.
+The Android application contains a Retrofit client and this repository now contains an initial deployable Runner service in `runner/`. It verifies every caller by forwarding the Bearer token to the identity API's authenticated `GET /api/me`; it never trusts decoded claims or static tokens. `GET /api/health` and `GET /api/db/schema` are implemented. Test execution and both SQL endpoints intentionally return HTTP 501 until their security gates are implemented. Do not treat disabled endpoints as live capabilities.
 
 ## 2. Required API
 
@@ -34,7 +34,7 @@ Capability flags must reflect actual server-side checks, not hard-coded success 
 
 `POST /api/tests/run`
 
-Accepts an allowlisted repository identifier, branch, and test target. The server must reject arbitrary shell commands, arbitrary URLs, unapproved repositories, and untrusted branch input. Run jobs in isolated, resource-limited workers with timeouts and no ambient production credentials.
+`POST /api/tests/run` currently returns HTTP 501 (`TEST_EXECUTION_DISABLED`). Keep it disabled until allowlisted repository/branch validation and isolated, resource-limited workers with timeouts and no ambient production credentials are implemented.
 
 ### Database schema
 
@@ -46,13 +46,13 @@ Returns only the schema metadata the authenticated user is authorized to inspect
 
 `POST /api/db/query-readonly`
 
-Use a dedicated database role with read-only transaction permissions. Enforce query timeouts, row limits, statement-size limits, and tenant scoping. Reject multi-statement input and any operation that can mutate data or invoke privileged functions.
+`POST /api/db/query-readonly` currently returns HTTP 501 (`SQL_QUERY_DISABLED`). Keep it disabled until a parser-backed allowlist, dedicated read-only database role, query timeouts, row limits, statement-size limits, and tenant scoping are implemented. Do not rely on regular expressions alone.
 
 ### Approved database operation
 
 `POST /api/db/execute-approved`
 
-A client-provided approval identifier is not proof of approval. The server must retrieve and verify the approval record from a trusted server-side store, bind it to the authenticated AI I.Z user, exact target, exact operation hash, expiry, and policy tier, then revalidate the proposed operation immediately before execution. A client-supplied approval ID or client-side `ApprovalGuard` result is never sufficient. Log the decision and result without logging credentials or sensitive row contents.
+`POST /api/db/execute-approved` currently returns HTTP 501 (`APPROVED_EXECUTION_DISABLED`). A client-provided approval identifier is not proof of approval. Keep this endpoint disabled until a trusted server-side approval store binds the authenticated user, exact target, exact operation hash, expiry, and policy tier, with one-time consumption, immediate revalidation, and an auditable rollback plan.
 
 ## 3. Database isolation requirements
 

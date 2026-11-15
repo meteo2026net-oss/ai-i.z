@@ -27,6 +27,7 @@ import com.example.data.repository.FlutterSpecExporter
 import com.example.data.repository.GitHubRepository
 import com.example.data.repository.SharedWorkplanCodec
 import com.example.data.repository.StudioProjectSaveRevisionTracker
+import com.example.data.repository.StudioProjectFileEditGuard
 import com.example.domain.model.AgentTask
 import com.example.domain.model.ApprovalRequest
 import com.example.domain.model.BackendHealthResponse
@@ -2292,6 +2293,12 @@ class MetraAgentViewModel(
     fun saveStudioFileChanges() {
         val proj = _workspace.value.activeStudioProject ?: return
         val currentPath = _workspace.value.studioSelectedFilePath
+        if (!StudioProjectFileEditGuard.hasValidSelection(proj.files, currentPath)) {
+            _workspace.update {
+                it.copy(statusBannerMessage = "تعذر حفظ التعديلات: الملف المحدد لم يعد موجوداً في المشروع. اختر ملفاً صالحاً ثم أعد المحاولة.")
+            }
+            return
+        }
         val newContent = _workspace.value.studioEditedContent
         val updatedFiles = proj.files.map {
             if (it.path == currentPath) it.copy(content = newContent) else it

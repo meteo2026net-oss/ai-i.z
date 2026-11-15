@@ -34,9 +34,12 @@ jobs:
         with:
           node-version: '22'
 
-      - name: Run Backend Runner policy tests and syntax validation
+      - name: Install Backend Runner dependencies
+        run: npm --prefix backend install --no-audit --no-fund --package-lock=false
+
+      - name: Run Backend Runner tests and syntax validation
         run: |
-          node --test backend/policy.test.js
+          npm --prefix backend test
           node --check backend/server.js
 
       - name: Set up Gradle

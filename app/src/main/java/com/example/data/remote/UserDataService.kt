@@ -16,6 +16,7 @@ interface UserDataService {
     suspend fun listRecords(
         @Path("collection") collection: String,
         @Query("limit") limit: Int = 100,
+        @Query("metadata") metadata: Boolean = false,
         @Header("Authorization") authorization: String
     ): ResponseBody
 

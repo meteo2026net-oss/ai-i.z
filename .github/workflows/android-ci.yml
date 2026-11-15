@@ -84,5 +84,7 @@ jobs:
           node-version: '22'
       - name: Install backend dependencies
         run: npm install --prefix backend --no-audit --no-fund
+      - name: Check backend server syntax
+        run: node --check backend/src/server.js
       - name: Run backend security tests
         run: npm test --prefix backend

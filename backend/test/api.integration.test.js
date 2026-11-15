@@ -224,7 +224,8 @@ test('PostgreSQL API enforces authenticated tenant ownership and record invarian
     const listed = await api('/api/data/studio_projects', aliceToken);
     assert.equal((await listed.json()).records.length, 1);
     assert.equal((await api('/api/data/studio_projects/studio_project_1', bobToken)).status, 404);
-    assert.equal((await api('/api/data/studio_projects/studio_project_1', bobToken, 'DELETE')).status, 204);
+    // A cross-account delete must not disclose or mutate another tenant's record.
+    assert.equal((await api('/api/data/studio_projects/studio_project_1', bobToken, 'DELETE')).status, 404);
     assert.equal((await api('/api/data/studio_projects/studio_project_1', aliceToken)).status, 200);
     assert.equal((await api('/api/data/studio_projects/studio_project_1', aliceToken, 'DELETE')).status, 204);
     assert.equal((await api('/api/data/studio_projects/studio_project_1', aliceToken)).status, 404);

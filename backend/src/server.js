@@ -515,7 +515,11 @@ app.delete('/api/data/:collection/:recordId', requireSession, async (req, res) =
   const { collection, recordId } = req.params;
   if (!allowedCollections.has(collection) || !validRecordId(recordId)) return jsonError(res, 404, 'RECORD_NOT_FOUND', 'The requested record does not exist.');
   if (collection === 'operation_logs') return jsonError(res, 403, 'APPEND_ONLY', 'Operation logs cannot be deleted.');
-  await pool.query('DELETE FROM user_records WHERE user_id=$1 AND collection=$2 AND record_id=$3', [req.user.id, collection, recordId]);
+  const deleted = await pool.query(
+    'DELETE FROM user_records WHERE user_id=$1 AND collection=$2 AND record_id=$3 RETURNING record_id',
+    [req.user.id, collection, recordId]
+  );
+  if (!deleted.rowCount) return jsonError(res, 404, 'RECORD_NOT_FOUND', 'The requested record does not exist.');
   await pool.query(
     'INSERT INTO security_audit_events(user_id,event_type,details) VALUES($1,$2,$3::jsonb)',
     [req.user.id, 'data_delete', JSON.stringify({ collection, recordId })]

@@ -59,7 +59,7 @@ jobs:
         run: |
           firebase emulators:exec \
             --project demo-no-project \
-            --only auth,firestore \
+            --only firestore \
             "npm run test:firestore && gradle --no-daemon --stacktrace testDebugUnitTest assembleDebug"
 
       - name: Upload debug APK

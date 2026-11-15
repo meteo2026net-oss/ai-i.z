@@ -7,7 +7,8 @@ The application is designed to guide a project from idea discovery and requireme
 ## Current repository scope
 
 - Native Android application (Kotlin + Jetpack Compose).
-- Firebase Authentication, Firestore persistence, and App Check integration points.
+- Google sign-in through Android Credential Manager, exchanged directly with the AI I.Z API for app-owned sessions (Firebase Authentication is not used by the login flow).
+- Firestore persistence and App Check remain Firebase-dependent in this migration stage; their replacement and removal are not complete.
 - AI orchestration and provider failover components.
 - GitHub repository, branch, commit, pull-request, and Actions integration.
 - Backend Runner API client for health checks, tests, schema inspection, read-only SQL, and explicitly approved database operations.
@@ -20,7 +21,8 @@ The application is designed to guide a project from idea discovery and requireme
 - JDK 21 (matching the GitHub Actions build environment).
 - Android SDK / Android Studio capable of compiling SDK 36.
 - Gradle 9.3.1 or newer. The repository currently does not include the Gradle Wrapper scripts/JAR, so use a locally installed Gradle or the managed Gradle installation in CI.
-- Firebase project configuration for live authentication and Firestore features.
+- Firebase project configuration for the still-Firestore-backed data features and App Check (not for login).
+- A Google OAuth Web client ID and deployed HTTPS AI I.Z API with PostgreSQL for the new login/session flow.
 - A deployed HTTPS Backend Runner for remote test execution and database operations.
 - User-supplied provider credentials where applicable. Never commit API keys, access tokens, signing keys, or `.env` files.
 
@@ -42,6 +44,17 @@ gradle assembleDebug
 
 The debug APK is generated at `app/build/outputs/apk/debug/app-debug.apk`.
 
+For the app-owned login flow, provide these build-time values (do not hardcode them):
+
+```powershell
+$env:AI_IZ_API_BASE_URL = "https://your-deployed-ai-iz-api"
+$env:GOOGLE_WEB_CLIENT_ID = "your-web-client-id.apps.googleusercontent.com"
+gradle testDebugUnitTest
+ gradle assembleDebug
+```
+
+The backend setup and required server environment are documented in `backend/README.md`.
+
 Some repository tests use Firebase Auth and Firestore emulators. Start the configured emulators before running the complete unit-test suite:
 
 ```bash
@@ -50,14 +63,14 @@ firebase emulators:start --only auth,firestore --project demo-no-project
 
 Then run the Gradle test command in another terminal. GitHub Actions performs this using `firebase emulators:exec`.
 
-## Firebase setup
+## Remaining Firebase-backed data setup
 
-1. Create or select the Firebase project intended for this app.
-2. Register the Android application using the application ID in `app/build.gradle.kts`.
-3. Download the matching `google-services.json` and place it in `app/google-services.json`.
-4. Configure Authentication providers, Firestore, and App Check in the Firebase console.
-5. Configure the production App Check provider and site key for the registered app.
-6. Deploy and test the Firestore rules from `firestore.rules` against the intended Firebase project before enabling live user data.
+Firebase Authentication is no longer part of the login flow on the no-Firebase session branch. Google identity is verified by the AI I.Z API. The existing Firestore repositories and App Check setup still depend on Firebase during the staged data migration.
+
+1. Keep the existing Firebase project configuration only while Firestore/App Check-backed features remain in use.
+2. Do not configure Firebase Authentication as the app login provider.
+3. Deploy and test `firestore.rules` for the existing Firestore data until the PostgreSQL data migration is complete.
+4. Do not remove `google-services.json`, Firebase dependencies, App Check, or Firestore rules until all data consumers have a tested PostgreSQL replacement.
 
 The repository intentionally does not contain a production Firebase service-account key or user credentials. Never put privileged service-account credentials in the Android application.
 
@@ -68,7 +81,7 @@ The Android client only defines the Backend Runner API contract. A compatible se
 - [Backend API and isolated PostgreSQL contract](docs/BACKEND_API_AND_POSTGRES.md)
 - [Setup and deployment guide](docs/SETUP_AND_DEPLOY_GUIDE.md)
 
-The server must authenticate each request, bind the caller identity to the Firebase ID token, enforce approval state on the server, use least-privilege database roles, and reject unsafe targets. A client-provided non-empty approval ID is not proof of approval.
+The legacy Backend Runner client still has its own token-based contract and is not yet migrated to AI I.Z sessions. The new `backend/` API independently verifies Google OIDC and issues AI I.Z sessions. Do not assume the Backend Runner is protected by the new session system until that integration is completed.
 
 ## Security and approvals
 
@@ -81,7 +94,7 @@ The server must authenticate each request, bind the caller identity to the Fireb
 
 ## CI
 
-GitHub Actions runs Android unit tests with Firebase Auth/Firestore emulators and assembles a debug APK on pushes and pull requests to `main`. The generated APK is uploaded as a short-lived workflow artifact.
+GitHub Actions runs Android unit tests with the existing Firestore emulator suite, assembles a debug APK, and runs backend session-security unit tests. These checks do not verify production Google OAuth configuration or a deployed PostgreSQL-backed API.
 
 ## Product requirements and design references
 

@@ -41,26 +41,7 @@ import java.util.concurrent.TimeUnit
 class UserDataRepository(context: Context) {
     private val vault = SecretVault(context.applicationContext)
     private val moshi = Moshi.Builder()
-        .add(Date::class.java, object : JsonAdapter<Date>() {
-            override fun fromJson(reader: com.squareup.moshi.JsonReader): Date? {
-                if (reader.peek() == com.squareup.moshi.JsonReader.Token.NULL) return reader.nextNull()
-                val raw = reader.nextString()
-                val formats = listOf(
-                    "yyyy-MM-dd'T'HH:mm:ss.SSSX",
-                    "yyyy-MM-dd'T'HH:mm:ssX"
-                )
-                for (format in formats) {
-                    val parsed = runCatching { SimpleDateFormat(format, Locale.US).parse(raw) }.getOrNull()
-                    if (parsed != null) return parsed
-                }
-                return raw.toLongOrNull()?.let(::Date)
-                    ?: throw IllegalArgumentException("Invalid server timestamp.")
-            }
-            override fun toJson(writer: com.squareup.moshi.JsonWriter, value: Date?) {
-                if (value == null) writer.nullValue()
-                else writer.value(SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'", Locale.US).apply { timeZone = TimeZone.getTimeZone("UTC") }.format(value))
-            }
-        })
+        .add(Date::class.java, ServerDateJsonAdapter)
         .addLast(KotlinJsonAdapterFactory())
         .build()
     private val service: UserDataService by lazy {

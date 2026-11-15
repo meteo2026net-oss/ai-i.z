@@ -48,6 +48,20 @@ class UniversalStudioTest {
         assertTrue(mainPy!!.content.contains("FastAPI"))
     }
 
+
+    @Test
+    fun unsupportedEnvironmentDoesNotFabricatePassingTests() {
+        val project = UniversalStudioProjectGenerator.generateProject(
+            name = "react_native_project",
+            prompt = "A mobile project",
+            environment = DevelopmentEnvironment.MOBILE_REACT_NATIVE,
+            language = ProgrammingLanguage.TYPESCRIPT
+        )
+
+        assertTrue(project.testInstructions.contains("لم يتم تحديد أمر اختبار"))
+        assertTrue(!project.testInstructions.contains("All tests passed"))
+    }
+
     @Test
     fun generatedProjectDoesNotClaimAnAuditBeforeEvidenceExists() {
         val project = UniversalStudioProjectGenerator.generateProject(

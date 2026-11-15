@@ -189,6 +189,39 @@ app.get('/api/me', requireSession, (req, res) => {
 const allowedCollections = new Set(['settings', 'tasks', 'approvals', 'chat_messages', 'operation_logs']);
 const validRecordId = value => typeof value === 'string' && value.length >= 1 && value.length <= 128 && /^[A-Za-z0-9_.:-]+$/.test(value);
 
+const boundedString = (value, min, max) => typeof value === 'string' && value.length >= min && value.length <= max;
+const stringList = (value, maxItems) => Array.isArray(value) && value.length <= maxItems && value.every(item => boundedString(item, 0, 500));
+function validateUserRecord(collection, data) {
+  if (collection === 'settings') return boundedString(data.activeRepo, 0, 128) &&
+    boundedString(data.activeBranch, 0, 128) && ['gemini', 'openai'].includes(data.aiProvider) &&
+    boundedString(data.aiModel, 1, 64) && boundedString(data.backendUrl, 0, 300) &&
+    typeof data.darkTheme === 'boolean' && typeof data.autoExecuteTier1 === 'boolean';
+  if (collection === 'tasks') return boundedString(data.repo, 0, 128) &&
+    boundedString(data.branch, 0, 128) && boundedString(data.title, 1, 200) &&
+    boundedString(data.prompt, 1, 2000) &&
+    ['queued', 'running', 'awaiting_approval', 'completed', 'failed', 'paused'].includes(data.status) &&
+    Number.isSafeInteger(data.currentStepIndex) && data.currentStepIndex >= 0 &&
+    Number.isSafeInteger(data.totalSteps) && data.totalSteps >= 0 &&
+    Number.isSafeInteger(data.progressPercent) && data.progressPercent >= 0 && data.progressPercent <= 100 &&
+    boundedString(data.lastCompletedStep, 0, 300) && boundedString(data.lastResultSummary, 0, 2000) &&
+    boundedString(data.lastError, 0, 1000) && stringList(data.modifiedFiles, 30) && stringList(data.nextSteps, 30);
+  if (collection === 'approvals') return boundedString(data.taskId, 0, 128) &&
+    [2, 3].includes(data.tier) &&
+    ['git_push', 'create_pr', 'staging_deploy', 'service_config', 'db_sql', 'db_rls_grants', 'db_migration', 'merge_pr', 'prod_deploy'].includes(data.actionType) &&
+    boundedString(data.title, 1, 200) && boundedString(data.description, 1, 2000) &&
+    boundedString(data.payloadPreview, 0, 8000) && boundedString(data.targetResource, 0, 300) &&
+    ['pending', 'approved', 'rejected', 'execution_reported'].includes(data.status) &&
+    boundedString(data.decisionNote, 0, 500);
+  if (collection === 'chat_messages') return ['user', 'assistant', 'system'].includes(data.role) &&
+    boundedString(data.content, 1, 12000) && boundedString(data.repoContext, 0, 128) &&
+    boundedString(data.linkedTaskId, 0, 128);
+  if (collection === 'operation_logs') return ['agent', 'github', 'security', 'ai', 'backend'].includes(data.category) &&
+    Number.isSafeInteger(data.tier) && data.tier >= 1 && data.tier <= 3 &&
+    boundedString(data.action, 1, 200) && boundedString(data.details, 0, 3000) &&
+    ['success', 'failed', 'blocked', 'pending'].includes(data.outcome) && boundedString(data.repo, 0, 128);
+  return false;
+}
+
 app.get('/api/data/:collection', requireSession, async (req, res) => {
   const { collection } = req.params;
   if (!allowedCollections.has(collection)) return jsonError(res, 404, 'COLLECTION_NOT_FOUND', 'The requested collection is not available.');
@@ -212,6 +245,7 @@ app.get('/api/data/:collection/:recordId', requireSession, async (req, res) => {
   res.json({ record: { id: row.record_id, ...row.payload, createdAt: row.created_at, updatedAt: row.updated_at } });
 });
 
+
 app.put('/api/data/:collection/:recordId', requireSession, async (req, res) => {
   const { collection, recordId } = req.params;
   if (!allowedCollections.has(collection) || !validRecordId(recordId)) return jsonError(res, 400, 'INVALID_RECORD', 'The collection or record identifier is invalid.');
@@ -220,25 +254,64 @@ app.put('/api/data/:collection/:recordId', requireSession, async (req, res) => {
   delete payload.id;
   delete payload.createdAt;
   delete payload.updatedAt;
-  const result = await pool.query(
-    `INSERT INTO user_records(user_id,collection,record_id,payload)
-     VALUES($1,$2,$3,$4::jsonb)
-     ON CONFLICT(user_id,collection,record_id) DO UPDATE
-       SET payload=EXCLUDED.payload, updated_at=now()
-     RETURNING record_id,payload,created_at,updated_at`,
-    [req.user.id, collection, recordId, JSON.stringify(payload)]
-  );
-  const row = result.rows[0];
-  await pool.query(
-    'INSERT INTO security_audit_events(user_id,event_type,details) VALUES($1,$2,$3::jsonb)',
-    [req.user.id, 'data_write', JSON.stringify({ collection, recordId })]
-  );
-  res.json({ record: { id: row.record_id, ...row.payload, createdAt: row.created_at, updatedAt: row.updated_at } });
+  if (!validateUserRecord(collection, payload)) return jsonError(res, 400, 'INVALID_RECORD', 'The record does not match the required schema.');
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+    const existing = await client.query(
+      'SELECT payload FROM user_records WHERE user_id=$1 AND collection=$2 AND record_id=$3 FOR UPDATE',
+      [req.user.id, collection, recordId]
+    );
+    if (collection === 'operation_logs' && existing.rowCount) {
+      await client.query('ROLLBACK');
+      return jsonError(res, 409, 'APPEND_ONLY', 'Operation logs cannot be changed after creation.');
+    }
+    if (collection === 'approvals') {
+      const priorStatus = existing.rows[0]?.payload?.status;
+      if (!priorStatus && payload.status !== 'pending') {
+        await client.query('ROLLBACK');
+        return jsonError(res, 409, 'INVALID_APPROVAL_TRANSITION', 'New approvals must start as pending.');
+      }
+      if (['rejected', 'execution_reported'].includes(priorStatus)) {
+        await client.query('ROLLBACK');
+        return jsonError(res, 409, 'APPROVAL_TERMINAL', 'This approval is already in a terminal state.');
+      }
+      if (priorStatus === 'pending' && !['pending', 'approved', 'rejected'].includes(payload.status)) {
+        await client.query('ROLLBACK');
+        return jsonError(res, 409, 'INVALID_APPROVAL_TRANSITION', 'A pending approval can only remain pending, be approved, or be rejected.');
+      }
+      if (priorStatus === 'approved' && !['approved', 'execution_reported'].includes(payload.status)) {
+        await client.query('ROLLBACK');
+        return jsonError(res, 409, 'INVALID_APPROVAL_TRANSITION', 'An approved request cannot be reopened or rejected.');
+      }
+    }
+    const result = await client.query(
+      `INSERT INTO user_records(user_id,collection,record_id,payload)
+       VALUES($1,$2,$3,$4::jsonb)
+       ON CONFLICT(user_id,collection,record_id) DO UPDATE
+         SET payload=EXCLUDED.payload, updated_at=now()
+       RETURNING record_id,payload,created_at,updated_at`,
+      [req.user.id, collection, recordId, JSON.stringify(payload)]
+    );
+    await client.query(
+      'INSERT INTO security_audit_events(user_id,event_type,details) VALUES($1,$2,$3::jsonb)',
+      [req.user.id, 'data_write', JSON.stringify({ collection, recordId })]
+    );
+    await client.query('COMMIT');
+    const row = result.rows[0];
+    res.json({ record: { id: row.record_id, ...row.payload, createdAt: row.created_at, updatedAt: row.updated_at } });
+  } catch (error) {
+    await client.query('ROLLBACK').catch(() => {});
+    throw error;
+  } finally {
+    client.release();
+  }
 });
 
 app.delete('/api/data/:collection/:recordId', requireSession, async (req, res) => {
   const { collection, recordId } = req.params;
   if (!allowedCollections.has(collection) || !validRecordId(recordId)) return jsonError(res, 404, 'RECORD_NOT_FOUND', 'The requested record does not exist.');
+  if (collection === 'operation_logs') return jsonError(res, 403, 'APPEND_ONLY', 'Operation logs cannot be deleted.');
   await pool.query('DELETE FROM user_records WHERE user_id=$1 AND collection=$2 AND record_id=$3', [req.user.id, collection, recordId]);
   await pool.query(
     'INSERT INTO security_audit_events(user_id,event_type,details) VALUES($1,$2,$3::jsonb)',

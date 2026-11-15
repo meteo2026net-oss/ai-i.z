@@ -164,7 +164,8 @@ service cloud.firestore {
                          incoming().tier == existing().tier &&
                          incoming().actionType == existing().actionType &&
                          incoming().createdAt == existing().createdAt &&
-                         existing().status in ['pending', 'approved'] &&
+                         existing().status == 'pending' &&
+                         incoming().status in ['approved', 'rejected'] &&
                          incoming().diff(existing()).affectedKeys().hasOnly(['status', 'decisionNote', 'updatedAt']);
 
         allow delete: if isOwner(userId) && isValidId(approvalId);

@@ -77,6 +77,14 @@ test('validates durable Studio projects and rejects unsafe file manifests', () =
   }), false);
   assert.equal(validateUserRecord('studio_projects', {
     ...validStudioProject,
+    files: [{ ...validStudioProject.files[0], path: 'C:/private/config.ts' }]
+  }), false);
+  assert.equal(validateUserRecord('studio_projects', {
+    ...validStudioProject,
+    files: [{ ...validStudioProject.files[0], path: 'credentials.json' }]
+  }), false);
+  assert.equal(validateUserRecord('studio_projects', {
+    ...validStudioProject,
     files: validStudioProject.files.map((file, index) => ({ ...file, isEntrypoint: index === 0 || index === 1 }))
   }), false);
   assert.equal(validateUserRecord('studio_projects', {

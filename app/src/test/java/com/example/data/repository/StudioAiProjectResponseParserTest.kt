@@ -81,6 +81,41 @@ class StudioAiProjectResponseParserTest {
         }
     }
 
+    @Test
+    fun rejectsMultipleEntrypoints() {
+        val response = """
+            {"files":[
+              {"path":"main.kt","content":"fun main() {}","isEntrypoint":true},
+              {"path":"Other.kt","content":"class Other","isEntrypoint":true}
+            ]}
+        """.trimIndent()
+        assertThrows(IllegalArgumentException::class.java) {
+            StudioAiProjectResponseParser.parseFiles(response, ProgrammingLanguage.KOTLIN)
+        }
+    }
+
+    @Test
+    fun rejectsRealEnvironmentSecretFilesButAllowsExamples() {
+        val secret = manifest("config/.env.local", "API_KEY=secret")
+        assertThrows(IllegalArgumentException::class.java) {
+            StudioAiProjectResponseParser.parseFiles(secret, ProgrammingLanguage.KOTLIN)
+        }
+
+        val example = manifest("config/.env.example", "API_KEY=replace-me")
+        assertEquals(
+            "config/.env.example",
+            StudioAiProjectResponseParser.parseFiles(example, ProgrammingLanguage.KOTLIN).single().path
+        )
+    }
+
+    @Test
+    fun rejectsOversizedModelResponsesBeforeParsing() {
+        val response = " ".repeat(260_001)
+        assertThrows(IllegalArgumentException::class.java) {
+            StudioAiProjectResponseParser.parseFiles(response, ProgrammingLanguage.KOTLIN)
+        }
+    }
+
     private fun manifest(path: String, source: String): String {
         val escapedPath = path.replace("\\", "\\\\").replace("\"", "\\\"")
         val escapedSource = source.replace("\\", "\\\\").replace("\"", "\\\"")

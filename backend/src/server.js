@@ -176,10 +176,34 @@ app.post('/api/auth/refresh', async (req, res) => {
   } finally { client.release(); }
 });
 
-app.post('/api/auth/logout', requireSession, async (req, res) => {
-  await pool.query('UPDATE app_sessions SET revoked_at=now() WHERE id=$1 AND user_id=$2 AND revoked_at IS NULL', [req.user.session_id,req.user.id]);
-  await pool.query(`INSERT INTO security_audit_events(user_id,event_type,session_id) VALUES($1,'logout',$2)`, [req.user.id,req.user.session_id]);
-  res.status(204).end();
+app.post('/api/auth/logout', async (req, res) => {
+  const token = req.body?.refreshToken;
+  if (typeof token !== 'string' || token.length < 50 || token.length > 256) {
+    return jsonError(res, 400, 'INVALID_REFRESH_TOKEN', 'A valid refresh token is required.');
+  }
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+    const found = await client.query(
+      'SELECT id,user_id,family_id FROM app_sessions WHERE refresh_token_hash=$1 FOR UPDATE',
+      [hashRefreshToken(token)]
+    );
+    if (found.rowCount) {
+      const session = found.rows[0];
+      await client.query('UPDATE app_sessions SET revoked_at=COALESCE(revoked_at,now()) WHERE family_id=$1', [session.family_id]);
+      await client.query(
+        `INSERT INTO security_audit_events(user_id,event_type,session_id) VALUES($1,'logout',$2)`,
+        [session.user_id, session.id]
+      );
+    }
+    await client.query('COMMIT');
+    res.status(204).end();
+  } catch (error) {
+    await client.query('ROLLBACK').catch(() => {});
+    throw error;
+  } finally {
+    client.release();
+  }
 });
 
 app.get('/api/me', requireSession, (req, res) => {

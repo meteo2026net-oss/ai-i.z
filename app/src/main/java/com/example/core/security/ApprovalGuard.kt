@@ -16,12 +16,10 @@ enum class AgentActionType(
     STAGE_BRANCH_EDIT("stage_branch_edit", PermissionTier.TIER_1_AUTO, "تعديل داخل فرع عمل"),
     RUN_TESTS("run_tests", PermissionTier.TIER_1_AUTO, "تشغيل الاختبارات"),
     GENERATE_REPORT("generate_report", PermissionTier.TIER_1_AUTO, "إنشاء التقرير"),
-
     GIT_PUSH("git_push", PermissionTier.TIER_2_APPROVAL, "رفع commits إلى GitHub"),
     CREATE_PR("create_pr", PermissionTier.TIER_2_APPROVAL, "إنشاء Pull Request"),
     STAGING_DEPLOY("staging_deploy", PermissionTier.TIER_2_APPROVAL, "تعديل بيئة Staging"),
     SERVICE_CONFIG("service_config", PermissionTier.TIER_2_APPROVAL, "تعديل إعدادات الخدمات"),
-
     DB_SQL("db_sql", PermissionTier.TIER_3_EXPLICIT, "تنفيذ SQL على قاعدة مستضافة"),
     DB_RLS_GRANTS("db_rls_grants", PermissionTier.TIER_3_EXPLICIT, "تعديل RLS وGrants"),
     DB_MIGRATION("db_migration", PermissionTier.TIER_3_EXPLICIT, "تطبيق Migrations"),
@@ -40,20 +38,13 @@ sealed interface GuardDecision {
 }
 
 /**
- * Deterministic security & policy guard.
- * AI prompts or chat instructions cannot bypass Tier 2/3 gates or legacy DB isolation.
+ * Client-side policy guard. The server must independently authenticate users and
+ * enforce immutable, target-bound approvals before executing any remote operation.
  */
 object ApprovalGuard {
-
     private val legacyDbBlockedPatterns = listOf(
-        "metra_old",
-        "metra_legacy",
-        "legacy_metra",
-        "old_metra",
-        "metra_v1",
-        "metra2025",
-        "metra2026_legacy",
-        "prod_legacy"
+        "metra_old", "metra_legacy", "legacy_metra", "old_metra",
+        "metra_v1", "metra2025", "metra2026_legacy", "prod_legacy"
     )
 
     private val mutatingSqlKeywords = Regex(
@@ -78,6 +69,22 @@ object ApprovalGuard {
 
     fun isMutatingSql(sql: String): Boolean = mutatingSqlKeywords.containsMatchIn(sql)
 
+    /**
+     * Deliberately conservative: only a single SELECT/WITH statement is considered
+     * read-only by the client guard. Comments, unknown statements, and multi-statement
+     * payloads require Tier 3 review. This is not a substitute for server SQL parsing.
+     */
+    fun isSingleReadOnlySql(sql: String): Boolean {
+        val trimmed = sql.trim()
+        if (trimmed.isEmpty()) return false
+        val withoutTrailingTerminator = trimmed.removeSuffix(";").trimEnd()
+        if (withoutTrailingTerminator.contains(';')) return false
+        if (!Regex("""^(SELECT|WITH)\b""", RegexOption.IGNORE_CASE).containsMatchIn(withoutTrailingTerminator)) {
+            return false
+        }
+        return !isMutatingSql(withoutTrailingTerminator)
+    }
+
     fun evaluateAction(
         action: AgentActionType,
         autoExecuteTier1: Boolean,
@@ -91,35 +98,29 @@ object ApprovalGuard {
             )
         }
         return when (action.tier) {
-            PermissionTier.TIER_1_AUTO -> {
-                if (autoExecuteTier1 || hasExplicitApproval) {
-                    GuardDecision.AllowedAuto
-                } else {
-                    GuardDecision.RequiresApproval(
-                        PermissionTier.TIER_1_AUTO,
-                        "التنفيذ التلقائي للمستوى الأول معطل في إعدادات الأمان."
-                    )
-                }
+            PermissionTier.TIER_1_AUTO -> if (autoExecuteTier1 || hasExplicitApproval) {
+                GuardDecision.AllowedAuto
+            } else {
+                GuardDecision.RequiresApproval(
+                    PermissionTier.TIER_1_AUTO,
+                    "التنفيذ التلقائي للمستوى الأول معطل في إعدادات الأمان."
+                )
             }
-            PermissionTier.TIER_2_APPROVAL -> {
-                if (hasExplicitApproval) {
-                    GuardDecision.AllowedAuto
-                } else {
-                    GuardDecision.RequiresApproval(
-                        PermissionTier.TIER_2_APPROVAL,
-                        "عملية من المستوى الثاني تتطلب موافقتك قبل التنفيذ: ${action.arabicTitle}"
-                    )
-                }
+            PermissionTier.TIER_2_APPROVAL -> if (hasExplicitApproval) {
+                GuardDecision.AllowedAuto
+            } else {
+                GuardDecision.RequiresApproval(
+                    PermissionTier.TIER_2_APPROVAL,
+                    "عملية من المستوى الثاني تتطلب موافقتك قبل التنفيذ: ${action.arabicTitle}"
+                )
             }
-            PermissionTier.TIER_3_EXPLICIT -> {
-                if (hasExplicitApproval) {
-                    GuardDecision.AllowedAuto
-                } else {
-                    GuardDecision.RequiresApproval(
-                        PermissionTier.TIER_3_EXPLICIT,
-                        "عملية حرجة من المستوى الثالث تتطلب موافقة صريحة مستقلة: ${action.arabicTitle}"
-                    )
-                }
+            PermissionTier.TIER_3_EXPLICIT -> if (hasExplicitApproval) {
+                GuardDecision.AllowedAuto
+            } else {
+                GuardDecision.RequiresApproval(
+                    PermissionTier.TIER_3_EXPLICIT,
+                    "عملية حرجة من المستوى الثالث تتطلب موافقة صريحة مستقلة: ${action.arabicTitle}"
+                )
             }
         }
     }
@@ -137,10 +138,10 @@ object ApprovalGuard {
                 "ممنوع تماماً الاتصال بقاعدة بيانات محمية أو قديمة أو تعديلها أو حذفها."
             )
         }
-        if (isMutatingSql(sql) && !hasExplicitTier3Approval) {
+        if (!isSingleReadOnlySql(sql) && !hasExplicitTier3Approval) {
             return GuardDecision.RequiresApproval(
                 PermissionTier.TIER_3_EXPLICIT,
-                "يحتوي الاستعلام على أوامر تعديل أو DDL/RLS/Grants. يتطلب معاينة الأثر وموافقة صريحة من المستوى الثالث."
+                "الاستعلام ليس جملة SELECT/WITH واحدة مؤكدة القراءة فقط. يتطلب معاينة الأثر وموافقة صريحة من المستوى الثالث."
             )
         }
         return GuardDecision.AllowedAuto

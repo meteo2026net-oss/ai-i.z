@@ -23,6 +23,7 @@ import androidx.compose.material.icons.rounded.FolderOpen
 import androidx.compose.material.icons.rounded.Hub
 import androidx.compose.material.icons.rounded.NotificationsActive
 import androidx.compose.material.icons.rounded.Security
+import androidx.compose.material.icons.rounded.Settings
 import androidx.compose.material.icons.rounded.Storage
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
@@ -252,14 +253,17 @@ private fun AuthenticatedMetraShell(
         TopNavTab("files", "المستودع", Icons.Rounded.FolderOpen),
         TopNavTab("database", "القاعدة", Icons.Rounded.Storage)
     )
-    // Keep the phone navigation focused on the three destinations in the approved
-    // mobile reference. Secondary tools remain available from the dashboard and desktop rail.
+    // Five mobile destinations follow the approved Figma information architecture.
+    // Advanced tools remain accessible from dashboard shortcuts and the desktop navigation rail.
     val mobileTabs = listOf(
         TopNavTab("dashboard", "الرئيسية", Icons.Rounded.Dashboard),
-        TopNavTab("linked_accounts", "مشاريعي", Icons.Rounded.FolderOpen),
-        TopNavTab("chat", "المساعد", Icons.Rounded.AutoAwesome)
+        TopNavTab("chat", "الوكيل", Icons.Rounded.AutoAwesome),
+        TopNavTab("tasks", "المهام", Icons.Rounded.Checklist),
+        TopNavTab("linked_accounts", "المشاريع", Icons.Rounded.FolderOpen),
+        TopNavTab("security", "الإعدادات", Icons.Rounded.Settings)
     )
-    val isTopTab = primaryTabs.any { it.route == currentRoute }
+    val isTopTab = primaryTabs.any { it.route == currentRoute } ||
+        mobileTabs.any { it.route == currentRoute }
 
     val screenTitles = mapOf(
         "dashboard" to "لوحة: $activeProjectTitle",
@@ -299,7 +303,7 @@ private fun AuthenticatedMetraShell(
 
     fun navigateTo(route: String) {
         navController.navigate(route) {
-            if (primaryTabs.any { it.route == route }) {
+            if (primaryTabs.any { it.route == route } || mobileTabs.any { it.route == route }) {
                 popUpTo(navController.graph.findStartDestination().id) {
                     saveState = true
                 }

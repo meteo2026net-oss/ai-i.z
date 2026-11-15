@@ -90,9 +90,13 @@ class UserDataRepository(context: Context) {
         }
     }
 
-    private suspend fun <T : Any> fetchList(collection: String, limit: Int, adapter: JsonAdapter<T>): List<T> =
-        authorized { bearer ->
-            val root = moshi.adapter(Map::class.java).fromJson(service.listRecords(collection, limit, bearer).string())
+    private suspend fun <T : Any> fetchList(
+        collection: String,
+        limit: Int,
+        adapter: JsonAdapter<T>,
+        metadata: Boolean = false
+    ): List<T> = authorized { bearer ->
+            val root = moshi.adapter(Map::class.java).fromJson(service.listRecords(collection, limit, metadata, bearer).string())
             val records = root?.get("records") as? List<*> ?: emptyList<Any>()
             records.mapNotNull { adapter.fromJsonValue(it) }
         }
@@ -123,6 +127,9 @@ class UserDataRepository(context: Context) {
     private val studioProjectAdapter by lazy {
         moshi.adapter(com.example.domain.model.StudioProjectSpec::class.java)
     }
+    private val studioProjectSummaryAdapter by lazy {
+        moshi.adapter(com.example.domain.model.StudioProjectSummary::class.java)
+    }
 
     /** Durable, account-scoped Studio project storage on the AI I.Z API. */
     suspend fun saveStudioProject(project: com.example.domain.model.StudioProjectSpec): Result<Unit> = result {
@@ -133,8 +140,8 @@ class UserDataRepository(context: Context) {
         save("studio_projects", project.id, project, studioProjectAdapter)
     }
 
-    suspend fun listStudioProjects(): Result<List<com.example.domain.model.StudioProjectSpec>> = result {
-        fetchList("studio_projects", 50, studioProjectAdapter)
+    suspend fun listStudioProjects(): Result<List<com.example.domain.model.StudioProjectSummary>> = result {
+        fetchList("studio_projects", 50, studioProjectSummaryAdapter, metadata = true)
     }
 
     suspend fun getStudioProject(projectId: String): Result<com.example.domain.model.StudioProjectSpec?> = result {

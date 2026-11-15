@@ -9,6 +9,10 @@ A separate Node.js 22 service for authenticated backend health and PostgreSQL sc
 - `GET /api/db/schema` returns PostgreSQL metadata for the `public` schema only to AI I.Z user IDs explicitly listed in `RUNNER_SCHEMA_USER_IDS`. With an empty allowlist, all schema inspection is denied. It does not read table rows or return connection details.
 - The database pool has connection, statement, and query timeouts.
 
+## Approval boundary
+
+The identity API (`backend/`) now exposes PostgreSQL-backed approval request, decision, listing, one-time consumption, and explicitly unverified client-report endpoints under `/api/runner/approvals`. Runner execution routes do not yet consume those approvals and remain disabled; do not treat an approval record or client report as proof of completed execution.
+
 ## Intentionally disabled
 
 - `POST /api/tests/run` returns HTTP 501 until an allowlisted, isolated worker exists.

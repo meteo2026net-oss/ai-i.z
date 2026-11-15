@@ -1219,6 +1219,7 @@ class MetraAgentViewModel(
         }
     }
 
+    @Suppress("UNUSED_PARAMETER")
     fun saveBackendAndOpenAiSecrets(
         backendUrl: String,
         backendToken: String,
@@ -1227,7 +1228,7 @@ class MetraAgentViewModel(
         aiModel: String,
         profileLabel: String = ""
     ) {
-        if (backendToken.isNotBlank()) vault.putSecret(SecretVault.KEY_BACKEND_TOKEN, backendToken.trim())
+        // Backend requests authenticate with Firebase ID tokens; remove any legacy shared token.\n        vault.putSecret(SecretVault.KEY_BACKEND_TOKEN, "")
         if (openAiKey.isNotBlank()) vault.putSecret(SecretVault.KEY_OPENAI_API, openAiKey.trim())
         accountLinkStore.upsertBackendProfile(
             label = profileLabel,
@@ -1235,7 +1236,7 @@ class MetraAgentViewModel(
             aiModel = aiModel,
             openAiKey = openAiKey.trim(),
             backendUrl = backendUrl.trim(),
-            backendToken = backendToken.trim(),
+            backendToken = "",
             setActive = true
         )
         val updated = currentSettings().copy(

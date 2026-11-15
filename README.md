@@ -56,23 +56,13 @@ gradle testDebugUnitTest
 The backend setup and required server environment are documented in `backend/README.md`.
 
 
+## Firebase boundary
 
-```bash
-firebase emulators:start --only auth,firestore --project demo-no-project
-```
-
-Then run the Gradle test command in another terminal. GitHub Actions performs this using `firebase emulators:exec`.
-
-## Remaining Firebase-backed data setup
-
-Firebase Authentication is no longer part of the login flow on the no-Firebase session branch. Google identity is verified by the AI I.Z API. The main app data repository now targets the AI I.Z PostgreSQL API, but legacy Firebase models, App Check and Firebase AI integrations remain until their usages and data migration are completed.
-
-1. Keep the existing Firebase project configuration only while Firestore/App Check-backed features remain in use.
-2. Do not configure Firebase Authentication as the app login provider.
-3. Deploy and test `firestore.rules` for the existing Firestore data until the PostgreSQL data migration is complete.
-4. Do not remove `google-services.json`, Firebase dependencies, App Check, or Firestore rules until all remaining Firebase AI/App Check/model usages are replaced and historical data migration is verified.
-
-The repository intentionally does not contain a production Firebase service-account key or user credentials. Never put privileged service-account credentials in the Android application.
+- Google Credential Manager obtains a Google ID token; the AI I.Z API verifies it directly and issues app-owned sessions. Firebase Authentication and Firebase Admin are not part of login.
+- The Android user-data repository uses PostgreSQL API endpoints. Firestore repository code, models, rules, emulator tests, and App Check initialization have been removed from this branch.
+- Firebase AI remains for the existing Gemini provider integration. The Google Services Gradle plugin and Firebase AI dependency are retained until that provider is replaced with direct Gemini API calls.
+- Historical Firestore records are not imported by this code and require a separate controlled export/import process if they must be retained.
+- The repository intentionally contains no production Firebase service-account key or user credentials. Never put privileged service-account credentials in the Android application.
 
 ## Backend Runner
 
@@ -94,7 +84,7 @@ The legacy Backend Runner client still has its own token-based contract and is n
 
 ## CI
 
-GitHub Actions runs Android unit tests with the existing Firestore emulator suite, assembles a debug APK, and runs backend session-security unit tests. These checks do not verify production Google OAuth configuration or a deployed PostgreSQL-backed API.
+GitHub Actions runs Android unit tests, assembles a debug APK, and runs backend session and record-validation tests without starting Firebase emulators. These checks do not verify production Google OAuth configuration or a deployed PostgreSQL-backed API.
 
 ## Product requirements and design references
 
@@ -105,4 +95,4 @@ GitHub Actions runs Android unit tests with the existing Firestore emulator suit
 
 ## Status
 
-A successful CI build validates compilation and the configured automated tests only. It does not, by itself, prove that Firebase production configuration, a Backend Runner deployment, provider credentials, Play distribution, or every end-to-end workflow is ready.
+A successful CI build validates compilation and configured automated tests only. It does not prove that the Google OAuth client, PostgreSQL production database, AI I.Z API deployment, Backend Runner, provider credentials, Play distribution, or every end-to-end workflow is ready.

@@ -59,6 +59,10 @@ class UniversalStudioTest {
         )
 
         assertTrue(project.testInstructions.contains("لم يتم تحديد أمر اختبار"))
+        assertTrue(project.buildInstructions.contains("لم يتم تحديد أمر بناء"))
+        assertTrue(project.runInstructions.contains("لم يتم تحديد أمر تشغيل"))
+        assertTrue(!project.buildInstructions.contains("make build"))
+        assertTrue(!project.runInstructions.contains("./run.sh"))
         assertTrue(!project.testInstructions.contains("All tests passed"))
     }
 

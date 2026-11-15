@@ -16,7 +16,8 @@ const pool = new Pool({
 const app = createApp({
   pool,
   identityApiUrl: process.env.AI_IZ_API_BASE_URL,
-  isolatedTarget: process.env.RUNNER_DATABASE_ISOLATED === 'true'
+  isolatedTarget: process.env.RUNNER_DATABASE_ISOLATED === 'true',
+  schemaAccessUserIds: (process.env.RUNNER_SCHEMA_USER_IDS || '').split(',').map(value => value.trim()).filter(Boolean)
 });
 const port = Number(process.env.PORT || 8090);
 if (!Number.isInteger(port) || port < 1 || port > 65535) throw new Error('PORT must be a valid TCP port.');

@@ -429,11 +429,18 @@ app.get('/api/data/:collection', requireSession, async (req, res) => {
   const { collection } = req.params;
   if (!allowedCollections.has(collection)) return jsonError(res, 404, 'COLLECTION_NOT_FOUND', 'The requested collection is not available.');
   const limit = Math.min(Math.max(Number(req.query.limit) || 100, 1), 200);
+  const metadataOnly = collection === 'studio_projects' && req.query.metadata === 'true';
   const result = await pool.query(
     'SELECT record_id, payload, created_at, updated_at FROM user_records WHERE user_id=$1 AND collection=$2 ORDER BY updated_at DESC LIMIT $3',
     [req.user.id, collection, limit]
   );
-  res.json({ records: result.rows.map(row => ({ id: row.record_id, ...row.payload, createdAt: row.created_at, updatedAt: row.updated_at })) });
+  const records = result.rows.map(row => {
+    const record = { id: row.record_id, ...row.payload, createdAt: row.created_at, updatedAt: row.updated_at };
+    if (!metadataOnly) return record;
+    const { files, ...metadata } = record;
+    return { ...metadata, fileCount: Array.isArray(files) ? files.length : 0 };
+  });
+  res.json({ records });
 });
 
 app.get('/api/data/:collection/:recordId', requireSession, async (req, res) => {

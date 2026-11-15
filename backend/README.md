@@ -17,6 +17,10 @@ Never commit `.env`, database credentials, OAuth client secrets, signing keys, o
 - `POST /api/auth/refresh` — body: `{ "refreshToken": "..." }`; rotates refresh token atomically.
 - `POST /api/auth/logout` — body: `{ "refreshToken": "..." }`; revokes the entire refresh-token family even if the access token has expired.
 - `GET /api/me` — current server-derived profile (Bearer access token).
+- `POST /api/runner/approvals` — create an immutable, expiring approval request bound to a canonical operation hash and exact target.
+- `GET /api/runner/approvals/{approvalId}` — retrieve the caller's approval metadata.
+- `POST /api/runner/approvals/{approvalId}/decision` — explicitly approve or reject a pending request.
+- `POST /api/runner/approvals/{approvalId}/consume` — atomically consume an approved request once, requiring exact action, target, and operation hash.
 - `GET /api/data/{settings|tasks|approvals|chat_messages|operation_logs}` — list only the signed-in user's records.
 - `GET /api/data/{collection}/{recordId}` — fetch one record owned by the signed-in user.
 - `PUT /api/data/{collection}/{recordId}` — validate and create/update a user-owned record; the server overwrites `userId` from the verified session. Approval state transitions are server-validated; client execution completion is recorded as `execution_reported`, not server-verified `executed`.
@@ -31,6 +35,6 @@ Use HTTPS, a managed PostgreSQL instance with encrypted connections, backups and
 
 ## Migration status and scope boundary
 
-The API now includes a tenant-scoped JSONB record store for settings, tasks, approvals, chat messages, and operation logs. The Android repository has been switched to call these endpoints using the AI I.Z session. The current client uses periodic polling. CI includes PostgreSQL-backed integration tests for tenant isolation, record validation, approval transitions, append-only logs, logout revocation, and revoked-session rejection.
+The API now includes a tenant-scoped JSONB record store for settings, tasks, approvals, chat messages, and operation logs. The Android repository has been switched to call these endpoints using the AI I.Z session. The current client uses periodic polling. CI includes PostgreSQL-backed integration tests for tenant isolation, record validation, legacy approval transitions, immutable Runner approval ownership, exact target/hash binding, one-time consumption, append-only logs, logout revocation, and revoked-session rejection. The Runner's SQL and remote execution routes remain disabled until their isolated execution and policy layers are complete.
 
 The Android login and user-data paths no longer depend on Firebase Authentication, Firestore, or App Check. Firebase AI remains only as the existing Gemini provider integration. Historical Firestore records are not imported by this code; production use still requires applying the schema, deploying the API, configuring Android build variables, and passing end-to-end and cross-account isolation tests.

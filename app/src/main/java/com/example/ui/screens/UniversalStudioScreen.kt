@@ -53,7 +53,7 @@ import java.io.FileOutputStream
 @Composable
 fun UniversalStudioScreen(
     activeProject: StudioProjectSpec?,
-    savedProjects: List<StudioProjectSpec>,
+    savedProjects: List<com.example.domain.model.StudioProjectSummary>,
     onOpenSavedProject: (projectId: String) -> Unit,
     onDeleteSavedProject: (projectId: String) -> Unit,
     onRefreshSavedProjects: () -> Unit,
@@ -245,13 +245,13 @@ fun UniversalStudioScreen(
 
 @Composable
 private fun SavedStudioProjectsTab(
-    projects: List<StudioProjectSpec>,
+    projects: List<com.example.domain.model.StudioProjectSummary>,
     activeProjectId: String?,
     onOpenProject: (String) -> Unit,
     onDeleteProject: (String) -> Unit,
     onRefresh: () -> Unit
 ) {
-    var projectPendingDeletion by remember { mutableStateOf<StudioProjectSpec?>(null) }
+    var projectPendingDeletion by remember { mutableStateOf<com.example.domain.model.StudioProjectSummary?>(null) }
 
     if (projectPendingDeletion != null) {
         AlertDialog(
@@ -322,7 +322,7 @@ private fun SavedStudioProjectsTab(
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
                             Text(
-                                "${project.files.size} ملفاً • ${project.description.take(140)}",
+                                "${project.fileCount} ملفاً • ${project.description.take(140)}",
                                 style = MaterialTheme.typography.bodySmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                             )

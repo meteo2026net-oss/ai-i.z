@@ -26,6 +26,7 @@ import com.example.data.repository.UserDataRepository
 import com.example.data.repository.FlutterSpecExporter
 import com.example.data.repository.GitHubRepository
 import com.example.data.repository.SharedWorkplanCodec
+import com.example.data.repository.StudioProjectSaveRevisionTracker
 import com.example.domain.model.AgentTask
 import com.example.domain.model.ApprovalRequest
 import com.example.domain.model.BackendHealthResponse
@@ -201,6 +202,7 @@ class MetraAgentViewModel(
 
     // Serialize cloud writes/deletes and prevent a queued save from resurrecting a deleted project.
     private val studioProjectPersistenceMutex = Mutex()
+    private val studioProjectSaveRevisions = StudioProjectSaveRevisionTracker()
     // Accessed by UI-triggered deletes and coroutine-based saves; use a concurrent set.
     private val deletedStudioProjectIds = java.util.concurrent.ConcurrentHashMap.newKeySet<String>()
 
@@ -2129,7 +2131,7 @@ class MetraAgentViewModel(
                                 statusBannerMessage = "اكتمل توليد مشروع مخصص بالذكاء الاصطناعي: ${files.size} ملفاً. لم يتم تشغيل البناء أو الاختبارات بعد."
                             )
                         }
-                        persistStudioProject(project)
+                        persistStudioProject(project, studioProjectSaveRevisions.next(project.id))
                     },
                     onFailure = { error ->
                         val firstFile = baseProject.files.firstOrNull { it.isEntrypoint }
@@ -2209,6 +2211,7 @@ class MetraAgentViewModel(
     fun deleteSavedStudioProject(projectId: String) {
         // Mark immediately so saves already queued behind the mutex cannot recreate this project.
         deletedStudioProjectIds.add(projectId)
+        studioProjectSaveRevisions.next(projectId)
         viewModelScope.launch {
             studioProjectPersistenceMutex.withLock {
                 userDataRepository.deleteStudioProject(projectId)
@@ -2235,11 +2238,12 @@ class MetraAgentViewModel(
         }
     }
 
-    private suspend fun persistStudioProject(project: com.example.domain.model.StudioProjectSpec): Boolean {
+    private suspend fun persistStudioProject(project: com.example.domain.model.StudioProjectSpec, revision: Long): Boolean {
         return studioProjectPersistenceMutex.withLock {
-            if (project.id in deletedStudioProjectIds) return@withLock false
+            if (project.id in deletedStudioProjectIds || !studioProjectSaveRevisions.isCurrent(project.id, revision)) return@withLock false
             userDataRepository.saveStudioProject(project).fold(
                 onSuccess = {
+                    if (project.id in deletedStudioProjectIds || !studioProjectSaveRevisions.isCurrent(project.id, revision)) return@fold false
                     _workspace.update { state ->
                         val withoutCurrent = state.savedStudioProjects.filterNot { it.id == project.id }
                         state.copy(
@@ -2259,6 +2263,7 @@ class MetraAgentViewModel(
                     true
                 },
                 onFailure = { error ->
+                    if (!studioProjectSaveRevisions.isCurrent(project.id, revision)) return@fold false
                     Log.w(TAG, "Studio project cloud save failed", error)
                     _workspace.update {
                         it.copy(statusBannerMessage = "التعديلات ما زالت في مساحة العمل الحالية فقط ولم تُحفظ سحابياً: ${error.localizedMessage ?: "خطأ اتصال"}")
@@ -2298,8 +2303,9 @@ class MetraAgentViewModel(
                 statusBannerMessage = "تم تحديث الملف في مساحة العمل؛ جارٍ حفظه ومزامنته سحابياً: " + currentPath
             )
         }
+        val revision = studioProjectSaveRevisions.next(updatedProj.id)
         viewModelScope.launch {
-            persistStudioProject(updatedProj)
+            persistStudioProject(updatedProj, revision)
         }
     }
 

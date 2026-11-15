@@ -5,7 +5,7 @@ import rateLimit from 'express-rate-limit';
 import { Pool } from 'pg';
 import { OAuth2Client } from 'google-auth-library';
 import { SignJWT, jwtVerify } from 'jose';
-import { randomUUID } from 'node:crypto';
+import { randomUUID, createHash } from 'node:crypto';
 import { generateRefreshToken, hashRefreshToken, isValidSigningSecretHex } from './security.js';
 
 const required = ['DATABASE_URL', 'GOOGLE_OIDC_CLIENT_ID', 'ACCESS_TOKEN_HMAC_SECRET_HEX', 'ACCESS_TOKEN_ISSUER', 'ACCESS_TOKEN_AUDIENCE'];
@@ -208,6 +208,164 @@ app.post('/api/auth/logout', async (req, res) => {
 
 app.get('/api/me', requireSession, (req, res) => {
   res.json({ user: { id: req.user.id, email: req.user.email, displayName: req.user.display_name, avatarUrl: req.user.avatar_url } });
+});
+
+
+const runnerApprovalActions = new Set([
+  'git_push', 'create_pr', 'staging_deploy', 'service_config',
+  'db_sql', 'db_rls_grants', 'db_migration', 'merge_pr', 'prod_deploy'
+]);
+function canonicalJson(value) {
+  if (value === null || typeof value === 'string' || typeof value === 'boolean') return JSON.stringify(value);
+  if (typeof value === 'number') {
+    if (!Number.isFinite(value)) throw new Error('Invalid JSON number');
+    return JSON.stringify(value);
+  }
+  if (Array.isArray(value)) return '[' + value.map(canonicalJson).join(',') + ']';
+  if (typeof value === 'object') {
+    const keys = Object.keys(value).sort();
+    return '{' + keys.map(key => JSON.stringify(key) + ':' + canonicalJson(value[key])).join(',') + '}';
+  }
+  throw new Error('Unsupported operation value');
+}
+function hashApprovalOperation(operation) {
+  return createHash('sha256').update(canonicalJson(operation)).digest('hex');
+}
+const validApprovalId = value => typeof value === 'string' && /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value);
+
+app.post('/api/runner/approvals', requireSession, async (req, res) => {
+  const { actionType, targetResource, operation, preview } = req.body || {};
+  if (!runnerApprovalActions.has(actionType) ||
+      typeof targetResource !== 'string' || targetResource.length < 1 || targetResource.length > 300 ||
+      !operation || typeof operation !== 'object' || Array.isArray(operation) ||
+      typeof preview !== 'string' || preview.trim().length < 1 || preview.length > 4000) {
+    return jsonError(res, 400, 'INVALID_APPROVAL_REQUEST', 'A valid action, exact target, operation object, and human-readable preview are required.');
+  }
+  let serialized;
+  try { serialized = canonicalJson(operation); } catch {
+    return jsonError(res, 400, 'INVALID_APPROVAL_OPERATION', 'The operation payload is not valid JSON.');
+  }
+  if (serialized.length > 24000) return jsonError(res, 413, 'APPROVAL_OPERATION_TOO_LARGE', 'The operation payload exceeds the permitted size.');
+  const operationHash = hashApprovalOperation(operation);
+  const approvalId = randomUUID();
+  try {
+    const result = await pool.query(
+      `INSERT INTO runner_approvals(id,user_id,action_type,target_resource,operation,operation_hash,preview,expires_at)
+       VALUES($1,$2,$3,$4,$5::jsonb,$6,$7,now()+interval '10 minutes')
+       RETURNING id,action_type,target_resource,operation_hash,preview,status,created_at,expires_at`,
+      [approvalId,req.user.id,actionType,targetResource,JSON.stringify(operation),operationHash,preview.trim()]
+    );
+    await pool.query(
+      'INSERT INTO security_audit_events(user_id,event_type,details) VALUES($1,\'runner_approval_requested\',$2::jsonb)',
+      [req.user.id,JSON.stringify({ approvalId,actionType,targetResource,operationHash })]
+    );
+    return res.status(201).json({ approval: result.rows[0] });
+  } catch (error) {
+    console.error('Runner approval request failed:', error.message);
+    return jsonError(res, 500, 'APPROVAL_REQUEST_FAILED', 'The approval request could not be stored.');
+  }
+});
+
+app.get('/api/runner/approvals/:approvalId', requireSession, async (req, res) => {
+  if (!validApprovalId(req.params.approvalId)) return jsonError(res, 404, 'APPROVAL_NOT_FOUND', 'The approval does not exist.');
+  const result = await pool.query(
+    `SELECT id,action_type,target_resource,operation_hash,preview,status,decision_note,
+            created_at,expires_at,decided_at,consumed_at
+     FROM runner_approvals WHERE id=$1 AND user_id=$2`,
+    [req.params.approvalId,req.user.id]
+  );
+  if (!result.rowCount) return jsonError(res, 404, 'APPROVAL_NOT_FOUND', 'The approval does not exist.');
+  return res.json({ approval: result.rows[0] });
+});
+
+app.post('/api/runner/approvals/:approvalId/decision', requireSession, async (req, res) => {
+  const { approvalId } = req.params;
+  const { decision, note = '' } = req.body || {};
+  if (!validApprovalId(approvalId)) return jsonError(res, 404, 'APPROVAL_NOT_FOUND', 'The approval does not exist.');
+  if (!['approved','rejected'].includes(decision) || typeof note !== 'string' || note.length > 500) {
+    return jsonError(res, 400, 'INVALID_APPROVAL_DECISION', 'Choose approved or rejected and provide a note of at most 500 characters.');
+  }
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+    const found = await client.query(
+      'SELECT * FROM runner_approvals WHERE id=$1 AND user_id=$2 FOR UPDATE',
+      [approvalId,req.user.id]
+    );
+    const row = found.rows[0];
+    if (!row) { await client.query('ROLLBACK'); return jsonError(res, 404, 'APPROVAL_NOT_FOUND', 'The approval does not exist.'); }
+    if (row.status !== 'pending' || new Date(row.expires_at).getTime() <= Date.now()) {
+      if (row.status === 'pending') await client.query("UPDATE runner_approvals SET status='expired' WHERE id=$1",[approvalId]);
+      await client.query('COMMIT');
+      return jsonError(res, 409, 'APPROVAL_NOT_PENDING', 'The approval is expired or has already been decided.');
+    }
+    const updated = await client.query(
+      `UPDATE runner_approvals SET status=$3,decision_note=$4,decided_at=now()
+       WHERE id=$1 AND user_id=$2 AND status='pending'
+       RETURNING id,status,decision_note,decided_at,expires_at`,
+      [approvalId,req.user.id,decision,note]
+    );
+    await client.query(
+      'INSERT INTO security_audit_events(user_id,event_type,details) VALUES($1,$2,$3::jsonb)',
+      [req.user.id,'runner_approval_decided',JSON.stringify({ approvalId,decision })]
+    );
+    await client.query('COMMIT');
+    return res.json({ approval: updated.rows[0] });
+  } catch (error) {
+    await client.query('ROLLBACK').catch(() => {});
+    console.error('Runner approval decision failed:', error.message);
+    return jsonError(res, 500, 'APPROVAL_DECISION_FAILED', 'The approval decision could not be stored.');
+  } finally { client.release(); }
+});
+
+app.post('/api/runner/approvals/:approvalId/consume', requireSession, async (req, res) => {
+  const { approvalId } = req.params;
+  const { actionType, targetResource, operationHash } = req.body || {};
+  if (!validApprovalId(approvalId)) return jsonError(res, 404, 'APPROVAL_NOT_FOUND', 'The approval does not exist.');
+  if (typeof actionType !== 'string' || typeof targetResource !== 'string' ||
+      typeof operationHash !== 'string' || !/^[0-9a-f]{64}$/.test(operationHash)) {
+    return jsonError(res, 400, 'INVALID_APPROVAL_BINDING', 'The exact action, target, and SHA-256 operation hash are required.');
+  }
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+    const found = await client.query(
+      'SELECT * FROM runner_approvals WHERE id=$1 AND user_id=$2 FOR UPDATE',
+      [approvalId,req.user.id]
+    );
+    const row = found.rows[0];
+    if (!row) { await client.query('ROLLBACK'); return jsonError(res, 404, 'APPROVAL_NOT_FOUND', 'The approval does not exist.'); }
+    const recomputedHash = hashApprovalOperation(row.operation);
+    const exactMatch = row.action_type === actionType && row.target_resource === targetResource &&
+      row.operation_hash === operationHash && recomputedHash === row.operation_hash;
+    if (!exactMatch) {
+      await client.query('ROLLBACK');
+      return jsonError(res, 409, 'APPROVAL_BINDING_MISMATCH', 'The approval does not match this exact operation and target.');
+    }
+    if (row.status !== 'approved' || new Date(row.expires_at).getTime() <= Date.now()) {
+      if (row.status === 'approved' && new Date(row.expires_at).getTime() <= Date.now()) {
+        await client.query("UPDATE runner_approvals SET status='expired' WHERE id=$1",[approvalId]);
+        await client.query('COMMIT');
+      } else await client.query('ROLLBACK');
+      return jsonError(res, 409, 'APPROVAL_NOT_EXECUTABLE', 'The approval is not approved, is expired, or has already been consumed.');
+    }
+    const updated = await client.query(
+      `UPDATE runner_approvals SET status='consumed',consumed_at=now()
+       WHERE id=$1 AND user_id=$2 AND status='approved'
+       RETURNING id,action_type,target_resource,operation,operation_hash,consumed_at`,
+      [approvalId,req.user.id]
+    );
+    await client.query(
+      'INSERT INTO security_audit_events(user_id,event_type,details) VALUES($1,\'runner_approval_consumed\',$2::jsonb)',
+      [req.user.id,JSON.stringify({ approvalId,actionType,targetResource,operationHash })]
+    );
+    await client.query('COMMIT');
+    return res.json({ approval: updated.rows[0] });
+  } catch (error) {
+    await client.query('ROLLBACK').catch(() => {});
+    console.error('Runner approval consumption failed:', error.message);
+    return jsonError(res, 500, 'APPROVAL_CONSUMPTION_FAILED', 'The approval could not be consumed.');
+  } finally { client.release(); }
 });
 
 

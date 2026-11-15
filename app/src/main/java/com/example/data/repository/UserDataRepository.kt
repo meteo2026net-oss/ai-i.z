@@ -7,7 +7,7 @@ import com.example.data.remote.UserDataService
 import com.example.domain.model.AgentTask
 import com.example.domain.model.ApprovalRequest
 import com.example.domain.model.ChatMessage
-import com.example.domain.model.OperationLog
+import com.example.domain.model.OperationLog\nimport com.example.domain.model.RunnerApprovalRecord\nimport com.example.domain.model.RunnerApprovalOperation
 import com.example.domain.model.UserSettings
 import com.squareup.moshi.JsonAdapter
 import com.squareup.moshi.Moshi
@@ -155,24 +155,50 @@ class UserDataRepository(context: Context) {
         catch (error: HttpException) { if (error.code() == 404) null else throw error }
     }
 
+    private fun RunnerApprovalRecord.toApprovalRequest(userId: String): ApprovalRequest {
+        val operation = operation ?: emptyMap()
+        val tierThree = actionType in setOf("merge_pr", "db_sql", "db_migration", "db_rls_grants", "prod_deploy")
+        return ApprovalRequest(
+            id = id,
+            userId = userId,
+            taskId = operation["taskId"]?.toString().orEmpty(),
+            tier = if (tierThree) 3L else 2L,
+            actionType = actionType,
+            title = (operation["title"] as? String)?.take(200) ?: preview.take(200),
+            description = preview.take(2000),
+            payloadPreview = (operation["sql"] as? String)
+                ?: (operation["body"] as? String)
+                ?: preview,
+            targetResource = targetResource,
+            status = status,
+            decisionNote = decisionNote,
+            operationPayload = operation,
+            operationHash = operationHash,
+            serverOwned = true
+        )
+    }
+
     fun observeApprovals(userId: String): Flow<List<ApprovalRequest>> = observe {
-        fetchList("approvals", 200, approvalAdapter)
+        listRunnerApprovals(100).getOrThrow().map { it.toApprovalRequest(userId) }
     }
 
     suspend fun createApproval(approval: ApprovalRequest): Result<String> = result {
-        val id = "appr_${UUID.randomUUID().toString().replace("-", "").take(16)}"
-        val normalized = approval.copy(
-            id = id,
-            tier = if (approval.tier == 3L) 3L else 2L,
-            title = approval.title.ifBlank { "طلب موافقة" }.take(200),
-            description = approval.description.ifBlank { "موافقة مطلوبة قبل التنفيذ" }.take(2000),
-            payloadPreview = approval.payloadPreview.take(8000),
-            targetResource = approval.targetResource.take(300),
-            status = "pending",
-            decisionNote = approval.decisionNote.take(500)
-        )
-        save("approvals", id, normalized, approvalAdapter)
-        id
+        require(approval.operationPayload.isNotEmpty()) {
+            "Approval requires a complete immutable operation payload; legacy approvals are disabled."
+        }
+        val normalizedOperation = approval.operationPayload.toMutableMap().apply {
+            put("taskId", approval.taskId)
+            put("title", approval.title.take(200))
+        }
+        val created = createRunnerApproval(
+            RunnerApprovalOperation(
+                actionType = approval.actionType,
+                targetResource = approval.targetResource.take(300),
+                operation = normalizedOperation,
+                preview = (approval.payloadPreview.ifBlank { approval.description.ifBlank { approval.title } }).take(4000)
+            )
+        ).getOrThrow()
+        created.id
     }
 
     suspend fun decideApproval(
@@ -181,11 +207,10 @@ class UserDataRepository(context: Context) {
         decisionNote: String,
         userId: String? = null
     ): Result<Unit> = result {
-        require(newStatus in setOf("approved", "rejected", "executed", "pending")) { "Invalid approval status." }
-        val persistedStatus = if (newStatus == "executed") "execution_reported" else newStatus
-        val current = fetchOne("approvals", approvalId, approvalAdapter)
-            ?: throw IllegalArgumentException("Approval request not found.")
-        save("approvals", approvalId, current.copy(status = persistedStatus, decisionNote = decisionNote.take(500)), approvalAdapter)
+        require(newStatus in setOf("approved", "rejected")) {
+            "Only explicit approval or rejection is accepted here. Execution must be performed by the isolated Runner."
+        }
+        decideRunnerApproval(approvalId, newStatus, decisionNote).getOrThrow()
     }
 
     /**

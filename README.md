@@ -66,21 +66,25 @@ The backend setup and required server environment are documented in `backend/REA
 
 ## Backend Runner
 
-The Android client only defines the Backend Runner API contract. A compatible server must be deployed separately over HTTPS. See:
+The Android client sends its current AI I.Z access token to the separately deployed Runner. The Runner validates the token against the AI I.Z identity API. The identity API also exposes PostgreSQL-backed approval requests, decisions, listing, and one-time operation-bound consumption.
+
+The Android approvals screen now reads and writes those server-owned approval records. Requests contain immutable operation payloads and a server-computed SHA-256 hash. The Android client can record approval or rejection, but **does not execute privileged GitHub or database operations after approval**: remote Runner execution routes remain deliberately disabled until an isolated worker and server-side provider credentials are deployed. Client-side reports are not proof of execution.
+
+See:
 
 - [Backend API and isolated PostgreSQL contract](docs/BACKEND_API_AND_POSTGRES.md)
 - [Setup and deployment guide](docs/SETUP_AND_DEPLOY_GUIDE.md)
-
-The Android Backend Runner client now sends the current AI I.Z access token instead of a separate static token. A compatible Runner server must validate the session against the AI I.Z identity API; no deployable Runner server is included yet. The new `backend/` API independently verifies Google OIDC and issues AI I.Z sessions. Do not assume the Backend Runner is protected by the new session system until that integration is completed.
+- [Runner service and current execution limits](runner/README.md)
 
 ## Security and approvals
 
 - Keep secrets in the platform secret store; never commit them.
 - Keep production credentials and signing keys outside source control.
 - Treat AI-generated commands and SQL as untrusted input.
-- Enforce Tier 2 and Tier 3 approvals on the backend, not only in the Android client.
+- Approval ownership, expiry, action, target, and operation hash are enforced by the identity backend.
+- The Runner must independently consume the exact approval before any future execution.
 - Keep legacy/protected database targets isolated.
-- Do not run destructive operations or production deployments without the required explicit approval.
+- Do not enable destructive operations or production deployments until isolated execution, least-privilege credentials, and server-side audit verification are in place.
 
 ## CI
 

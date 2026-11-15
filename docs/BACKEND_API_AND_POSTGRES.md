@@ -2,7 +2,23 @@
 
 ## 1. Current implementation status
 
-The Android application contains a Retrofit client contract for Backend Runner. This repository does **not** currently contain a deployable Backend Runner server implementation. The endpoints below describe the required server contract; they must not be treated as live services until a server is implemented, deployed over HTTPS, and tested end to end.
+The repository now contains an initial Node.js Backend Runner implementation under `backend/`. It verifies Firebase ID tokens and revocation, exposes authenticated health/schema endpoints, and provides restricted read-only PostgreSQL access. It is **not deployed** and is not yet production-ready. Remote test execution and approved database mutations deliberately return 503 until their isolated worker and server-side approval controls are implemented.
+
+
+## 2.1 Current server implementation boundaries
+
+Implemented in `backend/server.js`:
+- Firebase Admin ID-token verification with revocation checking on every API request.
+- Authenticated health endpoint with a real PostgreSQL connectivity check.
+- Public-schema metadata for tables, columns, primary keys, indexes, foreign-key relations, estimated rows, and RLS state.
+- A single-statement SELECT-only endpoint using a read-only transaction, statement/lock timeouts, a 200-row response cap, and the `isolated_dev` target only.
+- Request body limits, rate limiting, security headers, and non-sensitive error responses.
+
+Not yet enabled:
+- `POST /api/tests/run` returns HTTP 503 until an isolated, resource-limited test worker is available.
+- `POST /api/db/execute-approved` returns HTTP 503 until approvals are verified server-side and one-time execution/replay protection is implemented.
+
+The SQL filter is defense in depth. The PostgreSQL account supplied through `DATABASE_URL_READONLY` must be a non-owner, non-superuser role with SELECT grants only on the intended isolated schema, no write grants, and no EXECUTE permission on unsafe application/extension functions. Never point it at a legacy or production database.
 
 ## 2. Required API
 

@@ -17,6 +17,10 @@ Never commit `.env`, database credentials, OAuth client secrets, signing keys, o
 - `POST /api/auth/refresh` — body: `{ "refreshToken": "..." }`; rotates refresh token atomically.
 - `POST /api/auth/logout` — revoke current AI I.Z session (Bearer access token).
 - `GET /api/me` — current server-derived profile (Bearer access token).
+- `GET /api/data/{settings|tasks|approvals|chat_messages|operation_logs}` — list only the signed-in user's records.
+- `GET /api/data/{collection}/{recordId}` — fetch one record owned by the signed-in user.
+- `PUT /api/data/{collection}/{recordId}` — create or replace a user-owned record; the server overwrites `userId` from the verified session.
+- `DELETE /api/data/{collection}/{recordId}` — delete only a record owned by the signed-in user.
 
 Refresh token values are random and only SHA-256 hashes are stored. Reuse of a rotated token revokes its token family. The API never trusts a client-supplied user ID. Access tokens are short-lived and bound to issuer, audience, subject, and session ID.
 
@@ -24,6 +28,8 @@ Refresh token values are random and only SHA-256 hashes are stored. Reuse of a r
 
 Use HTTPS, a managed PostgreSQL instance with encrypted connections, backups and restricted network access. Configure environment variables in the hosting provider's secret manager. Set `ACCESS_TOKEN_ISSUER` to the deployed API origin. Set `GOOGLE_OIDC_CLIENT_ID` to the exact Web OAuth client ID configured in Google Cloud Console. Do not expose database or signing secrets to Android.
 
-## Scope boundary
+## Migration status and scope boundary
 
-This is the first backend implementation slice. It does not yet migrate Firestore collections, connect Android Credential Manager to these endpoints, or constitute a production deployment. Do not remove existing Firebase app code until each feature has a tested replacement and data migration plan.
+The API now includes a tenant-scoped JSONB record store for settings, tasks, approvals, chat messages, and operation logs. The Android repository has been switched to call these endpoints using the AI I.Z session. The current client uses periodic polling rather than Firestore realtime listeners.
+
+This is still a staged migration: legacy Firestore model annotations and Firebase libraries/configuration remain in the Android project, and existing Firestore user data has not been exported/imported. Production use requires applying the updated schema, deploying the API, configuring the Android build variables, and completing end-to-end and cross-account isolation tests.

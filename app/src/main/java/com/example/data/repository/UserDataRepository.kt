@@ -163,9 +163,10 @@ class UserDataRepository(context: Context) {
         userId: String? = null
     ): Result<Unit> = result {
         require(newStatus in setOf("approved", "rejected", "executed", "pending")) { "Invalid approval status." }
+        val persistedStatus = if (newStatus == "executed") "execution_reported" else newStatus
         val current = fetchOne("approvals", approvalId, approvalAdapter)
             ?: throw IllegalArgumentException("Approval request not found.")
-        save("approvals", approvalId, current.copy(status = newStatus, decisionNote = decisionNote.take(500)), approvalAdapter)
+        save("approvals", approvalId, current.copy(status = persistedStatus, decisionNote = decisionNote.take(500)), approvalAdapter)
     }
 
     fun observeChatMessages(userId: String): Flow<List<ChatMessage>> = observe {

@@ -12,7 +12,7 @@ The application is designed to guide a project from idea discovery and requireme
 - GitHub repository, branch, commit, pull-request, and Actions integration.
 - Backend Runner API client for health checks, tests, schema inspection, read-only SQL, and explicitly approved database operations.
 - Local Room persistence and WorkManager task coordination.
-- Arabic RTL-first experience with English/LTR support in the UI layer.
+- Arabic RTL-first interface. Full English translation and dynamic LTR switching remain unfinished and must be verified before claiming bilingual support.
 - Project lifecycle, security, setup, backend API, and marketing requirements in `docs/`.
 
 ## Requirements

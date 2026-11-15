@@ -2063,7 +2063,7 @@ class MetraAgentViewModel(
                     $starterManifest
                 """.trimIndent()
 
-                val generated = aiRepo.analyzeOnceWithFailover(generationPrompt) { alert ->
+                val generated = aiRepo.analyzeOnceWithFailover(prompt = generationPrompt, expectJson = true) { alert ->
                     _workspace.update {
                         it.copy(
                             statusBannerMessage = "تعذر النموذج ${alert.exhaustedLabel}؛ يجري التحويل إلى نموذج متاح لتوليد المشروع."

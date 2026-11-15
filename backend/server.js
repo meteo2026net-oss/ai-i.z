@@ -200,7 +200,9 @@ function loadPools(env = process.env) {
 
 async function start() {
   const admin = require("firebase-admin");
-  if (!admin.apps.length) admin.initializeApp({ projectId: process.env.FIREBASE_PROJECT_ID });
+  const projectId = process.env.FIREBASE_PROJECT_ID;
+  if (!projectId) throw new Error("FIREBASE_PROJECT_ID must be configured.");
+  if (!admin.apps.length) admin.initializeApp({ projectId });
   const pools = loadPools();
   const app = createApp({ auth: admin.auth(), pools });
   const port = Number(process.env.PORT || 8080);

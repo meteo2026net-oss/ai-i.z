@@ -31,9 +31,7 @@ class StudioProjectArchiveExporterTest {
     @Test
     fun rejectsPathTraversalBeforeWritingArchive() {
         val unsafe = project().copy(
-            files = listOf(
-                project().files.first().copy(path = "../outside.txt")
-            )
+            files = listOf(project().files.first().copy(path = "../outside.txt"))
         )
         assertThrows(IllegalArgumentException::class.java) {
             StudioProjectArchiveExporter.writeZip(unsafe, ByteArrayOutputStream())
@@ -49,6 +47,71 @@ class StudioProjectArchiveExporterTest {
         ))
         assertThrows(IllegalArgumentException::class.java) {
             StudioProjectArchiveExporter.writeZip(duplicate, ByteArrayOutputStream())
+        }
+    }
+
+    @Test
+    fun rejectsEmptyProject() {
+        assertThrows(IllegalArgumentException::class.java) {
+            StudioProjectArchiveExporter.writeZip(
+                project().copy(files = emptyList()),
+                ByteArrayOutputStream()
+            )
+        }
+    }
+
+    @Test
+    fun rejectsMoreThanTwentyFourFiles() {
+        val template = project().files.first()
+        val tooMany = (1..25).map { index ->
+            template.copy(path = "src/File$index.kt", isEntrypoint = index == 1)
+        }
+        assertThrows(IllegalArgumentException::class.java) {
+            StudioProjectArchiveExporter.writeZip(
+                project().copy(files = tooMany),
+                ByteArrayOutputStream()
+            )
+        }
+    }
+
+    @Test
+    fun rejectsSingleFileLargerThanPerFileLimit() {
+        val oversized = project().copy(files = listOf(
+            project().files.first().copy(content = "x".repeat(256_001))
+        ))
+        assertThrows(IllegalArgumentException::class.java) {
+            StudioProjectArchiveExporter.writeZip(oversized, ByteArrayOutputStream())
+        }
+    }
+
+    @Test
+    fun rejectsProjectLargerThanTotalByteLimit() {
+        val template = project().files.first()
+        val largeFiles = (1..8).map { index ->
+            template.copy(
+                path = "src/File$index.kt",
+                content = "x".repeat(250_001),
+                isEntrypoint = index == 1
+            )
+        }
+        assertThrows(IllegalArgumentException::class.java) {
+            StudioProjectArchiveExporter.writeZip(
+                project().copy(files = largeFiles),
+                ByteArrayOutputStream()
+            )
+        }
+    }
+
+    @Test
+    fun rejectsAbsoluteAndGitInternalPaths() {
+        val template = project().files.first()
+        listOf("/etc/passwd", ".git/config").forEach { unsafePath ->
+            assertThrows(IllegalArgumentException::class.java) {
+                StudioProjectArchiveExporter.writeZip(
+                    project().copy(files = listOf(template.copy(path = unsafePath))),
+                    ByteArrayOutputStream()
+                )
+            }
         }
     }
 

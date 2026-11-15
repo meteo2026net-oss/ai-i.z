@@ -1,0 +1,118 @@
+{
+  "entities": {
+    "UserSettings": {
+      "title": "UserSettings",
+      "description": "Per-user METRA workspace configuration (non-secret preferences only).",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string", "description": "Firebase Auth UID of the owner." },
+        "activeRepo": { "type": "string", "description": "Selected GitHub repository slug (owner/repo)." },
+        "activeBranch": { "type": "string", "description": "Selected working branch." },
+        "aiProvider": { "type": "string", "enum": ["gemini", "openai"], "description": "Active AI provider." },
+        "aiModel": { "type": "string", "description": "Selected AI model identifier." },
+        "backendUrl": { "type": "string", "description": "Optional self-hosted Backend Runner base URL." },
+        "darkTheme": { "type": "boolean", "description": "Dark command-center theme toggle." },
+        "autoExecuteTier1": { "type": "boolean", "description": "Whether Tier 1 read/analyze actions execute automatically." },
+        "createdAt": { "type": "string", "format": "date-time", "description": "Server timestamp on creation." },
+        "updatedAt": { "type": "string", "format": "date-time", "description": "Server timestamp on update." }
+      },
+      "required": ["userId", "activeRepo", "activeBranch", "aiProvider", "aiModel", "backendUrl", "darkTheme", "autoExecuteTier1", "createdAt", "updatedAt"]
+    },
+    "AgentTask": {
+      "title": "AgentTask",
+      "description": "Autonomous coding task with durable step checkpointing for resume after interruptions.",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string" },
+        "repo": { "type": "string" },
+        "branch": { "type": "string" },
+        "title": { "type": "string" },
+        "prompt": { "type": "string" },
+        "status": { "type": "string", "enum": ["queued", "running", "awaiting_approval", "completed", "failed", "paused"] },
+        "currentStepIndex": { "type": "integer" },
+        "totalSteps": { "type": "integer" },
+        "progressPercent": { "type": "integer" },
+        "lastCompletedStep": { "type": "string" },
+        "lastResultSummary": { "type": "string" },
+        "lastError": { "type": "string" },
+        "modifiedFiles": { "type": "array" },
+        "nextSteps": { "type": "array" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["userId", "repo", "branch", "title", "prompt", "status", "currentStepIndex", "totalSteps", "progressPercent", "lastCompletedStep", "lastResultSummary", "lastError", "modifiedFiles", "nextSteps", "createdAt", "updatedAt"]
+    },
+    "ApprovalRequest": {
+      "title": "ApprovalRequest",
+      "description": "Tier 2 or Tier 3 approval gate item requiring user confirmation before execution.",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string" },
+        "taskId": { "type": "string" },
+        "tier": { "type": "integer" },
+        "actionType": { "type": "string", "enum": ["git_push", "create_pr", "staging_deploy", "service_config", "db_sql", "db_rls_grants", "db_migration", "merge_pr", "prod_deploy"] },
+        "title": { "type": "string" },
+        "description": { "type": "string" },
+        "payloadPreview": { "type": "string" },
+        "targetResource": { "type": "string" },
+        "status": { "type": "string", "enum": ["pending", "approved", "rejected", "executed"] },
+        "decisionNote": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["userId", "taskId", "tier", "actionType", "title", "description", "payloadPreview", "targetResource", "status", "decisionNote", "createdAt", "updatedAt"]
+    },
+    "ChatMessage": {
+      "title": "ChatMessage",
+      "description": "Agent conversation history entry synced per user.",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string" },
+        "role": { "type": "string", "enum": ["user", "assistant", "system"] },
+        "content": { "type": "string" },
+        "repoContext": { "type": "string" },
+        "linkedTaskId": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["userId", "role", "content", "repoContext", "linkedTaskId", "createdAt"]
+    },
+    "OperationLog": {
+      "title": "OperationLog",
+      "description": "Immutable append-only audit log of agent actions, API calls, and security gates.",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string" },
+        "category": { "type": "string", "enum": ["agent", "github", "database", "test", "security", "ai"] },
+        "tier": { "type": "integer" },
+        "action": { "type": "string" },
+        "details": { "type": "string" },
+        "outcome": { "type": "string", "enum": ["success", "blocked", "pending", "error"] },
+        "repo": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["userId", "category", "tier", "action", "details", "outcome", "repo", "createdAt"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": { "$ref": "#/entities/UserSettings" },
+      "description": "User workspace preferences and active METRA configuration."
+    },
+    "/users/{userId}/tasks/{taskId}": {
+      "schema": { "$ref": "#/entities/AgentTask" },
+      "description": "Durable coding agent tasks and step checkpoints."
+    },
+    "/users/{userId}/approvals/{approvalId}": {
+      "schema": { "$ref": "#/entities/ApprovalRequest" },
+      "description": "Tier 2 and Tier 3 approval gate items."
+    },
+    "/users/{userId}/chat_messages/{messageId}": {
+      "schema": { "$ref": "#/entities/ChatMessage" },
+      "description": "Synced conversation history with the METRA AI agent."
+    },
+    "/users/{userId}/operation_logs/{logId}": {
+      "schema": { "$ref": "#/entities/OperationLog" },
+      "description": "Append-only audit log for all operations."
+    }
+  }
+}

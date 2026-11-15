@@ -1,0 +1,6 @@
+{
+  "name": "ai i.z",
+  "description": "تطبيق ai i.z - وكيل الذكاء الاصطناعي والمطور الآلي المتطور. حقوق الملكية الفكرية محفوظة للمطور إبراهيم زينب (Ibrahim Zeinab). جميع الحقوق محفوظة 2026.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

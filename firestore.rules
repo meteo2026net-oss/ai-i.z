@@ -1,0 +1,202 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Global Safety Net: Deny all reads/writes by default
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return isSignedIn() && request.auth.uid == userId;
+    }
+
+    function isValidId(id) {
+      return id is string && id.size() >= 1 && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function existing() {
+      return resource.data;
+    }
+
+    function isStringBounded(val, minLen, maxLen) {
+      return val is string && val.size() >= minLen && val.size() <= maxLen;
+    }
+
+    function isBoundedStringList(val, maxItems) {
+      return val is list && val.size() <= maxItems && (val.size() == 0 || val[0] is string);
+    }
+
+    function isValidTimestamp(ts) {
+      return ts is timestamp && ts <= request.time;
+    }
+
+    function isValidUserSettings(data, userId) {
+      return data.userId == userId &&
+             isStringBounded(data.activeRepo, 0, 128) &&
+             isStringBounded(data.activeBranch, 0, 128) &&
+             data.aiProvider in ['gemini', 'openai'] &&
+             isStringBounded(data.aiModel, 1, 64) &&
+             isStringBounded(data.backendUrl, 0, 300) &&
+             data.darkTheme is bool &&
+             data.autoExecuteTier1 is bool &&
+             isValidTimestamp(data.createdAt) &&
+             isValidTimestamp(data.updatedAt);
+    }
+
+    function isValidAgentTask(data, userId) {
+      return data.userId == userId &&
+             isStringBounded(data.repo, 0, 128) &&
+             isStringBounded(data.branch, 0, 128) &&
+             isStringBounded(data.title, 1, 200) &&
+             isStringBounded(data.prompt, 1, 2000) &&
+             data.status in ['queued', 'running', 'awaiting_approval', 'completed', 'failed', 'paused'] &&
+             data.currentStepIndex is int && data.currentStepIndex >= 0 &&
+             data.totalSteps is int && data.totalSteps >= 0 &&
+             data.progressPercent is int && data.progressPercent >= 0 && data.progressPercent <= 100 &&
+             isStringBounded(data.lastCompletedStep, 0, 300) &&
+             isStringBounded(data.lastResultSummary, 0, 2000) &&
+             isStringBounded(data.lastError, 0, 1000) &&
+             isBoundedStringList(data.modifiedFiles, 30) &&
+             isBoundedStringList(data.nextSteps, 30) &&
+             isValidTimestamp(data.createdAt) &&
+             isValidTimestamp(data.updatedAt);
+    }
+
+    function isValidApprovalRequest(data, userId) {
+      return data.userId == userId &&
+             isStringBounded(data.taskId, 0, 128) &&
+             data.tier is int && (data.tier == 2 || data.tier == 3) &&
+             data.actionType in ['git_push', 'create_pr', 'staging_deploy', 'service_config', 'db_sql', 'db_rls_grants', 'db_migration', 'merge_pr', 'prod_deploy'] &&
+             isStringBounded(data.title, 1, 200) &&
+             isStringBounded(data.description, 1, 2000) &&
+             isStringBounded(data.payloadPreview, 0, 8000) &&
+             isStringBounded(data.targetResource, 0, 300) &&
+             data.status in ['pending', 'approved', 'rejected', 'executed'] &&
+             isStringBounded(data.decisionNote, 0, 500) &&
+             isValidTimestamp(data.createdAt) &&
+             isValidTimestamp(data.updatedAt);
+    }
+
+    function isValidChatMessage(data, userId) {
+      return data.userId == userId &&
+             data.role in ['user', 'assistant', 'system'] &&
+             isStringBounded(data.content, 1, 12000) &&
+             isStringBounded(data.repoContext, 0, 128) &&
+             isStringBounded(data.linkedTaskId, 0, 128) &&
+             isValidTimestamp(data.createdAt);
+    }
+
+    function isValidOperationLog(data, userId) {
+      return data.userId == userId &&
+             data.category in ['agent', 'github', 'database', 'test', 'security', 'ai'] &&
+             data.tier is int && (data.tier >= 1 && data.tier <= 3) &&
+             isStringBounded(data.action, 1, 200) &&
+             isStringBounded(data.details, 0, 3000) &&
+             data.outcome in ['success', 'blocked', 'pending', 'error'] &&
+             isStringBounded(data.repo, 0, 128) &&
+             isValidTimestamp(data.createdAt);
+    }
+
+    match /users/{userId} {
+      allow get: if isOwner(userId) && isValidId(userId);
+      allow list: if false;
+
+      allow create: if isOwner(userId) &&
+                       isValidId(userId) &&
+                       incoming().keys().hasAll(['userId', 'activeRepo', 'activeBranch', 'aiProvider', 'aiModel', 'backendUrl', 'darkTheme', 'autoExecuteTier1', 'createdAt', 'updatedAt']) &&
+                       incoming().keys().hasOnly(['userId', 'activeRepo', 'activeBranch', 'aiProvider', 'aiModel', 'backendUrl', 'darkTheme', 'autoExecuteTier1', 'createdAt', 'updatedAt']) &&
+                       isValidUserSettings(incoming(), userId);
+
+      allow update: if isOwner(userId) &&
+                       isValidId(userId) &&
+                       isValidUserSettings(incoming(), userId) &&
+                       incoming().userId == existing().userId &&
+                       incoming().createdAt == existing().createdAt &&
+                       incoming().diff(existing()).affectedKeys().hasOnly(['activeRepo', 'activeBranch', 'aiProvider', 'aiModel', 'backendUrl', 'darkTheme', 'autoExecuteTier1', 'updatedAt']);
+
+      allow delete: if isOwner(userId) && isValidId(userId);
+
+      match /tasks/{taskId} {
+        allow get: if isOwner(userId) && isValidId(taskId);
+        allow list: if isOwner(userId);
+
+        allow create: if isOwner(userId) &&
+                         isValidId(taskId) &&
+                         incoming().keys().hasAll(['userId', 'repo', 'branch', 'title', 'prompt', 'status', 'currentStepIndex', 'totalSteps', 'progressPercent', 'lastCompletedStep', 'lastResultSummary', 'lastError', 'modifiedFiles', 'nextSteps', 'createdAt', 'updatedAt']) &&
+                         incoming().keys().hasOnly(['userId', 'repo', 'branch', 'title', 'prompt', 'status', 'currentStepIndex', 'totalSteps', 'progressPercent', 'lastCompletedStep', 'lastResultSummary', 'lastError', 'modifiedFiles', 'nextSteps', 'createdAt', 'updatedAt']) &&
+                         isValidAgentTask(incoming(), userId);
+
+        allow update: if isOwner(userId) &&
+                         isValidId(taskId) &&
+                         isValidAgentTask(incoming(), userId) &&
+                         incoming().userId == existing().userId &&
+                         incoming().createdAt == existing().createdAt &&
+                         incoming().diff(existing()).affectedKeys().hasOnly(['repo', 'branch', 'title', 'prompt', 'status', 'currentStepIndex', 'totalSteps', 'progressPercent', 'lastCompletedStep', 'lastResultSummary', 'lastError', 'modifiedFiles', 'nextSteps', 'updatedAt']);
+
+        allow delete: if isOwner(userId) && isValidId(taskId);
+      }
+
+      match /approvals/{approvalId} {
+        allow get: if isOwner(userId) && isValidId(approvalId);
+        allow list: if isOwner(userId);
+
+        allow create: if isOwner(userId) &&
+                         isValidId(approvalId) &&
+                         incoming().keys().hasAll(['userId', 'taskId', 'tier', 'actionType', 'title', 'description', 'payloadPreview', 'targetResource', 'status', 'decisionNote', 'createdAt', 'updatedAt']) &&
+                         incoming().keys().hasOnly(['userId', 'taskId', 'tier', 'actionType', 'title', 'description', 'payloadPreview', 'targetResource', 'status', 'decisionNote', 'createdAt', 'updatedAt']) &&
+                         incoming().status == 'pending' &&
+                         isValidApprovalRequest(incoming(), userId);
+
+        allow update: if isOwner(userId) &&
+                         isValidId(approvalId) &&
+                         isValidApprovalRequest(incoming(), userId) &&
+                         incoming().userId == existing().userId &&
+                         incoming().taskId == existing().taskId &&
+                         incoming().tier == existing().tier &&
+                         incoming().actionType == existing().actionType &&
+                         incoming().createdAt == existing().createdAt &&
+                         existing().status in ['pending', 'approved'] &&
+                         incoming().diff(existing()).affectedKeys().hasOnly(['status', 'decisionNote', 'updatedAt']);
+
+        allow delete: if isOwner(userId) && isValidId(approvalId);
+      }
+
+      match /chat_messages/{messageId} {
+        allow get: if isOwner(userId) && isValidId(messageId);
+        allow list: if isOwner(userId);
+
+        allow create: if isOwner(userId) &&
+                         isValidId(messageId) &&
+                         incoming().keys().hasAll(['userId', 'role', 'content', 'repoContext', 'linkedTaskId', 'createdAt']) &&
+                         incoming().keys().hasOnly(['userId', 'role', 'content', 'repoContext', 'linkedTaskId', 'createdAt']) &&
+                         isValidChatMessage(incoming(), userId);
+
+        allow update: if false;
+        allow delete: if isOwner(userId) && isValidId(messageId);
+      }
+
+      match /operation_logs/{logId} {
+        allow get: if isOwner(userId) && isValidId(logId);
+        allow list: if isOwner(userId);
+
+        allow create: if isOwner(userId) &&
+                         isValidId(logId) &&
+                         incoming().keys().hasAll(['userId', 'category', 'tier', 'action', 'details', 'outcome', 'repo', 'createdAt']) &&
+                         incoming().keys().hasOnly(['userId', 'category', 'tier', 'action', 'details', 'outcome', 'repo', 'createdAt']) &&
+                         isValidOperationLog(incoming(), userId);
+
+        // Append-only audit log
+        allow update, delete: if false;
+      }
+    }
+  }
+}

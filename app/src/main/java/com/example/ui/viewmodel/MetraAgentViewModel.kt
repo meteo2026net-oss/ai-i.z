@@ -2166,6 +2166,28 @@ class MetraAgentViewModel(
         }
     }
 
+    fun deleteSavedStudioProject(projectId: String) {
+        viewModelScope.launch {
+            userDataRepository.deleteStudioProject(projectId)
+                .onSuccess {
+                    _workspace.update { state ->
+                        val wasActive = state.activeStudioProject?.id == projectId
+                        state.copy(
+                            savedStudioProjects = state.savedStudioProjects.filterNot { it.id == projectId },
+                            activeStudioProject = if (wasActive) null else state.activeStudioProject,
+                            studioSelectedFilePath = if (wasActive) "" else state.studioSelectedFilePath,
+                            studioEditedContent = if (wasActive) "" else state.studioEditedContent,
+                            statusBannerMessage = "تم حذف المشروع من مكتبتك السحابية."
+                        )
+                    }
+                }
+                .onFailure { error ->
+                    Log.w(TAG, "Studio project deletion failed", error)
+                    _workspace.update { it.copy(statusBannerMessage = "تعذر حذف المشروع المحفوظ: ${error.localizedMessage ?: "خطأ اتصال"}") }
+                }
+        }
+    }
+
     private fun persistStudioProject(project: com.example.domain.model.StudioProjectSpec) {
         viewModelScope.launch {
             userDataRepository.saveStudioProject(project)

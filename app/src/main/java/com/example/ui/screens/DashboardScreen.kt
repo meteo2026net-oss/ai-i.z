@@ -12,6 +12,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.AccountTree
@@ -155,13 +156,29 @@ fun DashboardScreen(
                     horizontalArrangement = Arrangement.spacedBy(10.dp),
                     verticalArrangement = Arrangement.spacedBy(10.dp)
                 ) {
-                    MetricMiniBox("المشاريع", pConfig.projects.size.toString(), ElectricCyan)
-                    MetricMiniBox("المهام المكتملة", completedCount.toString(), EmeraldSuccess)
-                    MetricMiniBox("المهام المتبقية", remainingCount.toString(), AzureAccent)
+                    MetricMiniBox(
+                        "المشاريع",
+                        pConfig.projects.size.toString(),
+                        ElectricCyan,
+                        modifier = Modifier.widthIn(min = 132.dp, max = 160.dp)
+                    )
+                    MetricMiniBox(
+                        "المهام المكتملة",
+                        completedCount.toString(),
+                        EmeraldSuccess,
+                        modifier = Modifier.widthIn(min = 132.dp, max = 160.dp)
+                    )
+                    MetricMiniBox(
+                        "المهام المتبقية",
+                        remainingCount.toString(),
+                        AzureAccent,
+                        modifier = Modifier.widthIn(min = 132.dp, max = 160.dp)
+                    )
                     MetricMiniBox(
                         "موافقات معلقة",
                         pendingApprovals.size.toString(),
-                        if (pendingApprovals.isNotEmpty()) AmberWarning else EmeraldSuccess
+                        if (pendingApprovals.isNotEmpty()) AmberWarning else EmeraldSuccess,
+                        modifier = Modifier.widthIn(min = 132.dp, max = 160.dp)
                     )
                 }
             }

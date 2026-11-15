@@ -2,13 +2,13 @@
 
 ## 1. Current implementation status
 
-The separate AI I.Z identity API in `backend/` issues app-owned Google OIDC sessions and PostgreSQL-backed user records. This is not the Backend Runner implementation. The legacy Android Backend Runner client still uses its separate token setting and is not yet integrated with the AI I.Z session API.
+The separate AI I.Z identity API in `backend/` issues app-owned Google OIDC sessions and PostgreSQL-backed user records. This is not the Backend Runner implementation. The Android client now sends its current AI I.Z access token as the Bearer credential and no longer asks the user for a separate static Backend Runner token. The Runner server must validate that token against the AI I.Z identity service (or share the same trusted session-validation module and PostgreSQL session store); it must not accept static shared tokens.
 
 The Android application contains a Retrofit client contract for Backend Runner. This repository does **not** currently contain a deployable Backend Runner server implementation. The endpoints below describe the required server contract; they must not be treated as live services until a server is implemented, deployed over HTTPS, and tested end to end.
 
 ## 2. Required API
 
-All endpoints require an authenticated caller. The server must validate the short-lived AI I.Z access token issued by `backend/` (signature, algorithm, issuer, audience, expiry, subject, and session ID), then confirm that the session remains active and unrevoked in PostgreSQL. It must derive the user identity from the verified token and session record. A Firebase ID token or static shared bearer token is not accepted as a substitute.
+All endpoints require an authenticated caller. The server must validate the short-lived AI I.Z access token issued by `backend/` (signature, algorithm, issuer, audience, expiry, subject, and session ID), then confirm that the session remains active and unrevoked in PostgreSQL. A separately deployed Runner should do this through a trusted server-to-server session-introspection endpoint on the AI I.Z API; it must not independently trust decoded JWT claims or accept static shared bearer tokens. It must derive the user identity from the verified session. A Firebase ID token is not accepted as a substitute.
 
 ### Health
 

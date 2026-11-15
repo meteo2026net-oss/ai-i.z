@@ -19,7 +19,7 @@ class StudioAiProjectResponseParserTest {
                   "language": "PYTHON",
                   "purpose": "Application entry point",
                   "isEntrypoint": true,
-                  "content": "print(\\\"hello\\\")"
+                  "content": "print(42)"
                 },
                 {
                   "path": "README.md",

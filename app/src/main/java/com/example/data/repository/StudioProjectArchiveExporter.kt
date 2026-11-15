@@ -3,6 +3,8 @@ package com.example.data.repository
 import com.example.domain.model.StudioProjectSpec
 import java.io.OutputStream
 import java.nio.charset.StandardCharsets
+import java.text.Normalizer
+import java.util.Locale
 import java.util.zip.ZipEntry
 import java.util.zip.ZipOutputStream
 
@@ -25,7 +27,9 @@ object StudioProjectArchiveExporter {
             project.files.forEach { file ->
                 val path = file.path
                 validateArchivePath(path)
-                require(paths.add(path.lowercase())) { "مسار مكرر داخل المشروع: $path" }
+                val normalizedPath = Normalizer.normalize(path, Normalizer.Form.NFC)
+                val pathKey = normalizedPath.lowercase(Locale.ROOT)
+                require(paths.add(pathKey)) { "مسار مكرر داخل المشروع: $path" }
 
                 val bytes = file.content.toByteArray(StandardCharsets.UTF_8)
                 require(bytes.size <= MAX_FILE_BYTES) { "الملف $path أكبر من حد التصدير." }
@@ -46,10 +50,25 @@ object StudioProjectArchiveExporter {
         require(!path.startsWith('/') && !path.contains('\\') && !path.contains(':')) {
             "تم رفض مسار مطلق أو غير آمن: $path"
         }
-        require(path.split('/').none { it.isBlank() || it == "." || it == ".." }) {
+        val segments = path.split('/')
+        require(segments.none { it.isBlank() || it == "." || it == ".." }) {
             "تم رفض مسار يتجاوز مجلد المشروع: $path"
         }
-        require(path.split('/').none { it.equals(".git", ignoreCase = true) }) {
+        val invalidPortableCharacters = "<>:" + 34.toChar() + "|?*"
+        require(segments.none { segment ->
+            segment.any { it.code < 32 || it in invalidPortableCharacters } ||
+                segment.endsWith(' ') || segment.endsWith('.')
+        }) {
+            "يحتوي المسار على اسم غير متوافق مع أنظمة الملفات الشائعة: $path"
+        }
+        val reservedWindowsNames = setOf("CON", "PRN", "AUX", "NUL") +
+            (1..9).flatMap { listOf("COM$it", "LPT$it") }
+        require(segments.none { segment ->
+            segment.substringBefore('.').uppercase(Locale.ROOT) in reservedWindowsNames
+        }) {
+            "يحتوي المسار على اسم جهاز محجوز في Windows: $path"
+        }
+        require(segments.none { it.equals(".git", ignoreCase = true) }) {
             "لا يمكن تصدير محتويات مجلد Git الداخلي."
         }
     }

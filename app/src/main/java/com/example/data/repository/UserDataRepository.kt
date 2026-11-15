@@ -188,6 +188,84 @@ class UserDataRepository(context: Context) {
         save("approvals", approvalId, current.copy(status = persistedStatus, decisionNote = decisionNote.take(500)), approvalAdapter)
     }
 
+    /**
+     * Server-owned approval API. These methods are intentionally separate from
+     * legacy user_records approvals until callers supply a complete immutable
+     * operation payload. Never execute from locally reconstructed state.
+     */
+    suspend fun createRunnerApproval(request: com.example.domain.model.RunnerApprovalOperation): Result<com.example.domain.model.RunnerApprovalRecord> = result {
+        require(request.actionType.isNotBlank() && request.targetResource.isNotBlank())
+        require(request.operation.isNotEmpty() && request.preview.isNotBlank())
+        val body = moshi.adapter(com.example.domain.model.RunnerApprovalOperation::class.java)
+            .toJson(request).toRequestBody("application/json; charset=utf-8".toMediaType())
+        authorized { bearer ->
+            val root = moshi.adapter(com.example.domain.model.RunnerApprovalEnvelope::class.java)
+                .fromJson(service.createRunnerApproval(body, bearer).string())
+                ?: error("Empty Runner approval response.")
+            root.approval
+        }
+    }
+
+    suspend fun listRunnerApprovals(limit: Int = 50): Result<List<com.example.domain.model.RunnerApprovalRecord>> = result {
+        authorized { bearer ->
+            val root = moshi.adapter(com.example.domain.model.RunnerApprovalListEnvelope::class.java)
+                .fromJson(service.listRunnerApprovals(limit.coerceIn(1, 100), bearer).string())
+                ?: error("Empty Runner approval list.")
+            root.approvals
+        }
+    }
+
+    suspend fun decideRunnerApproval(
+        approvalId: String,
+        decision: String,
+        note: String = ""
+    ): Result<com.example.domain.model.RunnerApprovalRecord> = result {
+        require(decision in setOf("approved", "rejected"))
+        val request = com.example.domain.model.RunnerApprovalDecision(decision, note.take(500))
+        val body = moshi.adapter(com.example.domain.model.RunnerApprovalDecision::class.java)
+            .toJson(request).toRequestBody("application/json; charset=utf-8".toMediaType())
+        authorized { bearer ->
+            val root = moshi.adapter(com.example.domain.model.RunnerApprovalEnvelope::class.java)
+                .fromJson(service.decideRunnerApproval(approvalId, body, bearer).string())
+                ?: error("Empty Runner approval decision response.")
+            root.approval
+        }
+    }
+
+    suspend fun consumeRunnerApproval(
+        approvalId: String,
+        actionType: String,
+        targetResource: String,
+        operationHash: String
+    ): Result<com.example.domain.model.RunnerApprovalRecord> = result {
+        require(operationHash.matches(Regex("^[0-9a-f]{64}$")))
+        val request = com.example.domain.model.RunnerApprovalConsumeRequest(actionType, targetResource, operationHash)
+        val body = moshi.adapter(com.example.domain.model.RunnerApprovalConsumeRequest::class.java)
+            .toJson(request).toRequestBody("application/json; charset=utf-8".toMediaType())
+        authorized { bearer ->
+            val root = moshi.adapter(com.example.domain.model.RunnerApprovalConsumeEnvelope::class.java)
+                .fromJson(service.consumeRunnerApproval(approvalId, body, bearer).string())
+                ?: error("Empty Runner approval consumption response.")
+            root.approval
+        }
+    }
+
+    suspend fun reportRunnerApproval(
+        approvalId: String,
+        outcome: String,
+        note: String = ""
+    ): Result<com.example.domain.model.RunnerApprovalReportEnvelope> = result {
+        require(outcome in setOf("success", "failed"))
+        val request = com.example.domain.model.RunnerApprovalReport(outcome, note.take(500))
+        val body = moshi.adapter(com.example.domain.model.RunnerApprovalReport::class.java)
+            .toJson(request).toRequestBody("application/json; charset=utf-8".toMediaType())
+        authorized { bearer ->
+            moshi.adapter(com.example.domain.model.RunnerApprovalReportEnvelope::class.java)
+                .fromJson(service.reportRunnerApproval(approvalId, body, bearer).string())
+                ?: error("Empty Runner execution report response.")
+        }
+    }
+
     fun observeChatMessages(userId: String): Flow<List<ChatMessage>> = observe {
         fetchList("chat_messages", 200, chatAdapter).sortedBy { it.createdAt?.time ?: 0L }
     }

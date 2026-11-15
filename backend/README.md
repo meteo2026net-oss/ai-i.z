@@ -32,4 +32,4 @@ Use HTTPS, a managed PostgreSQL instance with encrypted connections, backups and
 
 The API now includes a tenant-scoped JSONB record store for settings, tasks, approvals, chat messages, and operation logs. The Android repository has been switched to call these endpoints using the AI I.Z session. The current client uses periodic polling rather than Firestore realtime listeners.
 
-This is still a staged migration: legacy Firestore model annotations and Firebase libraries/configuration remain in the Android project, and existing Firestore user data has not been exported/imported. Production use requires applying the updated schema, deploying the API, configuring the Android build variables, and completing end-to-end and cross-account isolation tests.
+The Android login and user-data paths no longer depend on Firebase Authentication, Firestore, or App Check. Firebase AI remains only as the existing Gemini provider integration. Historical Firestore records are not imported by this code; production use still requires applying the schema, deploying the API, configuring Android build variables, and passing end-to-end and cross-account isolation tests.

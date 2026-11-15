@@ -44,8 +44,10 @@ import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
+import kotlinx.coroutines.launch
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
@@ -67,6 +69,7 @@ import com.example.core.notifications.QuotaNotificationHelper
 import com.example.core.security.SecretVault
 import com.example.data.local.MetraLocalDatabase
 import com.example.data.repository.AiOrchestratorRepository
+import com.example.data.repository.AuthSessionRepository
 import com.example.data.repository.BackendRepository
 import com.example.data.repository.FirestoreAgentRepository
 import com.example.data.repository.GitHubRepository
@@ -96,9 +99,6 @@ import com.example.ui.components.QuotaFailoverBanner
 import com.example.ui.theme.MetraAgentTheme
 import com.example.ui.viewmodel.MetraAgentViewModel
 import com.example.ui.viewmodel.StreamUiState
-import com.google.firebase.Firebase
-import com.google.firebase.auth.FirebaseAuth
-import com.google.firebase.auth.auth
 import com.google.firebase.firestore.FirebaseFirestore
 
 private data class TopNavTab(
@@ -112,32 +112,30 @@ fun MetraRootApp(
     pendingNotificationRoute: String? = null,
     onNotificationRouteConsumed: () -> Unit = {}
 ) {
-    var currentUser by remember { mutableStateOf(Firebase.auth.currentUser) }
-
-    DisposableEffect(Unit) {
-        val listener = FirebaseAuth.AuthStateListener { auth ->
-            currentUser = auth.currentUser
-        }
-        Firebase.auth.addAuthStateListener(listener)
-        onDispose {
-            Firebase.auth.removeAuthStateListener(listener)
-        }
+    val context = LocalContext.current
+    val vault = remember(context) { SecretVault(context) }
+    val authScope = androidx.compose.runtime.rememberCoroutineScope()
+    var currentUserId by remember(vault) {
+        mutableStateOf(vault.getSecret(SecretVault.KEY_AUTH_USER_ID).ifBlank { null })
     }
 
-    val user = currentUser
-    if (user == null) {
+    val userId = currentUserId
+    if (userId == null) {
         MetraAgentTheme(darkTheme = true) {
-            AuthScreen(
-                onAuthSuccess = { currentUser = Firebase.auth.currentUser }
-            )
+            AuthScreen(onAuthSuccess = { authenticatedUserId -> currentUserId = authenticatedUserId })
         }
     } else {
-        key(user.uid) {
+        key(userId) {
             AuthenticatedMetraShell(
-                currentUserId = user.uid,
+                currentUserId = userId,
                 pendingNotificationRoute = pendingNotificationRoute,
                 onNotificationRouteConsumed = onNotificationRouteConsumed,
-                onSignedOut = { currentUser = null }
+                onSignedOut = {
+                    authScope.launch {
+                        AuthSessionRepository(vault).signOut()
+                        currentUserId = null
+                    }
+                }
             )
         }
     }

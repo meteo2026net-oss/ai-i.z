@@ -109,9 +109,64 @@ fun DashboardScreen(
 
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
-        contentPadding = PaddingValues(16.dp),
-        verticalArrangement = Arrangement.spacedBy(14.dp)
+        contentPadding = PaddingValues(horizontal = 18.dp, vertical = 16.dp),
+        verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
+        // Branded dashboard header
+        item {
+            Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                Text(
+                    text = "AI I.Z",
+                    style = MaterialTheme.typography.headlineMedium,
+                    fontWeight = FontWeight.ExtraBold,
+                    color = ElectricCyan
+                )
+                Text(
+                    text = "مساحة عملك الذكية لبناء التطبيقات وإدارتها",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    StatusPill(
+                        label = if (workspace.isGitHubConnected) "GitHub متصل" else "GitHub غير متصل",
+                        color = if (workspace.isGitHubConnected) EmeraldSuccess else AmberWarning
+                    )
+                    StatusPill(
+                        label = if (activeTask?.status == "running") "الوكيل يعمل" else "لوحة التحكم",
+                        color = if (activeTask?.status == "running") ElectricCyan else AzureAccent
+                    )
+                }
+            }
+        }
+
+        // At-a-glance workspace summary
+        item {
+            CommandCard(borderColor = AzureAccent.copy(alpha = 0.5f)) {
+                Text(
+                    text = "نظرة عامة",
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold
+                )
+                FlowRow(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(10.dp),
+                    verticalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
+                    MetricMiniBox("المشاريع", pConfig.projects.size.toString(), ElectricCyan)
+                    MetricMiniBox("المهام المكتملة", completedCount.toString(), EmeraldSuccess)
+                    MetricMiniBox("المهام المتبقية", remainingCount.toString(), AzureAccent)
+                    MetricMiniBox(
+                        "موافقات معلقة",
+                        pendingApprovals.size.toString(),
+                        if (pendingApprovals.isNotEmpty()) AmberWarning else EmeraldSuccess
+                    )
+                }
+            }
+        }
+
         // Quick Project Switcher Card
         item {
             CommandCard(borderColor = ElectricCyan.copy(alpha = 0.45f)) {
@@ -414,7 +469,7 @@ private fun MetricMiniBox(
     modifier: Modifier = Modifier
 ) {
     CommandCard(
-        modifier = modifier.clickable {},
+        modifier = modifier,
         borderColor = accent.copy(alpha = 0.35f)
     ) {
         Text(

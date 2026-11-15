@@ -351,16 +351,19 @@ fun ApprovalGateCard(
                 label = when (approval.status) {
                     "approved" -> "تمت الموافقة"
                     "executed" -> "تم التنفيذ"
+                    "execution_reported" -> "أُبلغ عن التنفيذ (غير متحقق)"
                     "rejected" -> "مرفوض"
                     else -> "بانتظار الموافقة"
                 },
                 color = when (approval.status) {
                     "approved", "executed" -> EmeraldSuccess
+                    "execution_reported" -> MaterialTheme.colorScheme.primary
                     "rejected" -> CrimsonError
                     else -> AmberWarning
                 },
                 icon = when (approval.status) {
                     "approved", "executed" -> Icons.Rounded.CheckCircle
+                    "execution_reported" -> Icons.Rounded.Info
                     "rejected" -> Icons.Rounded.ErrorOutline
                     else -> Icons.Rounded.Schedule
                 }

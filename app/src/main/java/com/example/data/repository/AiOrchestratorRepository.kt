@@ -377,6 +377,7 @@ class AiOrchestratorRepository(private val vault: SecretVault) {
     suspend fun analyzeOnceWithFailover(
         prompt: String,
         projectId: String? = configStore.loadSnapshot().activeProjectId,
+        expectJson: Boolean = false,
         onFailover: suspend (AiFailoverAlert) -> Unit = {}
     ): Result<AiExecutionResult> = try {
         val project = configStore.loadSnapshot().projects.find { it.id == projectId }
@@ -384,7 +385,7 @@ class AiOrchestratorRepository(private val vault: SecretVault) {
             projectId = projectId,
             systemInstruction = buildProjectSystemPrompt(project),
             userPrompt = prompt,
-            expectJson = false,
+            expectJson = expectJson,
             onFailover = onFailover
         )
     } catch (e: TimeoutCancellationException) {

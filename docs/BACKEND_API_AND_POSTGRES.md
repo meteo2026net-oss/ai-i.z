@@ -1,47 +1,93 @@
-# Backend Runner API Contract & PostgreSQL Isolated Migrations
+# AI I.Z Backend Runner — API Contract and Security Requirements
 
-## 1. عقد واجهات خادم التنفيذ (Backend Runner API)
-يتصل تطبيق الهاتف بعنوان Backend عبر HTTPS مع ترويسة `Authorization: Bearer <BACKEND_TOKEN>`.
+## 1. Current implementation status
 
-### نقاط النهاية المطلوبة:
-1. `GET /api/health`
-   - الاستجابة: `{ "status": "ok", "version": "1.0.0", "dotnetAvailable": true, "flutterAvailable": true, "postgresConnected": true, "activeDatabaseName": "metra_2027_v2", "lastCheckUtc": "..." }`
-2. `POST /api/tests/run`
-   - الطلب: `{ "repo": "gfa437926-tech/metra2027", "branch": "main", "target": "all" }`
-   - الاستجابة: `{ "runId": "...", "passedCount": 42, "failedCount": 0, "skippedCount": 1, "durationMs": 5200, "summary": "...", "cases": [...] }`
-3. `GET /api/db/schema`
-   - يرجع بنية الجداول والأعمدة والعلاقات والفهارس وحالة RLS من قاعدة METRA الجديدة المعزولة فقط.
-4. `POST /api/db/query-readonly`
-   - ينفذ استعلامات `SELECT` / `EXPLAIN` للقراءة فقط عبر مستخدم PostgreSQL بصلاحيات قراءة منفصلة (`metra_readonly_role`).
-5. `POST /api/db/execute-approved`
-   - يتطلب `approvalId` ومعاينة أثر صريحة لتنفيذ تغييرات المستوى الثالث المعتمدة من المستخدم.
+The Android application contains a Retrofit client contract for Backend Runner. This repository does **not** currently contain a deployable Backend Runner server implementation. The endpoints below describe the required server contract; they must not be treated as live services until a server is implemented, deployed over HTTPS, and tested end to end.
 
-## 2. مقترح Migration مبدئي لقاعدة METRA 2027 الجديدة (بيئة معزولة)
-> تحذير: لا تقم أبداً بتشغيل أي ملف migration على قاعدة METRA القديمة.
+## 2. Required API
 
-```sql
--- Role separation: Read-Only vs Controlled Migration Role
-CREATE ROLE metra_readonly_role NOINHERIT LOGIN PASSWORD 'CHANGE_ME_STRONG';
-GRANT USAGE ON SCHEMA public TO metra_readonly_role;
-GRANT SELECT ON ALL TABLES IN SCHEMA public TO metra_readonly_role;
+All endpoints require an authenticated caller. The server must validate the Firebase ID token (or an explicitly approved equivalent identity provider) and derive the user identity from the verified token. A static shared bearer token alone is not sufficient user authentication.
 
--- Example isolated audit & task telemetry table for METRA 2027
-CREATE TABLE IF NOT EXISTS public.agent_execution_checkpoints (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    repo_slug TEXT NOT NULL,
-    branch_name TEXT NOT NULL,
-    task_title TEXT NOT NULL,
-    status TEXT NOT NULL CHECK (status IN ('queued', 'running', 'awaiting_approval', 'completed', 'failed')),
-    progress_percent INTEGER NOT NULL DEFAULT 0 CHECK (progress_percent BETWEEN 0 AND 100),
-    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
-);
+### Health
 
-ALTER TABLE public.agent_execution_checkpoints ENABLE ROW LEVEL SECURITY;
+`GET /api/health`
 
-CREATE POLICY "Allow authenticated service read"
-ON public.agent_execution_checkpoints
-FOR SELECT
-TO authenticated
-USING (true);
+Returns service version and dependency health without exposing secrets, connection strings, internal hostnames, or database credentials.
+
+Example:
+```json
+{
+  "status": "ok",
+  "version": "1.0.0",
+  "dotnetAvailable": false,
+  "flutterAvailable": false,
+  "postgresConnected": false,
+  "lastCheckUtc": "2026-01-01T00:00:00Z"
+}
 ```
+
+Capability flags must reflect actual server-side checks, not hard-coded success values.
+
+### Run tests
+
+`POST /api/tests/run`
+
+Accepts an allowlisted repository identifier, branch, and test target. The server must reject arbitrary shell commands, arbitrary URLs, unapproved repositories, and untrusted branch input. Run jobs in isolated, resource-limited workers with timeouts and no ambient production credentials.
+
+### Database schema
+
+`GET /api/db/schema`
+
+Returns only the schema metadata the authenticated user is authorized to inspect. Never return secrets, connection strings, credential values, or unrelated tenant data.
+
+### Read-only SQL
+
+`POST /api/db/query-readonly`
+
+Use a dedicated database role with read-only transaction permissions. Enforce query timeouts, row limits, statement-size limits, and tenant scoping. Reject multi-statement input and any operation that can mutate data or invoke privileged functions.
+
+### Approved database operation
+
+`POST /api/db/execute-approved`
+
+A client-provided approval identifier is not proof of approval. The server must retrieve and verify the approval record, bind it to the authenticated user, exact target, exact operation hash, expiry, and policy tier, then revalidate the proposed operation immediately before execution. Log the decision and result without logging credentials or sensitive row contents.
+
+## 3. Database isolation requirements
+
+- Use a dedicated AI I.Z development database or isolated schema. Do not assume or reuse legacy METRA databases.
+- Keep read-only and migration/execution credentials separate.
+- Store credentials only in a server-side secret manager or environment configuration.
+- Never ship database credentials or service-role keys in the Android APK.
+- Require backups and a tested restore procedure before production-impacting migrations.
+- Use least-privilege grants and tenant-aware row-level security where applicable.
+- Use parameterized queries; do not concatenate user or model-generated values into SQL.
+- Restrict outbound network access from execution workers.
+
+## 4. Approval and audit model
+
+Every high-impact operation must have a server-side approval record containing at least:
+- authenticated user and tenant;
+- operation type and exact target;
+- immutable operation/payload hash;
+- human-readable preview and impact summary;
+- approval status, approver, timestamp, and expiry;
+- execution status and resulting audit reference.
+
+The server must reject expired, reused, altered, mismatched, or revoked approvals. Destructive operations and production deployment require an explicit approval step and an auditable rollback plan.
+
+## 5. Minimum acceptance tests before deployment
+
+1. Unauthenticated requests are rejected.
+2. Invalid, expired, or wrong-audience identity tokens are rejected.
+3. A user cannot access another user's project, logs, approvals, or database metadata.
+4. The test runner cannot execute arbitrary shell commands or access unapproved repositories.
+5. Read-only SQL rejects INSERT, UPDATE, DELETE, DDL, multi-statement payloads, and privileged functions.
+6. Approved execution rejects missing, expired, altered, or mismatched approval records.
+7. Timeouts, output limits, and worker isolation are enforced.
+8. Secrets and sensitive data are absent from logs and API error messages.
+9. Health responses accurately report dependency availability.
+10. Backup restoration and migration rollback are tested.
+
+## 6. Deployment gate
+
+Do not enable remote execution or database operations in a production app until the server exists, its security tests pass, HTTPS and identity verification are configured, and the client/server contract is tested end to end. A successful Android build does not satisfy this gate.

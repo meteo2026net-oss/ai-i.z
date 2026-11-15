@@ -1,6 +1,7 @@
 package com.example.domain.model
 
-import com.squareup.moshi.Json\nimport com.squareup.moshi.JsonClass
+import com.squareup.moshi.Json
+import com.squareup.moshi.JsonClass
 
 @JsonClass(generateAdapter = true)
 data class RunnerApprovalOperation(

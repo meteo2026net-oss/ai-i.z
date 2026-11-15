@@ -21,9 +21,9 @@ android {
     versionName = "1.0"
 
     val apiBaseUrl = providers.gradleProperty("AI_IZ_API_BASE_URL").orElse(providers.environmentVariable("AI_IZ_API_BASE_URL")).orElse("").get()
-    buildConfigField("String", "AI_IZ_API_BASE_URL", "\"${apiBaseUrl.replace("\\", "\\\\").replace("\"", "\\\"")}\"")
+    buildConfigField("String", "AI_IZ_API_BASE_URL", groovy.json.JsonOutput.toJson(apiBaseUrl))
     val googleWebClientId = providers.gradleProperty("GOOGLE_WEB_CLIENT_ID").orElse(providers.environmentVariable("GOOGLE_WEB_CLIENT_ID")).orElse("").get()
-    buildConfigField("String", "GOOGLE_WEB_CLIENT_ID", "\"${googleWebClientId.replace("\\", "\\\\").replace("\"", "\\\"")}\"")
+    buildConfigField("String", "GOOGLE_WEB_CLIENT_ID", groovy.json.JsonOutput.toJson(googleWebClientId))
 
     testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
   }

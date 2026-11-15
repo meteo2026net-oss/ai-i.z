@@ -158,7 +158,8 @@ data class StudioProjectSpec(
     val buildInstructions: String,
     val runInstructions: String,
     val testInstructions: String,
-    val securityAuditScore: Int = 100,
+    // Null until a real audit has produced evidence; project scaffolding is not a security audit.
+    val securityAuditScore: Int? = null,
     val createdAtFormatted: String = "الآن"
 )
 

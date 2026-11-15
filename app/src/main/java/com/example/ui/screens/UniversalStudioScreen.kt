@@ -770,10 +770,11 @@ private fun ExecutionAndAuditTab(
                     color = ElectricCyan
                 )
                 Text(
-                    text = "درجة الأمان والامتثال الأمني: ${project.securityAuditScore}/100",
+                    text = project.securityAuditScore?.let { "نتيجة الفحص الأمني الموثق: $it/100" }
+                        ?: "لم يُجرَ فحص أمني آلي موثّق لهذا المشروع بعد",
                     style = MaterialTheme.typography.bodySmall,
                     fontWeight = FontWeight.SemiBold,
-                    color = EmeraldSuccess
+                    color = if (project.securityAuditScore != null) EmeraldSuccess else AmberWarning
                 )
             }
         }

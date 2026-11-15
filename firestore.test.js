@@ -168,11 +168,45 @@ test("Approval terminal state locking prevents reopening rejected approval", asy
 
   await assertFails(
     appRef.update({
+      status: "executed",
+      decisionNote: "Client must not mark execution",
+      updatedAt: pastTimestamp(),
+    })
+  );
+
+  await assertFails(
+    appRef.update({
       status: "approved",
       decisionNote: "Bypass",
       updatedAt: pastTimestamp(),
     })
   );
+
+  const approvedRef = aliceDb.collection(`users/${ALICE_UID}/approvals`).doc("appr_approved");
+  await assertSucceeds(approvedRef.set({
+    userId: ALICE_UID,
+    taskId: "task_2",
+    tier: 3,
+    actionType: "db_migration",
+    title: "Approved migration",
+    description: "Test server-only execution transition",
+    payloadPreview: "CREATE INDEX idx_weather ON forecasts(date);",
+    targetResource: "isolated_test_db",
+    status: "pending",
+    decisionNote: "",
+    createdAt: pastTimestamp(),
+    updatedAt: pastTimestamp(),
+  }));
+  await assertSucceeds(approvedRef.update({
+    status: "approved",
+    decisionNote: "Reviewed",
+    updatedAt: pastTimestamp(),
+  }));
+  await assertFails(approvedRef.update({
+    status: "executed",
+    decisionNote: "Client cannot claim execution",
+    updatedAt: pastTimestamp(),
+  }));
 });
 
 test("Operation logs are append-only and cannot be updated or deleted", async () => {

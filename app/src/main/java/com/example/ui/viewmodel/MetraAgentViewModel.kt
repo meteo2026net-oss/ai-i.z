@@ -2293,15 +2293,17 @@ class MetraAgentViewModel(
     fun saveStudioFileChanges() {
         val proj = _workspace.value.activeStudioProject ?: return
         val currentPath = _workspace.value.studioSelectedFilePath
-        if (!StudioProjectFileEditGuard.hasValidSelection(proj.files, currentPath)) {
+        val newContent = _workspace.value.studioEditedContent
+        val updatedFiles = StudioProjectFileEditGuard.updateSelectedFileContent(
+            files = proj.files,
+            selectedPath = currentPath,
+            newContent = newContent
+        )
+        if (updatedFiles == null) {
             _workspace.update {
                 it.copy(statusBannerMessage = "تعذر حفظ التعديلات: الملف المحدد لم يعد موجوداً في المشروع. اختر ملفاً صالحاً ثم أعد المحاولة.")
             }
             return
-        }
-        val newContent = _workspace.value.studioEditedContent
-        val updatedFiles = proj.files.map {
-            if (it.path == currentPath) it.copy(content = newContent) else it
         }
         val updatedProj = proj.copy(files = updatedFiles)
         _workspace.update {

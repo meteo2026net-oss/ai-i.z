@@ -45,7 +45,7 @@ jobs:
           firebase emulators:exec \
             --project demo-no-project \
             --only auth,firestore \
-            "./gradlew --no-daemon --stacktrace testDebugUnitTest assembleDebug"
+            "gradle --no-daemon --stacktrace testDebugUnitTest assembleDebug"
 
       - name: Upload debug APK
         if: success()

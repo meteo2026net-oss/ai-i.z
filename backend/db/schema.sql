@@ -45,3 +45,18 @@ CREATE TABLE IF NOT EXISTS security_audit_events (
   created_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 CREATE INDEX IF NOT EXISTS security_audit_events_created_idx ON security_audit_events(created_at DESC);
+
+
+-- User-owned application records. Ownership is always derived from the
+-- authenticated server session; clients never choose user_id.
+CREATE TABLE IF NOT EXISTS user_records (
+  user_id UUID NOT NULL REFERENCES app_users(id) ON DELETE CASCADE,
+  collection TEXT NOT NULL CHECK (collection IN ('settings','tasks','approvals','chat_messages','operation_logs')),
+  record_id TEXT NOT NULL CHECK (length(record_id) BETWEEN 1 AND 128),
+  payload JSONB NOT NULL CHECK (jsonb_typeof(payload) = 'object'),
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  PRIMARY KEY (user_id, collection, record_id)
+);
+CREATE INDEX IF NOT EXISTS user_records_collection_updated_idx
+  ON user_records(user_id, collection, updated_at DESC);

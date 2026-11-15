@@ -89,3 +89,7 @@ jobs:
         run: node --check backend/src/server.js
       - name: Run backend session, validation, and PostgreSQL API integration tests
         run: npm test --prefix backend
+      - name: Install Runner dependencies
+        run: npm install --prefix runner --no-audit --no-fund
+      - name: Check Runner syntax and security tests
+        run: node --check runner/src/server.js && npm test --prefix runner

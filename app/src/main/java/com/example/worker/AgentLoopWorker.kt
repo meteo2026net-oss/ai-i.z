@@ -21,7 +21,6 @@ import com.example.data.local.LocalTaskCheckpoint
 import com.example.data.local.MetraLocalDatabase
 import com.example.data.repository.AiFailoverAlert
 import com.example.data.repository.AiOrchestratorRepository
-import com.example.data.repository.AuthSessionRepository
 import com.example.data.repository.UserDataRepository
 import com.example.data.repository.GitHubRepository
 import com.example.domain.model.AgentTask
@@ -38,7 +37,7 @@ class AgentLoopWorker(
     override suspend fun doWork(): Result {
         val taskId = inputData.getString(KEY_TASK_ID) ?: return Result.failure()
         val vault = SecretVault(applicationContext)
-        val uid = AuthSessionRepository(vault).restoreSession().getOrNull() ?: return Result.retry()
+        val uid = vault.getSecret(SecretVault.KEY_AUTH_USER_ID).takeIf { it.isNotBlank() } ?: return Result.retry()
         val dataRepo = UserDataRepository(applicationContext)
         val dao = MetraLocalDatabase.getInstance(applicationContext).agentDao()
         val configStore = PlatformConfigStore(vault)

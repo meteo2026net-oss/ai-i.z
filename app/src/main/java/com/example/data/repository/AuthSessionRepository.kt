@@ -29,7 +29,7 @@ class AuthSessionRepository(private val vault: SecretVault) {
         require(idToken.isNotBlank()) { "لم يتم استلام رمز هوية Google." }
         val response = service.createSession(GoogleSessionRequest(idToken))
         val user = requireNotNull(response.user) { "استجابة الخادم لا تحتوي على ملف الحساب." }
-        saveSession(response.accessToken, response.refreshToken, user.id)
+        saveSession(response.accessToken, response.refreshToken, user.id, user.email, user.displayName)
         user.id
     }.rethrowCancellation()
 
@@ -41,6 +41,8 @@ class AuthSessionRepository(private val vault: SecretVault) {
         vault.putSecret(SecretVault.KEY_AUTH_REFRESH_TOKEN, response.refreshToken)
         val profile = service.me("Bearer ${response.accessToken}").user
         vault.putSecret(SecretVault.KEY_AUTH_USER_ID, profile.id)
+        vault.putSecret(SecretVault.KEY_AUTH_EMAIL, profile.email)
+        vault.putSecret(SecretVault.KEY_AUTH_DISPLAY_NAME, profile.displayName)
         profile.id
     }.rethrowCancellation()
 
@@ -50,13 +52,17 @@ class AuthSessionRepository(private val vault: SecretVault) {
         vault.putSecret(SecretVault.KEY_AUTH_ACCESS_TOKEN, "")
         vault.putSecret(SecretVault.KEY_AUTH_REFRESH_TOKEN, "")
         vault.putSecret(SecretVault.KEY_AUTH_USER_ID, "")
+        vault.putSecret(SecretVault.KEY_AUTH_EMAIL, "")
+        vault.putSecret(SecretVault.KEY_AUTH_DISPLAY_NAME, "")
     }
 
-    private fun saveSession(accessToken: String, refreshToken: String, userId: String) {
+    private fun saveSession(accessToken: String, refreshToken: String, userId: String, email: String, displayName: String) {
         require(accessToken.isNotBlank() && refreshToken.isNotBlank() && userId.isNotBlank()) { "استجابة جلسة AI I.Z غير مكتملة." }
         vault.putSecret(SecretVault.KEY_AUTH_ACCESS_TOKEN, accessToken)
         vault.putSecret(SecretVault.KEY_AUTH_REFRESH_TOKEN, refreshToken)
         vault.putSecret(SecretVault.KEY_AUTH_USER_ID, userId)
+        vault.putSecret(SecretVault.KEY_AUTH_EMAIL, email)
+        vault.putSecret(SecretVault.KEY_AUTH_DISPLAY_NAME, displayName)
     }
 
     private fun <T> Result<T>.rethrowCancellation(): Result<T> {

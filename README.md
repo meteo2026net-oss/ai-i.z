@@ -17,9 +17,9 @@ The application is designed to guide a project from idea discovery and requireme
 
 ## Requirements
 
-- JDK 17.
+- JDK 21 (matching the GitHub Actions build environment).
 - Android SDK / Android Studio capable of compiling SDK 36.
-- Gradle 9.3.1 or newer (the repository currently does not include Gradle Wrapper scripts/JAR).
+- Gradle 9.3.1 or newer. The repository currently does not include the Gradle Wrapper scripts/JAR, so use a locally installed Gradle or the managed Gradle installation in CI.
 - Firebase project configuration for live authentication and Firestore features.
 - A deployed HTTPS Backend Runner for remote test execution and database operations.
 - User-supplied provider credentials where applicable. Never commit API keys, access tokens, signing keys, or `.env` files.

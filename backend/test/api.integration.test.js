@@ -22,6 +22,7 @@ let bob;
 let aliceToken;
 let bobToken;
 let aliceRefreshToken;
+let bobRefreshToken;
 
 async function createAccessToken(userId, sessionId) {
   return new SignJWT({ sid: sessionId, email: userId + '@example.test' })
@@ -68,7 +69,7 @@ test('PostgreSQL API enforces authenticated tenant ownership and record invarian
     bob = b.rows[0].id;
     const aliceSession = '11111111-1111-4111-8111-111111111111';
     aliceRefreshToken = generateRefreshToken();
-    const bobRefreshToken = generateRefreshToken();
+    bobRefreshToken = generateRefreshToken();
     const bobSession = '22222222-2222-4222-8222-222222222222';
     await pool.query(
       'INSERT INTO app_sessions(id,user_id,family_id,refresh_token_hash,expires_at) VALUES($1,$2,$3,$4,now()+interval \'1 day\'),($5,$6,$7,$8,now()+interval \'1 day\')',
@@ -150,6 +151,25 @@ test('PostgreSQL API enforces authenticated tenant ownership and record invarian
     assert.equal((await api('/api/data/approvals/appr_state', aliceToken, 'PUT', { ...pending, status: 'approved' })).status, 200);
     assert.equal((await api('/api/data/approvals/appr_state', aliceToken, 'PUT', { ...pending, status: 'execution_reported' })).status, 200);
     assert.equal((await api('/api/data/approvals/appr_state', aliceToken, 'PUT', { ...pending, status: 'approved' })).status, 409);
+  });
+
+  await t.test('refresh rotates tokens and revokes the family on token reuse', async () => {
+    const first = await api('/api/auth/refresh', null, 'POST', { refreshToken: bobRefreshToken });
+    assert.equal(first.status, 200);
+    const rotated = await first.json();
+    assert.ok(rotated.accessToken);
+    assert.ok(rotated.refreshToken);
+    assert.notEqual(rotated.refreshToken, bobRefreshToken);
+    assert.equal((await api('/api/data/tasks', rotated.accessToken)).status, 200);
+
+    const replay = await api('/api/auth/refresh', null, 'POST', { refreshToken: bobRefreshToken });
+    assert.equal(replay.status, 401);
+    const replayBody = await replay.json();
+    assert.equal(replayBody.error.code, 'REFRESH_REUSE_DETECTED');
+    assert.equal((await api('/api/data/tasks', rotated.accessToken)).status, 401);
+
+    const revokedReplacement = await api('/api/auth/refresh', null, 'POST', { refreshToken: rotated.refreshToken });
+    assert.equal(revokedReplacement.status, 401);
   });
 
   await t.test('logout revokes the refresh-token family without relying on an access token', async () => {

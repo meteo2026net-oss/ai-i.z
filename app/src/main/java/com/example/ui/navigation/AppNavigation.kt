@@ -262,7 +262,8 @@ private fun AuthenticatedMetraShell(
         TopNavTab("linked_accounts", "المشاريع", Icons.Rounded.FolderOpen),
         TopNavTab("security", "الإعدادات", Icons.Rounded.Settings)
     )
-    val isTopTab = primaryTabs.any { it.route == currentRoute }
+    val isTopTab = primaryTabs.any { it.route == currentRoute } ||
+        mobileTabs.any { it.route == currentRoute }
 
     val screenTitles = mapOf(
         "dashboard" to "لوحة: $activeProjectTitle",
@@ -302,7 +303,7 @@ private fun AuthenticatedMetraShell(
 
     fun navigateTo(route: String) {
         navController.navigate(route) {
-            if (primaryTabs.any { it.route == route }) {
+            if (primaryTabs.any { it.route == route } || mobileTabs.any { it.route == route }) {
                 popUpTo(navController.graph.findStartDestination().id) {
                     saveState = true
                 }

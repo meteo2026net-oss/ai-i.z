@@ -103,6 +103,33 @@ class StudioProjectArchiveExporterTest {
     }
 
     @Test
+    fun rejectsWindowsReservedAndNonPortableSegments() {
+        val template = project().files.first()
+        listOf("CON.txt", "src/NUL", "trailing./file.kt", "folder/name ").forEach { unsafePath ->
+            assertThrows(IllegalArgumentException::class.java) {
+                StudioProjectArchiveExporter.writeZip(
+                    project().copy(files = listOf(template.copy(path = unsafePath))),
+                    ByteArrayOutputStream()
+                )
+            }
+        }
+    }
+
+    @Test
+    fun rejectsUnicodeCanonicalDuplicatePaths() {
+        val template = project().files.first()
+        val composed = "caf\u00e9.txt"
+        val decomposed = "cafe\u0301.txt"
+        val duplicate = project().copy(files = listOf(
+            template.copy(path = composed),
+            template.copy(path = decomposed, isEntrypoint = false)
+        ))
+        assertThrows(IllegalArgumentException::class.java) {
+            StudioProjectArchiveExporter.writeZip(duplicate, ByteArrayOutputStream())
+        }
+    }
+
+    @Test
     fun rejectsAbsoluteAndGitInternalPaths() {
         val template = project().files.first()
         listOf("/etc/passwd", ".git/config").forEach { unsafePath ->

@@ -142,6 +142,22 @@ class StudioProjectArchiveExporterTest {
         }
     }
 
+
+    @Test
+    fun validatesAllEntriesBeforeWritingToOutputStream() {
+        val base = project()
+        val invalidLastEntry = base.copy(files = listOf(
+            base.files.first(),
+            base.files.last().copy(path = "../outside.txt")
+        ))
+        val output = ByteArrayOutputStream()
+
+        assertThrows(IllegalArgumentException::class.java) {
+            StudioProjectArchiveExporter.writeZip(invalidLastEntry, output)
+        }
+        assertEquals(0, output.size())
+    }
+
     private fun project(): StudioProjectSpec {
         val model = AiModelRecommendation(
             modelId = "test",

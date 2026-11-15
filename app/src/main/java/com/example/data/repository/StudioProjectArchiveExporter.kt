@@ -17,28 +17,35 @@ object StudioProjectArchiveExporter {
     private const val MAX_FILE_BYTES = 256_000
     private const val MAX_TOTAL_BYTES = 2_000_000
 
+    private data class PreparedEntry(val path: String, val bytes: ByteArray)
+
     fun writeZip(project: StudioProjectSpec, output: OutputStream) {
         require(project.files.isNotEmpty()) { "لا توجد ملفات لتصديرها." }
         require(project.files.size <= MAX_FILES) { "عدد ملفات المشروع يتجاوز حد التصدير." }
 
+        // Validate the complete project before touching the caller's output stream.
+        // Invalid late entries must not leave a partially written archive behind.
         var totalBytes = 0
         val paths = mutableSetOf<String>()
+        val preparedEntries = project.files.map { file ->
+            val path = file.path
+            validateArchivePath(path)
+            val normalizedPath = Normalizer.normalize(path, Normalizer.Form.NFC)
+            val pathKey = normalizedPath.lowercase(Locale.ROOT)
+            require(paths.add(pathKey)) { "مسار مكرر داخل المشروع: $path" }
+
+            val bytes = file.content.toByteArray(StandardCharsets.UTF_8)
+            require(bytes.size <= MAX_FILE_BYTES) { "الملف $path أكبر من حد التصدير." }
+            totalBytes += bytes.size
+            require(totalBytes <= MAX_TOTAL_BYTES) { "حجم المشروع يتجاوز حد التصدير." }
+            PreparedEntry(path, bytes)
+        }
+
         ZipOutputStream(output).use { zip ->
-            project.files.forEach { file ->
-                val path = file.path
-                validateArchivePath(path)
-                val normalizedPath = Normalizer.normalize(path, Normalizer.Form.NFC)
-                val pathKey = normalizedPath.lowercase(Locale.ROOT)
-                require(paths.add(pathKey)) { "مسار مكرر داخل المشروع: $path" }
-
-                val bytes = file.content.toByteArray(StandardCharsets.UTF_8)
-                require(bytes.size <= MAX_FILE_BYTES) { "الملف $path أكبر من حد التصدير." }
-                totalBytes += bytes.size
-                require(totalBytes <= MAX_TOTAL_BYTES) { "حجم المشروع يتجاوز حد التصدير." }
-
-                val entry = ZipEntry(path).apply { time = 0L }
+            preparedEntries.forEach { prepared ->
+                val entry = ZipEntry(prepared.path).apply { time = 0L }
                 zip.putNextEntry(entry)
-                zip.write(bytes)
+                zip.write(prepared.bytes)
                 zip.closeEntry()
             }
             zip.finish()

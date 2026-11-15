@@ -47,4 +47,17 @@ class UniversalStudioTest {
         assertNotNull(mainPy)
         assertTrue(mainPy!!.content.contains("FastAPI"))
     }
+
+    @Test
+    fun generatedProjectDoesNotClaimAnAuditBeforeEvidenceExists() {
+        val project = UniversalStudioProjectGenerator.generateProject(
+            name = "audit_boundary_check",
+            prompt = "A sample project",
+            environment = DevelopmentEnvironment.BACKEND_PYTHON,
+            language = ProgrammingLanguage.PYTHON
+        )
+
+        assertEquals(null, project.securityAuditScore)
+        assertTrue(project.files.isNotEmpty())
+    }
 }

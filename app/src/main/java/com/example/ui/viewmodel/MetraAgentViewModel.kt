@@ -54,6 +54,8 @@ import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 
 sealed interface StreamUiState<out T> {
     data object Loading : StreamUiState<Nothing>
@@ -196,6 +198,10 @@ class MetraAgentViewModel(
         )
     )
     val workspace: StateFlow<WorkspaceUiState> = _workspace.asStateFlow()
+
+    // Serialize cloud writes/deletes and prevent a queued save from resurrecting a deleted project.
+    private val studioProjectPersistenceMutex = Mutex()
+    private val deletedStudioProjectIds = mutableSetOf<String>()
 
     init {
         val email = vault.getSecret(SecretVault.KEY_AUTH_EMAIL)
@@ -2200,56 +2206,66 @@ class MetraAgentViewModel(
     }
 
     fun deleteSavedStudioProject(projectId: String) {
+        // Mark immediately so saves already queued behind the mutex cannot recreate this project.
+        deletedStudioProjectIds.add(projectId)
         viewModelScope.launch {
-            userDataRepository.deleteStudioProject(projectId)
-                .onSuccess {
-                    _workspace.update { state ->
-                        val wasActive = state.activeStudioProject?.id == projectId
-                        state.copy(
-                            savedStudioProjects = state.savedStudioProjects.filterNot { it.id == projectId },
-                            activeStudioProject = if (wasActive) null else state.activeStudioProject,
-                            studioSelectedFilePath = if (wasActive) "" else state.studioSelectedFilePath,
-                            studioEditedContent = if (wasActive) "" else state.studioEditedContent,
-                            statusBannerMessage = "تم حذف المشروع من مكتبتك السحابية."
-                        )
+            studioProjectPersistenceMutex.withLock {
+                userDataRepository.deleteStudioProject(projectId)
+                    .onSuccess {
+                        _workspace.update { state ->
+                            val wasActive = state.activeStudioProject?.id == projectId
+                            state.copy(
+                                savedStudioProjects = state.savedStudioProjects.filterNot { it.id == projectId },
+                                activeStudioProject = if (wasActive) null else state.activeStudioProject,
+                                studioSelectedFilePath = if (wasActive) "" else state.studioSelectedFilePath,
+                                studioEditedContent = if (wasActive) "" else state.studioEditedContent,
+                                statusBannerMessage = "تم حذف المشروع من مكتبتك السحابية."
+                            )
+                        }
                     }
-                }
-                .onFailure { error ->
-                    Log.w(TAG, "Studio project deletion failed", error)
-                    _workspace.update { it.copy(statusBannerMessage = "تعذر حذف المشروع المحفوظ: ${error.localizedMessage ?: "خطأ اتصال"}") }
-                }
+                    .onFailure { error ->
+                        deletedStudioProjectIds.remove(projectId)
+                        Log.w(TAG, "Studio project deletion failed", error)
+                        _workspace.update {
+                            it.copy(statusBannerMessage = "تعذر حذف المشروع المحفوظ: ${error.localizedMessage ?: "خطأ اتصال"}")
+                        }
+                    }
+            }
         }
     }
 
     private suspend fun persistStudioProject(project: com.example.domain.model.StudioProjectSpec): Boolean {
-        return userDataRepository.saveStudioProject(project).fold(
-            onSuccess = {
-                _workspace.update { state ->
-                    val withoutCurrent = state.savedStudioProjects.filterNot { it.id == project.id }
-                    state.copy(
-                        savedStudioProjects = listOf(
-                            com.example.domain.model.StudioProjectSummary(
-                                id = project.id,
-                                projectName = project.projectName,
-                                environment = project.environment,
-                                primaryLanguage = project.primaryLanguage,
-                                description = project.description,
-                                fileCount = project.files.size
-                            )
-                        ) + withoutCurrent,
-                        statusBannerMessage = "تم حفظ المشروع وملفاته في حساب AI I.Z السحابي."
-                    )
+        return studioProjectPersistenceMutex.withLock {
+            if (project.id in deletedStudioProjectIds) return@withLock false
+            userDataRepository.saveStudioProject(project).fold(
+                onSuccess = {
+                    _workspace.update { state ->
+                        val withoutCurrent = state.savedStudioProjects.filterNot { it.id == project.id }
+                        state.copy(
+                            savedStudioProjects = listOf(
+                                com.example.domain.model.StudioProjectSummary(
+                                    id = project.id,
+                                    projectName = project.projectName,
+                                    environment = project.environment,
+                                    primaryLanguage = project.primaryLanguage,
+                                    description = project.description,
+                                    fileCount = project.files.size
+                                )
+                            ) + withoutCurrent,
+                            statusBannerMessage = "تم حفظ المشروع وملفاته في حساب AI I.Z السحابي."
+                        )
+                    }
+                    true
+                },
+                onFailure = { error ->
+                    Log.w(TAG, "Studio project cloud save failed", error)
+                    _workspace.update {
+                        it.copy(statusBannerMessage = "حُفظت التعديلات محلياً في مساحة العمل الحالية، لكن تعذر الحفظ السحابي: ${error.localizedMessage ?: "خطأ اتصال"}")
+                    }
+                    false
                 }
-                true
-            },
-            onFailure = { error ->
-                Log.w(TAG, "Studio project cloud save failed", error)
-                _workspace.update {
-                    it.copy(statusBannerMessage = "حُفظت التعديلات محلياً في مساحة العمل الحالية، لكن تعذر الحفظ السحابي: ${error.localizedMessage ?: "خطأ اتصال"}")
-                }
-                false
-            }
-        )
+            )
+        }
     }
 
     fun selectStudioFile(path: String) {

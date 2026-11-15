@@ -47,6 +47,8 @@ import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.unit.dp
 import androidx.credentials.ClearCredentialStateRequest
 import androidx.credentials.CredentialManager
+import com.example.core.security.SecretVault
+import com.example.data.repository.AuthSessionRepository
 import com.example.core.notifications.AgentNotificationPrefs
 import com.example.core.notifications.QuotaNotificationHelper
 import com.example.domain.model.ApprovalRequest
@@ -60,8 +62,6 @@ import com.example.ui.theme.AmberWarning
 import com.example.ui.theme.CrimsonError
 import com.example.ui.theme.ElectricCyan
 import com.example.ui.theme.EmeraldSuccess
-import com.google.firebase.Firebase
-import com.google.firebase.auth.auth
 import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -415,7 +415,7 @@ fun SecuritySettingsScreen(
                                     credentialManager.clearCredentialState(ClearCredentialStateRequest())
                                 } catch (_: Exception) {
                                 } finally {
-                                    Firebase.auth.signOut()
+                                    AuthSessionRepository(SecretVault(context)).signOut()
                                     onSignedOut()
                                 }
                             }

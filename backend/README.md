@@ -18,9 +18,10 @@ Never commit `.env`, database credentials, OAuth client secrets, signing keys, o
 - `POST /api/auth/logout` — body: `{ "refreshToken": "..." }`; revokes the entire refresh-token family even if the access token has expired.
 - `GET /api/me` — current server-derived profile (Bearer access token).
 - `POST /api/runner/approvals` — create an immutable, expiring approval request bound to a canonical operation hash and exact target.
-- `GET /api/runner/approvals/{approvalId}` — retrieve the caller's approval metadata.
+- `GET /api/runner/approvals` and `GET /api/runner/approvals/{approvalId}` — list or retrieve only the caller's approval records.
 - `POST /api/runner/approvals/{approvalId}/decision` — explicitly approve or reject a pending request.
 - `POST /api/runner/approvals/{approvalId}/consume` — atomically consume an approved request once, requiring exact action, target, and operation hash.
+- `POST /api/runner/approvals/{approvalId}/report` — record an explicitly unverified client-side outcome after consumption.
 - `GET /api/data/{settings|tasks|approvals|chat_messages|operation_logs}` — list only the signed-in user's records.
 - `GET /api/data/{collection}/{recordId}` — fetch one record owned by the signed-in user.
 - `PUT /api/data/{collection}/{recordId}` — validate and create/update a user-owned record; the server overwrites `userId` from the verified session. Approval state transitions are server-validated; client execution completion is recorded as `execution_reported`, not server-verified `executed`.

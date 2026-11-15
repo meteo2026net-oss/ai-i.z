@@ -4,7 +4,7 @@ This service owns AI I.Z identity and sessions. Android sends a short-lived Goog
 
 ## Local setup
 
-1. Provision PostgreSQL 15+ and apply `db/schema.sql`.
+1. Provision PostgreSQL 15+ and apply `db/schema.sql` for a fresh database. For an existing database created before Studio cloud storage was added, apply `db/migrations/002_studio_projects.sql` after the original schema.
 2. Copy `.env.example` to `.env`; set a Google OAuth **Web application client ID**, database URL, issuer, audience, and a random 32-byte HMAC key.
 3. Run `npm install`, then `npm test`, then `npm start`.
 
@@ -22,9 +22,10 @@ Never commit `.env`, database credentials, OAuth client secrets, signing keys, o
 - `POST /api/runner/approvals/{approvalId}/decision` — explicitly approve or reject a pending request.
 - `POST /api/runner/approvals/{approvalId}/consume` — atomically consume an approved request once, requiring exact action, target, and operation hash.
 - `POST /api/runner/approvals/{approvalId}/report` — record an explicitly unverified client-side outcome after consumption.
-- `GET /api/data/{settings|tasks|approvals|chat_messages|operation_logs}` — list only the signed-in user's records.
+- `GET /api/data/{settings|tasks|approvals|chat_messages|operation_logs|studio_projects}` — list only the signed-in user's records.
 - `GET /api/data/{collection}/{recordId}` — fetch one record owned by the signed-in user.
 - `PUT /api/data/{collection}/{recordId}` — validate and create/update a user-owned record; the server overwrites `userId` from the verified session. Approval state transitions are server-validated; client execution completion is recorded as `execution_reported`, not server-verified `executed`.
+- The `studio_projects` collection stores bounded Universal Studio project manifests and source files. Limits: 24 files, 48 KB per file, 220 KB aggregate file content, one entrypoint, unique safe relative paths; key/certificate and credential files are rejected. Android restores the latest project and exposes the saved-project library.
 - Operation logs are append-only and cannot be overwritten or deleted.
 - `DELETE /api/data/{collection}/{recordId}` — delete only a record owned by the signed-in user.
 

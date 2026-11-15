@@ -75,7 +75,7 @@ CREATE TABLE IF NOT EXISTS runner_approvals (
   operation JSONB NOT NULL CHECK (jsonb_typeof(operation) = 'object'),
   operation_hash CHAR(64) NOT NULL CHECK (operation_hash ~ '^[0-9a-f]{64}$'),
   preview TEXT NOT NULL CHECK (length(preview) BETWEEN 1 AND 4000),
-  status TEXT NOT NULL DEFAULT 'pending' CHECK (status IN ('pending','approved','rejected','consumed','expired')),
+  status TEXT NOT NULL DEFAULT 'pending' CHECK (status IN ('pending','approved','rejected','consumed','execution_reported','expired')),
   decision_note TEXT NOT NULL DEFAULT '' CHECK (length(decision_note) <= 500),
   created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
   expires_at TIMESTAMPTZ NOT NULL,

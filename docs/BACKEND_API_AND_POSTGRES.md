@@ -4,7 +4,7 @@
 
 The separate AI I.Z identity API in `backend/` issues app-owned Google OIDC sessions and PostgreSQL-backed user records. This is not the Backend Runner implementation. The Android client now sends its current AI I.Z access token as the Bearer credential and no longer asks the user for a separate static Backend Runner token. The Runner server must validate that token against the AI I.Z identity service (or share the same trusted session-validation module and PostgreSQL session store); it must not accept static shared tokens.
 
-The Android application contains a Retrofit client and this repository now contains an initial deployable Runner service in `runner/`. It verifies every caller by forwarding the Bearer token to the identity API's authenticated `GET /api/me`; it never trusts decoded claims or static tokens. `GET /api/health` and `GET /api/db/schema` are implemented. Test execution and both SQL endpoints intentionally return HTTP 501 until their security gates are implemented. Do not treat disabled endpoints as live capabilities.
+The Android application contains a Retrofit client and this repository now contains an initial deployable Runner service in `runner/`. It verifies every caller by forwarding the Bearer token to the identity API's authenticated `GET /api/me`; it never trusts decoded claims or static tokens. `GET /api/health` and administrator-restricted `GET /api/db/schema` are implemented. The identity API now also stores immutable, user-bound Runner approval requests with an exact canonical operation hash, target, ten-minute expiry, explicit approve/reject decision, and transactional one-time consumption. Test execution and both SQL endpoints intentionally return HTTP 501 until their worker/query security gates are implemented. Approval records alone do not authorize execution; the Runner must independently consume and validate one for the exact operation.
 
 ## 2. Required API
 
@@ -66,6 +66,15 @@ Returns only the schema metadata the authenticated user is authorized to inspect
 - Restrict outbound network access from execution workers.
 
 ## 4. Approval and audit model
+
+The identity API implements these authenticated endpoints:
+
+- `POST /api/runner/approvals` — create a pending request with `actionType`, exact `targetResource`, JSON `operation`, and human-readable `preview`. The server canonicalizes the operation and stores its SHA-256 hash; requests expire after ten minutes.
+- `GET /api/runner/approvals/{approvalId}` — retrieve only the caller's own approval metadata.
+- `POST /api/runner/approvals/{approvalId}/decision` — explicitly approve or reject a pending request, with an optional bounded note.
+- `POST /api/runner/approvals/{approvalId}/consume` — atomically consume an approved request once, but only when action, target, caller, and operation hash match the stored record. It returns the stored operation to the authenticated caller.
+
+These endpoints provide the approval data layer, not an execution engine. The Runner's execution endpoints remain disabled until they call the consume endpoint and independently enforce the exact approved operation, target isolation, and action-specific policy.
 
 Every high-impact operation must have a server-side approval record containing at least:
 - authenticated user and tenant;

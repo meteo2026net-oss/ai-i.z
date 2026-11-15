@@ -860,227 +860,56 @@ class MetraAgentViewModel(
         }
     }
 
+    /**
+     * Approves the immutable server-owned request. Execution is deliberately
+     * not performed by this Android process: the isolated Runner execution
+     * endpoints are still disabled, and a client-side GitHub call would bypass
+     * the server enforcement boundary. Keep the approval pending for Runner.
+     */
     fun approveAndExecute(approval: ApprovalRequest, context: Context? = null) {
-        val settings = currentSettings()
+        if (!approval.serverOwned || approval.operationHash.isBlank()) {
+            _workspace.update {
+                it.copy(backendError = "طلب الموافقة قديم أو غير مرتبط بالخادم. أعد إنشاء الطلب قبل المتابعة.")
+            }
+            return
+        }
         viewModelScope.launch {
-            userDataRepository.decideApproval(approval.id, "approved", "تمت الموافقة من المطور", currentUserId)
-                .onSuccess {
-                    var stepExecutionSucceeded = false
-                    when (approval.actionType) {
-                        "git_push" -> {
-                            val state = _workspace.value
-                            val isSharedWorkFilePush = approval.taskId == "shared_workfile"
-                            val targetPath = if (isSharedWorkFilePush) state.sharedWorkFilePath else state.selectedFilePath
-                            val targetContent = if (isSharedWorkFilePush) state.sharedWorkFileDraft else state.editedFileContent
-                            val targetSha = if (isSharedWorkFilePush) state.sharedWorkFileSha else state.selectedFileSha
-
-                            if (targetPath.isNotBlank() && targetContent.isNotBlank()) {
-                                gitHubRepo.commitFileEdit(
-                                    repoSlug = settings.activeRepo,
-                                    filePath = targetPath,
-                                    newContent = targetContent,
-                                    commitMessage = approval.description.removePrefix("رسالة Commit: ").trim(),
-                                    branch = settings.activeBranch,
-                                    existingSha = targetSha.ifBlank { null }
-                                ).onSuccess {
-                                    stepExecutionSucceeded = true
-                                    userDataRepository.decideApproval(approval.id, "executed", "تم الرفع إلى GitHub", currentUserId)
-                                    if (isSharedWorkFilePush) {
-                                        _workspace.update {
-                                            it.copy(
-                                                sharedWorkFileOriginal = targetContent,
-                                                sharedWorkFileDiff = "",
-                                                statusBannerMessage = "تم رفع تحديث الملف المشترك ($targetPath) إلى GitHub."
-                                            )
-                                        }
-                                    }
-                                    userDataRepository.addLog(
-                                        OperationLog(
-                                            userId = currentUserId,
-                                            category = "github",
-                                            tier = 2L,
-                                            action = approval.title,
-                                            details = "تم تنفيذ Push بنجاح إلى ${settings.activeBranch} ($targetPath)",
-                                            outcome = "success",
-                                            repo = settings.activeRepo
-                                        )
-                                    )
-                                    refreshGitHubWorkspace()
-                                    if (context != null) {
-                                        QuotaNotificationHelper.showCommandCompletedNotification(
-                                            context = context,
-                                            title = "تم تنفيذ الرفع: ${approval.title}",
-                                            details = "تم رفع $targetPath إلى فرع ${settings.activeBranch} بنجاح.",
-                                            targetRoute = if (isSharedWorkFilePush) "workspace_plan" else "dashboard"
-                                        )
-                                    }
-                                }.onFailure { err ->
-                                    _workspace.update { it.copy(gitHubError = err.localizedMessage) }
-                                    if (context != null) {
-                                        QuotaNotificationHelper.showAgentStoppedNotification(
-                                            context = context,
-                                            title = "فشل رفع التعديل: ${approval.title}",
-                                            reason = err.localizedMessage ?: "تعذر الرفع إلى GitHub",
-                                            targetRoute = "security"
-                                        )
-                                    }
-                                }
-                            }
-                        }
-                        "create_pr" -> {
-                            val parts = approval.description.removePrefix("من ").split(" إلى ")
-                            val head = parts.getOrNull(0)?.trim() ?: settings.activeBranch
-                            val base = parts.getOrNull(1)?.trim() ?: "main"
-                            gitHubRepo.createDraftPullRequest(
-                                repoSlug = settings.activeRepo,
-                                title = approval.title.removePrefix("إنشاء Draft PR: ").trim(),
-                                headBranch = head,
-                                baseBranch = base,
-                                body = approval.payloadPreview
-                            ).onSuccess {
-                                stepExecutionSucceeded = true
-                                userDataRepository.decideApproval(approval.id, "executed", "تم إنشاء Draft PR #${it.number}", currentUserId)
-                                refreshGitHubWorkspace()
-                                if (context != null) {
-                                    QuotaNotificationHelper.showCommandCompletedNotification(
-                                        context = context,
-                                        title = "تم إنشاء Draft PR #${it.number}",
-                                        details = "من $head إلى $base",
-                                        targetRoute = "prs"
-                                    )
-                                }
-                            }.onFailure { err ->
-                                if (context != null) {
-                                    QuotaNotificationHelper.showAgentStoppedNotification(
-                                        context = context,
-                                        title = "توقف إنشاء Draft PR",
-                                        reason = err.localizedMessage ?: "تعذر إنشاء PR",
-                                        targetRoute = "prs"
-                                    )
-                                }
-                            }
-                        }
-                        "merge_pr" -> {
-                            val prNumber = approval.targetResource.substringAfter("#").toIntOrNull()
-                            if (prNumber != null) {
-                                gitHubRepo.mergePullRequest(
-                                    repoSlug = settings.activeRepo,
-                                    pullNumber = prNumber,
-                                    commitTitle = approval.description
-                                ).onSuccess {
-                                    stepExecutionSucceeded = true
-                                    userDataRepository.decideApproval(approval.id, "executed", "تم الدمج بنجاح", currentUserId)
-                                    refreshGitHubWorkspace()
-                                    if (context != null) {
-                                        QuotaNotificationHelper.showCommandCompletedNotification(
-                                            context = context,
-                                            title = "تم دمج PR #$prNumber",
-                                            details = approval.description,
-                                            targetRoute = "prs"
-                                        )
-                                    }
-                                }.onFailure { err ->
-                                    if (context != null) {
-                                        QuotaNotificationHelper.showAgentStoppedNotification(
-                                            context = context,
-                                            title = "توقف دمج PR #$prNumber",
-                                            reason = err.localizedMessage ?: "تعذر الدمج",
-                                            targetRoute = "prs"
-                                        )
-                                    }
-                                }
-                            }
-                        }
-                        "db_sql", "db_migration", "db_rls_grants" -> {
-                            if (settings.backendUrl.isBlank()) {
-                                val msg = "يلزم ربط عنوان خادم Backend لتنفيذ استعلام SQL المعتمد."
-                                _workspace.update { it.copy(backendError = msg) }
-                                if (context != null) {
-                                    QuotaNotificationHelper.showActionRequiredNotification(
-                                        context = context,
-                                        title = "مطلوب ربط خادم Backend",
-                                        reason = msg,
-                                        tier = 2,
-                                        targetRoute = "ai_setup"
-                                    )
-                                }
-                            } else {
-                                backendRepo.executeApprovedSql(
-                                    baseUrl = settings.backendUrl,
-                                    targetDatabase = approval.targetResource,
-                                    sql = approval.payloadPreview,
-                                    approvalId = approval.id
-                                ).onSuccess { res ->
-                                    stepExecutionSucceeded = true
-                                    userDataRepository.decideApproval(approval.id, "executed", res.impactSummary, currentUserId)
-                                    _workspace.update { it.copy(sqlResult = res) }
-                                    if (context != null) {
-                                        QuotaNotificationHelper.showCommandCompletedNotification(
-                                            context = context,
-                                            title = "تم تنفيذ SQL المعتمد",
-                                            details = res.impactSummary,
-                                            targetRoute = "sql_review"
-                                        )
-                                    }
-                                }.onFailure { err ->
-                                    _workspace.update { it.copy(backendError = err.localizedMessage) }
-                                    if (context != null) {
-                                        QuotaNotificationHelper.showAgentStoppedNotification(
-                                            context = context,
-                                            title = "توقف تنفيذ SQL المعتمد",
-                                            reason = err.localizedMessage ?: "خطأ من الخادم",
-                                            targetRoute = "sql_review"
-                                        )
-                                    }
-                                }
-                            }
-                        }
-                    }
-
-                    // Continuous Auto-Resume: advance parent task past approved step and continue remaining steps
-                    if (stepExecutionSucceeded &&
-                        approval.taskId.isNotBlank() &&
-                        approval.taskId !in listOf("direct_edit", "shared_workfile", "pr_create", "sql_review") &&
-                        !approval.taskId.startsWith("pr_merge_")
-                    ) {
-                        val linkedTask = userDataRepository.getTaskById(approval.taskId, currentUserId).getOrNull()
-                        val continuous = platformConfigStore.loadSnapshot().activeProject?.continuousExecutionEnabled ?: true
-                        if (linkedTask != null && linkedTask.status == "awaiting_approval") {
-                            val nextIdx = (linkedTask.currentStepIndex + 1L).coerceAtMost(linkedTask.totalSteps.coerceAtLeast(1L))
-                            val done = nextIdx >= linkedTask.totalSteps && linkedTask.totalSteps > 0L
-                            val pct = if (linkedTask.totalSteps > 0L) ((nextIdx * 100L) / linkedTask.totalSteps).coerceIn(0L, 100L) else 100L
-                            val updatedTask = linkedTask.copy(
-                                status = if (done) "completed" else "running",
-                                currentStepIndex = nextIdx,
-                                progressPercent = pct,
-                                lastCompletedStep = approval.title,
-                                lastResultSummary = "تمت الموافقة والتنفيذ: ${approval.title}",
-                                nextSteps = linkedTask.nextSteps.drop(1)
-                            )
-                            userDataRepository.updateTask(updatedTask)
-                            if (done && context != null) {
-                                QuotaNotificationHelper.showCommandCompletedNotification(
-                                    context = context,
-                                    title = "اكتملت المهمة: ${updatedTask.title}",
-                                    details = "تم تنفيذ جميع الخطوات بنجاح.",
-                                    targetRoute = "tasks"
-                                )
-                            } else if (!done && continuous && context != null) {
-                                AgentLoopWorker.enqueue(
-                                    context = context,
-                                    taskId = updatedTask.id,
-                                    provider = settings.aiProvider,
-                                    model = settings.aiModel,
-                                    autoTier1 = settings.autoExecuteTier1,
-                                    replaceExisting = true
-                                )
-                                _workspace.update {
-                                    it.copy(statusBannerMessage = "تم تنفيذ الموافقة واستأنف الوكيل بقية الخطوات تلقائياً للنهاية.")
-                                }
-                            }
-                        }
-                    }
+            userDataRepository.decideApproval(
+                approval.id,
+                "approved",
+                "تمت الموافقة صراحةً؛ التنفيذ ينتظر خدمة Runner المعزولة.",
+                currentUserId
+            ).onSuccess {
+                _workspace.update {
+                    it.copy(
+                        statusBannerMessage = "تم حفظ الموافقة على الخادم. لم يُنفذ الإجراء بعد؛ خدمة Runner المعزولة غير مفعلة حالياً."
+                    )
                 }
+                userDataRepository.addLog(
+                    OperationLog(
+                        userId = currentUserId,
+                        category = "security",
+                        tier = approval.tier,
+                        action = "اعتماد طلب بانتظار Runner: ${approval.title}",
+                        details = "تم اعتماد العملية المرتبطة ببصمة الخادم ${approval.operationHash.take(12)}، ولم يُنفذ أي تغيير خارجي.",
+                        outcome = "pending",
+                        repo = currentSettings().activeRepo
+                    )
+                )
+                if (context != null) {
+                    QuotaNotificationHelper.showActionRequiredNotification(
+                        context = context,
+                        title = "تم اعتماد الطلب بانتظار Runner",
+                        reason = "حُفظت الموافقة، لكن التنفيذ الفعلي لم يبدأ لأن خدمة التنفيذ المعزولة غير متاحة بعد.",
+                        tier = approval.tier.toInt().coerceIn(2, 3),
+                        targetRoute = "security"
+                    )
+                }
+            }.onFailure { error ->
+                _workspace.update {
+                    it.copy(backendError = error.localizedMessage ?: "تعذر حفظ الموافقة على الخادم.")
+                }
+            }
         }
     }
 

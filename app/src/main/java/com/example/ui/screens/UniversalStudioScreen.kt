@@ -55,6 +55,7 @@ fun UniversalStudioScreen(
     activeProject: StudioProjectSpec?,
     savedProjects: List<StudioProjectSpec>,
     onOpenSavedProject: (projectId: String) -> Unit,
+    onDeleteSavedProject: (projectId: String) -> Unit,
     onRefreshSavedProjects: () -> Unit,
     isGenerating: Boolean,
     selectedFilePath: String,
@@ -234,6 +235,7 @@ fun UniversalStudioScreen(
                     projects = savedProjects,
                     activeProjectId = activeProject?.id,
                     onOpenProject = onOpenSavedProject,
+                    onDeleteProject = onDeleteSavedProject,
                     onRefresh = onRefreshSavedProjects
                 )
             }
@@ -246,8 +248,28 @@ private fun SavedStudioProjectsTab(
     projects: List<StudioProjectSpec>,
     activeProjectId: String?,
     onOpenProject: (String) -> Unit,
+    onDeleteProject: (String) -> Unit,
     onRefresh: () -> Unit
 ) {
+    var projectPendingDeletion by remember { mutableStateOf<StudioProjectSpec?>(null) }
+
+    if (projectPendingDeletion != null) {
+        AlertDialog(
+            onDismissRequest = { projectPendingDeletion = null },
+            title = { Text("حذف المشروع المحفوظ؟") },
+            text = { Text("سيُحذف ${projectPendingDeletion?.projectName} من مكتبتك السحابية. لا يمكن التراجع عن هذا الإجراء.") },
+            confirmButton = {
+                TextButton(onClick = {
+                    projectPendingDeletion?.id?.let(onDeleteProject)
+                    projectPendingDeletion = null
+                }) { Text("حذف", color = MaterialTheme.colorScheme.error) }
+            },
+            dismissButton = {
+                TextButton(onClick = { projectPendingDeletion = null }) { Text("إلغاء") }
+            }
+        )
+    }
+
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
         contentPadding = PaddingValues(16.dp),
@@ -309,6 +331,9 @@ private fun SavedStudioProjectsTab(
                             Icon(Icons.Rounded.FolderOpen, contentDescription = null)
                             Spacer(modifier = Modifier.width(6.dp))
                             Text(if (project.id == activeProjectId) "مفتوح" else "فتح")
+                        }
+                        IconButton(onClick = { projectPendingDeletion = project }) {
+                            Icon(Icons.Rounded.DeleteOutline, contentDescription = "حذف المشروع", tint = MaterialTheme.colorScheme.error)
                         }
                     }
                 }

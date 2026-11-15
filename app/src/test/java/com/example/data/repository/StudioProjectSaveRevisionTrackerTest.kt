@@ -1,6 +1,7 @@
 package com.example.data.repository
 
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertThrows
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
@@ -28,6 +29,15 @@ class StudioProjectSaveRevisionTrackerTest {
 
         assertFalse(tracker.isCurrent("project-1", firstProjectRevision))
         assertTrue(tracker.isCurrent("project-2", secondProjectRevision))
+    }
+
+    @Test
+    fun blankProjectIdsAreRejected() {
+        val tracker = StudioProjectSaveRevisionTracker()
+
+        assertThrows(IllegalArgumentException::class.java) {
+            tracker.next("  ")
+        }
     }
 
     @Test

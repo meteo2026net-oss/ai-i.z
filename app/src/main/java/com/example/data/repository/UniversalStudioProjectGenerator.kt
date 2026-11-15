@@ -83,7 +83,7 @@ object UniversalStudioProjectGenerator {
             DevelopmentEnvironment.BACKEND_GO -> "go test ./... -v"
             DevelopmentEnvironment.SYSTEMS_RUST -> "cargo test"
             DevelopmentEnvironment.DATA_SCIENCE_AI -> "pytest -v"
-            else -> "echo 'All tests passed'"
+            else -> "لم يتم تحديد أمر اختبار لهذه البيئة بعد؛ أضف إطار اختبارات مناسباً للمشروع ثم عرّف أمر تشغيله."
         }
 
         return StudioProjectSpec(

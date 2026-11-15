@@ -215,10 +215,10 @@ function validateUserRecord(collection, data) {
   if (collection === 'chat_messages') return ['user', 'assistant', 'system'].includes(data.role) &&
     boundedString(data.content, 1, 12000) && boundedString(data.repoContext, 0, 128) &&
     boundedString(data.linkedTaskId, 0, 128);
-  if (collection === 'operation_logs') return ['agent', 'github', 'security', 'ai', 'backend'].includes(data.category) &&
+  if (collection === 'operation_logs') return ['agent', 'github', 'security', 'ai', 'backend', 'test'].includes(data.category) &&
     Number.isSafeInteger(data.tier) && data.tier >= 1 && data.tier <= 3 &&
     boundedString(data.action, 1, 200) && boundedString(data.details, 0, 3000) &&
-    ['success', 'failed', 'blocked', 'pending'].includes(data.outcome) && boundedString(data.repo, 0, 128);
+    ['success', 'failed', 'error', 'blocked', 'pending'].includes(data.outcome) && boundedString(data.repo, 0, 128);
   return false;
 }
 

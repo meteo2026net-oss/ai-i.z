@@ -6,6 +6,21 @@ import org.junit.Test
 
 class BackendUrlPolicyTest {
 
+
+    @Test
+    fun backendRunnerUsesOnlyAWellFormedAiIzAccessToken() {
+        assertEquals(
+            "Bearer header.payload.signature",
+            BackendAuthPolicy.authorizationHeader(" header.payload.signature ")
+        )
+        assertThrows(IllegalArgumentException::class.java) {
+            BackendAuthPolicy.authorizationHeader("")
+        }
+        assertThrows(IllegalArgumentException::class.java) {
+            BackendAuthPolicy.authorizationHeader("legacy-static-token")
+        }
+    }
+
     @Test
     fun acceptsHttpsProductionUrl() {
         assertEquals(

@@ -8,7 +8,7 @@ The application is designed to guide a project from idea discovery and requireme
 
 - Native Android application (Kotlin + Jetpack Compose).
 - Google sign-in through Android Credential Manager, exchanged directly with the AI I.Z API for app-owned sessions (Firebase Authentication is not used by the login flow).
-- User settings, tasks, approvals, chat messages, and operation logs are being moved to the AI I.Z PostgreSQL API with session-derived ownership and periodic polling. Legacy Firestore models, rules, App Check, Firebase AI, dependencies, and project configuration still remain in the repository and require final cleanup/migration.
+- User settings, tasks, approvals, chat messages, and operation logs now use the AI I.Z PostgreSQL API with session-derived ownership and periodic polling. Firebase Authentication, Firestore persistence, and App Check have been removed from the Android login/data path. Firebase AI remains as the existing Gemini provider integration; it is not used for identity or user-data storage.
 - AI orchestration and provider failover components.
 - GitHub repository, branch, commit, pull-request, and Actions integration.
 - Backend Runner API client for health checks, tests, schema inspection, read-only SQL, and explicitly approved database operations.
@@ -21,7 +21,7 @@ The application is designed to guide a project from idea discovery and requireme
 - JDK 21 (matching the GitHub Actions build environment).
 - Android SDK / Android Studio capable of compiling SDK 36.
 - Gradle 9.3.1 or newer. The repository currently does not include the Gradle Wrapper scripts/JAR, so use a locally installed Gradle or the managed Gradle installation in CI.
-- Firebase project configuration for the still-Firestore-backed data features and App Check (not for login).
+- Firebase project configuration is currently required only by the Firebase AI Gemini provider integration, not by login or user-data persistence.
 - A Google OAuth Web client ID and deployed HTTPS AI I.Z API with PostgreSQL for the new login/session flow.
 - A deployed HTTPS Backend Runner for remote test execution and database operations.
 - User-supplied provider credentials where applicable. Never commit API keys, access tokens, signing keys, or `.env` files.
@@ -55,7 +55,7 @@ gradle testDebugUnitTest
 
 The backend setup and required server environment are documented in `backend/README.md`.
 
-Some repository tests use Firebase Auth and Firestore emulators. Start the configured emulators before running the complete unit-test suite:
+
 
 ```bash
 firebase emulators:start --only auth,firestore --project demo-no-project

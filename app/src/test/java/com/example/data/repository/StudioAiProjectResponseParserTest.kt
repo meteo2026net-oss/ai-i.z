@@ -138,6 +138,20 @@ class StudioAiProjectResponseParserTest {
         }
     }
 
+
+    @Test
+    fun parsesLanguageNamesIndependentlyOfTurkishDefaultLocale() {
+        val previousLocale = Locale.getDefault()
+        try {
+            Locale.setDefault(Locale.forLanguageTag("tr-TR"))
+            val response = """{"files":[{"path":"Main.kt","language":"kotlin","content":"fun main() {}","isEntrypoint":true}]}"""
+            val files = StudioAiProjectResponseParser.parseFiles(response, ProgrammingLanguage.JAVA)
+            assertEquals(ProgrammingLanguage.KOTLIN, files.single().language)
+        } finally {
+            Locale.setDefault(previousLocale)
+        }
+    }
+
     private fun manifest(path: String, source: String): String {
         val escapedPath = path.replace("\\", "\\\\").replace("\"", "\\\"")
         val escapedSource = source.replace("\\", "\\\\").replace("\"", "\\\"")

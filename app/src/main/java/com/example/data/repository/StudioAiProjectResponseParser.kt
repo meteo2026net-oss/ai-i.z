@@ -55,7 +55,7 @@ object StudioAiProjectResponseParser {
 
             val languageName = item["language"] as? String
             val language = languageName
-                ?.let { runCatching { ProgrammingLanguage.valueOf(it.trim().uppercase()) }.getOrNull() }
+                ?.let { runCatching { ProgrammingLanguage.valueOf(it.trim().uppercase(Locale.ROOT)) }.getOrNull() }
                 ?: defaultLanguage
             val purpose = (item["purpose"] as? String)?.trim().orEmpty()
                 .ifBlank { "ملف مولّد للمشروع" }

@@ -253,7 +253,7 @@ private fun AuthenticatedMetraShell(
         TopNavTab("files", "المستودع", Icons.Rounded.FolderOpen),
         TopNavTab("database", "القاعدة", Icons.Rounded.Storage)
     )
-    // The five mobile destinations follow the approved Figma information architecture.
+    // Five mobile destinations follow the approved Figma information architecture.
     // Advanced tools remain accessible from dashboard shortcuts and the desktop navigation rail.
     val mobileTabs = listOf(
         TopNavTab("dashboard", "الرئيسية", Icons.Rounded.Dashboard),
@@ -413,39 +413,63 @@ private fun AuthenticatedMetraShell(
                                 borderColor = MaterialTheme.colorScheme.primary
                             ) {
                                 Row(
-                                    modifier = Modifier.fillMaxWidth(),
-                                    horizontalArrangement = Arrangement.SpaceBetween,
-                                    verticalAlignment = Alignment.CenterVertically
+                                    verticalAlignment = androidx.compose.ui.Alignment.CenterVertically,
+                                    horizontalArrangement = androidx.compose.foundation.layout.Arrangement.spacedBy(8.dp)
                                 ) {
+                                    Icon(
+                                        Icons.Rounded.NotificationsActive,
+                                        contentDescription = null,
+                                        tint = MaterialTheme.colorScheme.primary
+                                    )
                                     Column(modifier = Modifier.weight(1f)) {
-                                        Text("تفعيل إشعارات حدود استخدام AI", style = MaterialTheme.typography.titleSmall)
                                         Text(
-                                            "لتلقي تنبيه عند قرب انتهاء حصة الحساب.",
+                                            text = "فعّل إشعارات التنبيه والانتباه على الهاتف",
+                                            style = MaterialTheme.typography.titleSmall
+                                        )
+                                        Text(
+                                            text = "لتصلك إشعارات فورية بصوت واهتزاز عند انتهاء أي أمر أو توقف الوكيل أو طلب إجراء/موافقة.",
                                             style = MaterialTheme.typography.bodySmall,
                                             color = MaterialTheme.colorScheme.onSurfaceVariant
                                         )
                                     }
-                                    androidx.compose.material3.TextButton(
-                                        onClick = { notificationPermLauncher.launch(Manifest.permission.POST_NOTIFICATIONS) }
-                                    ) { Text("تفعيل") }
-                                    androidx.compose.material3.TextButton(
+                                }
+                                Row(horizontalArrangement = androidx.compose.foundation.layout.Arrangement.spacedBy(8.dp)) {
+                                    androidx.compose.material3.Button(
+                                        onClick = {
+                                            notificationPermLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
+                                        },
+                                        modifier = Modifier
+                                            .weight(1f)
+                                            .testTag("enable_notifications_banner_btn")
+                                    ) {
+                                        Text("تفعيل الإشعارات الآن")
+                                    }
+                                    androidx.compose.material3.OutlinedButton(
                                         onClick = { dismissedNotifBanner = true }
-                                    ) { Text("لاحقاً") }
+                                    ) {
+                                        Text("لاحقاً")
+                                    }
                                 }
                             }
                         }
 
-                        Box(modifier = Modifier.weight(1f)) {
+                        workspace.latestQuotaBanner?.let { banner ->
                             QuotaFailoverBanner(
-                                workspace = workspace,
-                                onOpenAiSetup = { navigateTo("ai_setup") },
-                                onOpenAiConversations = { navigateTo("ai_conversations") }
+                                exhaustedLabel = banner.exhaustedLabel,
+                                switchedToLabel = banner.switchedToLabel,
+                                reason = banner.reason,
+                                onDismiss = { viewModel.dismissQuotaBanner() },
+                                onManageAi = {
+                                    viewModel.dismissQuotaBanner()
+                                    navigateTo("ai_setup")
+                                },
+                                modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp)
                             )
-
+                        }
+                        Box(modifier = Modifier.weight(1f)) {
                             NavHost(
                                 navController = navController,
-                                startDestination = "dashboard",
-                                modifier = Modifier.fillMaxSize()
+                                startDestination = "dashboard"
                             ) {
                                 composable("dashboard") {
                                     DashboardScreen(
@@ -454,13 +478,300 @@ private fun AuthenticatedMetraShell(
                                         tasks = tasks,
                                         approvals = approvals,
                                         logs = logs,
-                                        onSwitchProject = viewModel::switchActiveProject,
-                                        onResumeTask = viewModel::resumeTask,
-                                        onApprove = viewModel::approve,
-                                        onReject = viewModel::reject,
-                                        onNavigateRoute = ::navigateTo
+                                        onSwitchProject = { viewModel.activateProjectProfile(it) },
+                                        onResumeTask = { viewModel.resumeTaskInBackground(it, context) },
+                                        onApprove = { viewModel.approveAndExecute(it, context) },
+                                        onReject = { viewModel.rejectApproval(it) },
+                                        onNavigateRoute = { navigateTo(it) }
+                                    )
+                                }
+                                composable("chat") {
+                                    AgentChatScreen(
+                                        messages = messages,
+                                        pendingApprovals = approvals.filter { it.status == "pending" },
+                                        workspace = workspace,
+                                        onSendCommand = { viewModel.sendChatCommand(it, context) },
+                                        onRunTeamCollaboration = { directive ->
+                                            viewModel.runMultiModelCollaboration(directive, context)
+                                            navigateTo("workspace_plan")
+                                        },
+                                        onOpenSharedWorkspace = { navigateTo("workspace_plan") },
+                                        onApprove = { viewModel.approveAndExecute(it, context) },
+                                        onReject = { viewModel.rejectApproval(it) },
+                                        onOpenAiConversations = { navigateTo("ai_conversations") }
+                                    )
+                                }
+                                composable("tasks") {
+                                    TasksScreen(
+                                        tasks = tasks,
+                                        localCheckpoints = localCheckpoints,
+                                        sharedWorkFilePath = workspace.sharedWorkFilePath,
+                                        onCreateTaskAndRun = { viewModel.sendChatCommand(it, context) },
+                                        onResumeTask = { viewModel.resumeTaskInBackground(it, context) },
+                                        onOpenSharedWorkspace = { navigateTo("workspace_plan") }
+                                    )
+                                }
+                                composable("workspace_plan") {
+                                    SharedWorkspaceScreen(
+                                        settings = settings,
+                                        workspace = workspace,
+                                        onSaveProjectSpec = { path, reqs, instr, collab, continuous ->
+                                            viewModel.saveActiveProjectWorkspaceSpec(
+                                                sharedWorkFilePath = path,
+                                                projectRequirements = reqs,
+                                                systemInstructions = instr,
+                                                collaborativeModeEnabled = collab,
+                                                continuousExecutionEnabled = continuous
+                                            )
+                                        },
+                                        onToggleTeamMember = { epId, sel ->
+                                            viewModel.toggleCollaborativeMember(epId, sel)
+                                        },
+                                        onLoadOrInitSharedFile = { path ->
+                                            viewModel.loadOrInitSharedWorkFileFromGitHub(path)
+                                        },
+                                        onEditSharedFileDraft = { viewModel.updateSharedWorkFileDraft(it) },
+                                        onRunCollaboration = { directive ->
+                                            viewModel.runMultiModelCollaboration(directive, context)
+                                        },
+                                        onRequestCommitSharedFile = { msg ->
+                                            viewModel.requestCommitSharedWorkFileApproval(msg, context)
+                                        },
+                                        onGoToAiSetup = { navigateTo("ai_setup") }
+                                    )
+                                }
+                                composable("files") {
+                                    FileExplorerScreen(
+                                        settings = settings,
+                                        workspace = workspace,
+                                        onOpenFile = { path ->
+                                            viewModel.openFileFromGitHub(path)
+                                            navigateTo("code_editor")
+                                        },
+                                        onDownloadFile = { path ->
+                                            viewModel.prepareDownloadGitHubFile(path)
+                                        },
+                                        onGoToGitHubSetup = { navigateTo("github_setup") }
+                                    )
+                                }
+                                composable("code_editor") {
+                                    CodeEditorScreen(
+                                        settings = settings,
+                                        workspace = workspace,
+                                        onEditContent = { viewModel.updateEditedFileContent(it) },
+                                        onAnalyzeWithAi = { viewModel.analyzeSelectedCodeWithAi(context) },
+                                        onDownloadFile = { viewModel.prepareDownloadGitHubFile(it) },
+                                        onRequestCommitApproval = { viewModel.requestCommitEditApproval(it, context) },
+                                        onGoToFiles = { navigateTo("files") }
+                                    )
+                                }
+                                composable("branches") {
+                                    BranchesCommitsScreen(
+                                        settings = settings,
+                                        workspace = workspace,
+                                        onSelectBranch = { viewModel.selectRepositoryAndBranch(settings.activeRepo, it) },
+                                        onCreateBranch = { viewModel.createWorkingBranch(it) },
+                                        onGoToGitHubSetup = { navigateTo("github_setup") }
+                                    )
+                                }
+                                composable("prs") {
+                                    PullRequestsScreen(
+                                        settings = settings,
+                                        workspace = workspace,
+                                        onInspectPr = { viewModel.inspectPullRequest(it, context) },
+                                        onRequestCreateDraftPr = { t, h, b, body ->
+                                            viewModel.requestCreateDraftPrApproval(t, h, b, body, context)
+                                        },
+                                        onRequestMergePr = { viewModel.requestMergePrApproval(it, context) }
+                                    )
+                                }
+                                composable("actions") {
+                                    ActionsScreen(
+                                        workspace = workspace,
+                                        onRefresh = { viewModel.refreshGitHubWorkspace() }
+                                    )
+                                }
+                                composable("database") {
+                                    DatabaseScreen(
+                                        settings = settings,
+                                        workspace = workspace,
+                                        onSaveDatabaseConnection = { label, engine, host, dbName, connSec, apiSec, ro, prot ->
+                                            viewModel.saveDatabaseConnection(
+                                                label = label,
+                                                engine = engine,
+                                                hostOrUrl = host,
+                                                databaseName = dbName,
+                                                secretOrConnectionString = connSec,
+                                                apiKeyOrServiceRole = apiSec,
+                                                readOnlyMode = ro,
+                                                protectedKeywordsCsv = prot
+                                            )
+                                        },
+                                        onActivateDatabaseConnection = { viewModel.activateDatabaseConnection(it) },
+                                        onRemoveDatabaseConnection = { viewModel.removeDatabaseConnection(it) },
+                                        onLoadSchema = { viewModel.loadDatabaseSchema() },
+                                        onGoToBackendSetup = { navigateTo("ai_setup") },
+                                        onGoToSqlReview = { navigateTo("sql_review") }
+                                    )
+                                }
+                                composable("sql_review") {
+                                    SqlReviewScreen(
+                                        workspace = workspace,
+                                        onReviewOrExecuteSql = { sql, targetDb ->
+                                            viewModel.reviewOrExecuteSql(sql, targetDb, context)
+                                        }
+                                    )
+                                }
+                                composable("tests") {
+                                    TestsScreen(
+                                        settings = settings,
+                                        workspace = workspace,
+                                        onRunTests = { viewModel.runRemoteTests(it, context) },
+                                        onSendFailuresToAgent = { prompt ->
+                                            viewModel.sendChatCommand(prompt, context)
+                                            navigateTo("chat")
+                                        },
+                                        onGoToBackendSetup = { navigateTo("ai_setup") }
+                                    )
+                                }
+                                composable("logs") {
+                                    LogsScreen(
+                                        logs = logs,
+                                        flutterSpecText = viewModel.getExportableFlutterSpec()
+                                    )
+                                }
+                                composable("github_setup") {
+                                    GitHubSetupScreen(
+                                        settings = settings,
+                                        workspace = workspace,
+                                        onConnectToken = { viewModel.connectGitHubToken(it) },
+                                        onSwitchGitHubAccount = { viewModel.switchGitHubAccount(it) },
+                                        onOpenLinkedAccounts = { navigateTo("linked_accounts") },
+                                        onSelectRepoAndBranch = { repo, branch ->
+                                            viewModel.selectRepositoryAndBranch(repo, branch)
+                                        },
+                                        onRefresh = { viewModel.refreshGitHubWorkspace() }
+                                    )
+                                }
+                                composable("linked_accounts") {
+                                    LinkedAccountsScreen(
+                                        currentUserId = currentUserId,
+                                        settings = settings,
+                                        workspace = workspace,
+                                        onCreateProject = { name, repo, branch, stack, cmd, ghId, dbId, prot, instr, sharedPath, reqs, collab, cont ->
+                                            viewModel.createOrUpdateProjectProfile(
+                                                name = name,
+                                                repoSlug = repo,
+                                                defaultBranch = branch,
+                                                techStack = stack,
+                                                customTestCommand = cmd,
+                                                linkedGitHubAccountId = ghId,
+                                                linkedDatabaseId = dbId,
+                                                protectedTargetsCsv = prot,
+                                                systemInstructions = instr,
+                                                sharedWorkFilePath = sharedPath,
+                                                projectRequirements = reqs,
+                                                collaborativeModeEnabled = collab,
+                                                continuousExecutionEnabled = cont
+                                            )
+                                        },
+                                        onActivateProject = { viewModel.activateProjectProfile(it) },
+                                        onRemoveProject = { viewModel.removeProjectProfile(it) },
+                                        onOpenSharedWorkspace = { navigateTo("workspace_plan") },
+                                        onAddGitHubAccount = { token, label, defaultRepo ->
+                                            viewModel.connectGitHubToken(token, label, defaultRepo)
+                                        },
+                                        onSwitchGitHubAccount = { viewModel.switchGitHubAccount(it) },
+                                        onRemoveGitHubAccount = { viewModel.removeGitHubAccount(it) },
+                                        onSwitchBackendProfile = { viewModel.switchBackendProfile(it) },
+                                        onRemoveBackendProfile = { viewModel.removeBackendProfile(it) },
+                                        onCreateBundle = { name, ghId, beId, repo, branch ->
+                                            viewModel.createAndActivateBundle(name, ghId, beId, repo, branch)
+                                        },
+                                        onActivateBundle = { viewModel.activateBundle(it) },
+                                        onRemoveBundle = { viewModel.removeBundle(it) },
+                                        onGoToAiSetup = { navigateTo("ai_setup") },
+                                        onGoogleAccountSwitched = { navigateTo("dashboard") }
+                                    )
+                                }
+                                composable("ai_setup") {
+                                    AiProviderScreen(
+                                        settings = settings,
+                                        workspace = workspace,
+                                        hasBackendSecret = vault.hasSecret(SecretVault.KEY_BACKEND_TOKEN),
+                                        onAddAiEndpoint = { label, type, model, key, url, hint ->
+                                            viewModel.addOrUpdateAiEndpoint(
+                                                label = label,
+                                                providerType = type,
+                                                modelName = model,
+                                                apiKey = key,
+                                                baseUrl = url,
+                                                accountHint = hint
+                                            )
+                                        },
+                                        onToggleAiEndpoint = { id, enabled -> viewModel.toggleAiEndpoint(id, enabled) },
+                                        onResetEndpointQuota = { viewModel.resetEndpointQuota(it) },
+                                        onResetAllQuotas = { viewModel.resetAllQuotas() },
+                                        onRemoveAiEndpoint = { viewModel.removeAiEndpoint(it) },
+                                        onMovePriority = { id, up -> viewModel.moveActiveProjectAiPriority(id, up) },
+                                        onToggleCollaborativeMember = { id, sel -> viewModel.toggleCollaborativeMember(id, sel) },
+                                        onOpenSharedWorkspace = { navigateTo("workspace_plan") },
+                                        onSaveBackendConfig = { url, token, prov, mod ->
+                                            viewModel.saveBackendAndOpenAiSecrets(url, token, "", prov, mod)
+                                        },
+                                        onTestBackend = { viewModel.testBackendHealth(it) },
+                                         onOpenAiConversations = { navigateTo("ai_conversations") }
+                                    )
+                                }
+                                composable("security") {
+                                    SecuritySettingsScreen(
+                                        settings = settings,
+                                        approvals = approvals,
+                                        notificationPrefs = workspace.notificationPrefs,
+                                        onUpdateNotificationPrefs = {
+                                            viewModel.updateNotificationPrefs(context, it)
+                                        },
+                                        onSendTestNotification = {
+                                            viewModel.sendTestNotification(context)
+                                        },
+                                        onUpdateSettings = { viewModel.saveUserSettings(it) },
+                                        onApprove = { viewModel.approveAndExecute(it, context) },
+                                        onReject = { viewModel.rejectApproval(it) },
+                                        onClearSecrets = { viewModel.clearEncryptedSecrets() },
+                                        onSignedOut = onSignedOut
                                     )
                                 }
                                 composable("universal_studio") {
                                     UniversalStudioScreen(
-                                    ...
+                                        activeProject = workspace.activeStudioProject,
+                                        isGenerating = workspace.isGeneratingStudioProject,
+                                        selectedFilePath = workspace.studioSelectedFilePath,
+                                        editedFileContent = workspace.studioEditedContent,
+                                        auditStatus = workspace.studioAuditStatus,
+                                        onCreateProject = { name, prompt, env, lang, priority ->
+                                            viewModel.createStudioProject(name, prompt, env, lang, priority)
+                                        },
+                                        onSelectFile = { viewModel.selectStudioFile(it) },
+                                        onUpdateFileContent = { viewModel.updateStudioFileContent(it) },
+                                        onSaveFileChanges = { viewModel.saveStudioFileChanges() },
+                                        onRunAudit = { viewModel.runStudioAudit() },
+                                        onApplyModel = { id, name -> viewModel.applyRecommendedModelToProject(id, name) },
+                                        onOpenChat = { navigateTo("chat") }
+                                    )
+                                }
+                                composable("ai_conversations") {
+                                    AiAccountConversationsScreen(
+                                        settings = settings,
+                                        workspace = workspace,
+                                        chatMessages = messages,
+                                        onGoToAiSetup = { navigateTo("ai_setup") }
+                                    )
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}

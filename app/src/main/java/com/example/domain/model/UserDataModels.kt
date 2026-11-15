@@ -49,7 +49,10 @@ data class ApprovalRequest(
     val status: String = "pending",
     val decisionNote: String = "",
     val createdAt: Date? = null,
-    val updatedAt: Date? = null
+    val updatedAt: Date? = null,
+    val operationPayload: Map<String, Any> = emptyMap(),
+    val operationHash: String = "",
+    val serverOwned: Boolean = false
 )
 
 data class ChatMessage(

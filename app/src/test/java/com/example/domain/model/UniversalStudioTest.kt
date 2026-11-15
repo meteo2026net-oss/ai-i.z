@@ -1,12 +1,41 @@
 package com.example.domain.model
 
 import com.example.data.repository.UniversalStudioProjectGenerator
+import com.squareup.moshi.Moshi
+import com.squareup.moshi.kotlin.reflect.KotlinJsonAdapterFactory
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class UniversalStudioTest {
+
+    @Test
+    fun savedProjectSummaryDeserializesWithoutSourceFiles() {
+        val moshi = Moshi.Builder()
+            .add(KotlinJsonAdapterFactory())
+            .build()
+        val adapter = moshi.adapter(StudioProjectSummary::class.java)
+        val summary = adapter.fromJson(
+            """
+            {
+              "id": "project_123",
+              "projectName": "Weather dashboard",
+              "environment": "WEB_REACT_NEXT",
+              "primaryLanguage": "TYPESCRIPT",
+              "description": "A saved web project",
+              "fileCount": 7
+            }
+            """.trimIndent()
+        )
+
+        assertNotNull(summary)
+        assertEquals("project_123", summary!!.id)
+        assertEquals("Weather dashboard", summary.projectName)
+        assertEquals(DevelopmentEnvironment.WEB_REACT_NEXT, summary.environment)
+        assertEquals(ProgrammingLanguage.TYPESCRIPT, summary.primaryLanguage)
+        assertEquals(7, summary.fileCount)
+    }
 
     @Test
     fun testModelAdvisorRecommendsGeminiForAndroid() {

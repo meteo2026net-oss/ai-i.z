@@ -653,14 +653,6 @@ class MetraAgentViewModel(
                     operationPayload = mapOf(
                         "repo" to settings.activeRepo,
                         "branch" to settings.activeBranch,
-                        "filePath" to state.sharedWorkFilePath,
-                        "newContent" to state.sharedWorkFileDraft,
-                        "commitMessage" to commitMessage.ifBlank { "Update shared agent workplan" },
-                        "existingSha" to state.sharedWorkFileSha
-                    ),
-                    operationPayload = mapOf(
-                        "repo" to settings.activeRepo,
-                        "branch" to settings.activeBranch,
                         "filePath" to state.selectedFilePath,
                         "newContent" to state.editedFileContent,
                         "commitMessage" to commitMessage.ifBlank { "Update ${state.selectedFilePath}" },
@@ -1531,7 +1523,15 @@ class MetraAgentViewModel(
                     title = "رفع ملف العمل المشترك: ${state.sharedWorkFilePath}",
                     description = "رسالة Commit: ${commitMessage.ifBlank { "Update shared agent workplan" }}",
                     payloadPreview = preview.take(7500),
-                    targetResource = "${settings.activeRepo}:${settings.activeBranch}"
+                    targetResource = "${settings.activeRepo}:${settings.activeBranch}",
+                    operationPayload = mapOf(
+                        "repo" to settings.activeRepo,
+                        "branch" to settings.activeBranch,
+                        "filePath" to state.sharedWorkFilePath,
+                        "newContent" to state.sharedWorkFileDraft,
+                        "commitMessage" to commitMessage.ifBlank { "Update shared agent workplan" },
+                        "existingSha" to state.sharedWorkFileSha
+                    )
                 )
             ).onSuccess {
                 _workspace.update {

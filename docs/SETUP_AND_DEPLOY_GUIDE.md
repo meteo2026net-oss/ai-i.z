@@ -65,8 +65,9 @@ gradle assembleDebug
 1. انشر مجلد `runner/` كخدمة Node.js 22 مستقلة على HTTPS.
 2. اضبط `DATABASE_URL` لقاعدة بيانات Runner المعزولة، و`AI_IZ_API_BASE_URL` لعنوان خدمة هوية AI I.Z المنشورة.
 3. اضبط `RUNNER_DATABASE_ISOLATED=true` فقط بعد التحقق فعلياً من أن قاعدة البيانات معزولة عن أي قواعد محمية أو إنتاجية.
-4. استخدم مستخدم PostgreSQL محدود الصلاحيات، وTLS موثقاً، وسجلات لا تحتوي على رموز الجلسات أو بيانات الاتصال.
-5. نفذ `npm install --prefix runner` ثم `npm test --prefix runner`.
+4. اجعل `RUNNER_SCHEMA_USER_IDS` قائمة بمعرفات حسابات المشغلين المصرح لهم فقط؛ اتركها فارغة لمنع استعراض المخطط عن الجميع.
+5. استخدم مستخدم PostgreSQL محدود الصلاحيات، وTLS موثقاً، وسجلات لا تحتوي على رموز الجلسات أو بيانات الاتصال.
+6. نفذ `npm install --prefix runner` ثم `npm test --prefix runner`.
 
 راجع `docs/BACKEND_API_AND_POSTGRES.md` قبل أي نشر. لا تستخدم بيانات اتصال الإنتاج في الاختبارات.
 

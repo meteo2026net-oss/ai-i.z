@@ -116,6 +116,7 @@ data class WorkspaceUiState(
     val currentGoogleName: String = "",
     val notificationPrefs: AgentNotificationPrefs = AgentNotificationPrefs(),
     val activeStudioProject: com.example.domain.model.StudioProjectSpec? = null,
+    val savedStudioProjects: List<com.example.domain.model.StudioProjectSpec> = emptyList(),
     val isGeneratingStudioProject: Boolean = false,
     val studioSelectedFilePath: String = "",
     val studioEditedContent: String = "",
@@ -228,6 +229,7 @@ class MetraAgentViewModel(
         // Restore the most recently updated Studio project from the authenticated account.
         viewModelScope.launch {
             userDataRepository.listStudioProjects().onSuccess { projects ->
+                _workspace.update { it.copy(savedStudioProjects = projects) }
                 val latest = projects.firstOrNull() ?: return@onSuccess
                 if (_workspace.value.activeStudioProject == null) {
                     val firstFile = latest.files.firstOrNull { it.isEntrypoint } ?: latest.files.firstOrNull()
@@ -2140,11 +2142,41 @@ class MetraAgentViewModel(
         }
     }
 
+    fun refreshSavedStudioProjects() {
+        viewModelScope.launch {
+            userDataRepository.listStudioProjects()
+                .onSuccess { projects -> _workspace.update { it.copy(savedStudioProjects = projects) } }
+                .onFailure { error ->
+                    Log.w(TAG, "Studio project list refresh failed", error)
+                    _workspace.update { it.copy(statusBannerMessage = "تعذر تحديث قائمة المشاريع المحفوظة.") }
+                }
+        }
+    }
+
+    fun openSavedStudioProject(projectId: String) {
+        val project = _workspace.value.savedStudioProjects.firstOrNull { it.id == projectId } ?: return
+        val firstFile = project.files.firstOrNull { it.isEntrypoint } ?: project.files.firstOrNull()
+        _workspace.update {
+            it.copy(
+                activeStudioProject = project,
+                studioSelectedFilePath = firstFile?.path.orEmpty(),
+                studioEditedContent = firstFile?.content.orEmpty(),
+                statusBannerMessage = "تم فتح المشروع المحفوظ: ${project.projectName}"
+            )
+        }
+    }
+
     private fun persistStudioProject(project: com.example.domain.model.StudioProjectSpec) {
         viewModelScope.launch {
             userDataRepository.saveStudioProject(project)
                 .onSuccess {
-                    _workspace.update { it.copy(statusBannerMessage = "تم حفظ المشروع وملفاته في حساب AI I.Z السحابي.") }
+                    _workspace.update { state ->
+                        val withoutCurrent = state.savedStudioProjects.filterNot { it.id == project.id }
+                        state.copy(
+                            savedStudioProjects = listOf(project) + withoutCurrent,
+                            statusBannerMessage = "تم حفظ المشروع وملفاته في حساب AI I.Z السحابي."
+                        )
+                    }
                 }
                 .onFailure { error ->
                     Log.w(TAG, "Studio project cloud save failed", error)

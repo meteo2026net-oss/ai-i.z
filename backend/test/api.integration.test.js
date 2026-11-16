@@ -311,9 +311,12 @@ test('PostgreSQL API enforces authenticated tenant ownership and record invarian
     const sessions = await pool.query('SELECT 1 FROM app_sessions WHERE user_id=$1', [doomedId]);
     assert.equal(sessions.rowCount, 0);
     const audit = await pool.query(
-      "SELECT event_type FROM security_audit_events WHERE event_type IN ('account_delete_requested','account_deleted') ORDER BY id DESC LIMIT 2"
+      "SELECT event_type,user_id,session_id,details FROM security_audit_events WHERE event_type IN ('account_delete_requested','account_deleted') ORDER BY id DESC LIMIT 2"
     );
     assert.equal(audit.rowCount, 2);
+    assert.ok(audit.rows.every(row => row.user_id === null && row.session_id === null));
+    assert.equal(audit.rows.find(row => row.event_type === 'account_deleted')?.details?.deletionCompleted, true);
+    assert.equal(JSON.stringify(audit.rows).includes(doomedId), false);
   });
 
 });

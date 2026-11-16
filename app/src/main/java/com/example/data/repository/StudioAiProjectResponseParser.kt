@@ -92,30 +92,46 @@ object StudioAiProjectResponseParser {
 
     private fun validatePath(path: String) {
         require(path.isNotBlank() && path.length <= MAX_PATH_LENGTH) { "مسار الملف فارغ أو طويل جداً." }
-        require(!path.startsWith('/') && !path.contains('\\') && !path.contains(':')) {
+        require(!path.startsWith('/') && !path.contains('\\\\') && !path.contains(':')) {
             "مسار غير نسبي أو يحتوي على فاصل غير مسموح: $path"
         }
         val segments = path.split('/')
         require(segments.none { it.isBlank() || it == "." || it == ".." }) {
             "مسار الملف يحاول الخروج من مجلد المشروع: $path"
         }
+        val reservedWindowsNames = setOf("CON", "PRN", "AUX", "NUL") +
+            (1..9).flatMap { listOf("COM$it", "LPT$it") }
+        val invalidPortableCharacters = "<>:" + 34.toChar() + "|?*"
+        require(segments.none { segment ->
+            segment.any { it.code < 32 || it in invalidPortableCharacters } ||
+                segment.endsWith(' ') || segment.endsWith('.') ||
+                segment.substringBefore('.').uppercase(Locale.ROOT) in reservedWindowsNames
+        }) {
+            "يحتوي المسار على اسم غير متوافق مع أنظمة الملفات الشائعة: $path"
+        }
         require(segments.none { it.equals(".git", ignoreCase = true) }) {
             "لا يسمح بإنشاء ملفات داخل مجلد Git."
         }
-        val fileName = segments.last()
-        val isExampleEnvironmentFile = fileName.equals(".env.example", ignoreCase = true) ||
-            fileName.equals(".env.template", ignoreCase = true) ||
-            fileName.equals(".env.sample", ignoreCase = true)
-        require((!fileName.equals(".env", ignoreCase = true) &&
-            (!fileName.startsWith(".env.", ignoreCase = true) || isExampleEnvironmentFile)) &&
-            !fileName.endsWith(".jks", ignoreCase = true) &&
-            !fileName.endsWith(".keystore", ignoreCase = true) &&
-            !fileName.endsWith(".pem", ignoreCase = true) &&
-            !fileName.endsWith(".p12", ignoreCase = true)) {
+
+        val allowedEnvFiles = setOf(".env.example", ".env.template", ".env.sample")
+        val normalizedSegments = segments.map { it.lowercase(Locale.ROOT) }
+        require(normalizedSegments.none { segment ->
+            (segment.startsWith(".env") && segment !in allowedEnvFiles) ||
+                segment.endsWith(".pem") || segment.endsWith(".key") ||
+                segment.endsWith(".p12") || segment.endsWith(".pfx") ||
+                segment.endsWith(".jks") || segment.endsWith(".keystore") ||
+                segment in setOf(
+                    "id_rsa", "id_ed25519", "credentials", "credentials.json",
+                    "credentials.ini", "secrets.json", "secrets.yaml", "secrets.yml",
+                    "service-account.json", "service_account.json",
+                    "google-credentials.json", "google_credentials.json",
+                    "application_default_credentials.json", ".git-credentials",
+                    ".npmrc", ".pypirc", ".netrc", ".ssh", ".aws", ".azure", ".kube"
+                ) || segment.matches(Regex("(?i).*(?:firebase-adminsdk|service[-_]?account).*\\\\.json$"))
+        }) {
             "تم رفض ملف قد يحتوي على أسرار أو مفاتيح خاصة: $path"
         }
         require(path.matches(Regex("[A-Za-z0-9._@+/-]+"))) {
             "يحتوي مسار الملف على أحرف غير مدعومة: $path"
         }
-    }
-}
+    }}

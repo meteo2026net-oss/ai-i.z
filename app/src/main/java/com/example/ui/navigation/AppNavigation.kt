@@ -483,7 +483,8 @@ private fun AuthenticatedMetraShell(
                                         onApprove = { viewModel.approveAndExecute(it, context) },
                                         onReject = { viewModel.rejectApproval(it) },
                                         onOpenAiConversations = { navigateTo("ai_conversations") }
-                                    )
+                                    ,
+                                        appLanguage = settings.appLanguage)
                                 }
                                 composable("tasks") {
                                     TasksScreen(
@@ -493,7 +494,8 @@ private fun AuthenticatedMetraShell(
                                         onCreateTaskAndRun = { viewModel.sendChatCommand(it, context) },
                                         onResumeTask = { viewModel.resumeTaskInBackground(it, context) },
                                         onOpenSharedWorkspace = { navigateTo("workspace_plan") }
-                                    )
+                                    ,
+                                        appLanguage = settings.appLanguage)
                                 }
                                 composable("workspace_plan") {
                                     SharedWorkspaceScreen(
@@ -622,7 +624,8 @@ private fun AuthenticatedMetraShell(
                                     LogsScreen(
                                         logs = logs,
                                         flutterSpecText = viewModel.getExportableFlutterSpec()
-                                    )
+                                    ,
+                                        appLanguage = settings.appLanguage)
                                 }
                                 composable("github_setup") {
                                     GitHubSetupScreen(

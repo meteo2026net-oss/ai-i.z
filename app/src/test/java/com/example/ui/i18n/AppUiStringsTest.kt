@@ -27,6 +27,29 @@ class AppUiStringsTest {
     }
 
     @Test
+    @Test
+    fun englishModeHasNoArabicScriptForCoreChrome() {
+        val arabicLetter = Regex("\\p{IsArabic}")
+        val samples = listOf(
+            AppUiStrings.tabLabel("dashboard", "en"),
+            AppUiStrings.tabLabel("tasks", "en"),
+            AppUiStrings.screenTitle("chat", "en", "Demo"),
+            AppUiStrings.dashboardOpenStudio("en"),
+            AppUiStrings.tasksLaunch("en"),
+            AppUiStrings.chatPlaceholder("en"),
+            AppUiStrings.securityTitle("en"),
+            AppUiStrings.signOut("en"),
+            AppUiStrings.deleteAccount("en"),
+            AppUiStrings.googleSignIn("en"),
+            AppUiStrings.studioLibraryTitle("en"),
+            AppUiStrings.logsEmptyCategory("en")
+        )
+        samples.forEach { text ->
+            assertFalse("English copy leaked Arabic: $text", arabicLetter.containsMatchIn(text))
+        }
+    }
+
+    @Test
     fun authAndStudioChromeAreLocalized() {
         assertTrue(AppUiStrings.googleSignIn("en").contains("Google"))
         assertTrue(AppUiStrings.googleSignIn("ar").contains("Google"))

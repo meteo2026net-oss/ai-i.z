@@ -1,5 +1,7 @@
 package com.example.ui.screens
 
+import com.example.ui.i18n.AppUiStrings
+
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -56,11 +58,14 @@ fun AgentChatScreen(
     onOpenSharedWorkspace: () -> Unit,
     onOpenAiConversations: () -> Unit,
     onApprove: (ApprovalRequest) -> Unit,
-    onReject: (ApprovalRequest) -> Unit
+    onReject: (ApprovalRequest) -> Unit,
+    appLanguage: String = "ar"
 ) {
+    val uiLang = appLanguage
     var inputText by remember { mutableStateOf("") }
     val activeProject = workspace.platformConfig.activeProject
-    val projectLabel = activeProject?.name?.ifBlank { activeProject.repoSlug } ?: "المشروع النشط"
+    val projectLabel = activeProject?.name?.ifBlank { activeProject.repoSlug }
+        ?: (if (AppUiStrings.isEnglish(uiLang)) "Active project" else "المشروع النشط")
     val continuousLabel = if (activeProject?.continuousExecutionEnabled != false) "متابعة مستمرة للنهاية" else "عادي"
 
     val quickCommands = remember(projectLabel) {
@@ -97,13 +102,13 @@ fun AgentChatScreen(
             Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                 AssistChip(
                     onClick = onOpenAiConversations,
-                    label = { Text("حسابات ومحادثات AI", style = MaterialTheme.typography.labelSmall) },
+                    label = { Text(AppUiStrings.chatAiAccounts(uiLang), style = MaterialTheme.typography.labelSmall) },
                     modifier = Modifier.testTag("chat_open_ai_conversations")
                 )
                 AssistChip(
                     onClick = onOpenSharedWorkspace,
                     leadingIcon = { Icon(Icons.Rounded.Groups, contentDescription = null, modifier = Modifier.size(16.dp)) },
-                    label = { Text("ملف العمل", style = MaterialTheme.typography.labelSmall) },
+                    label = { Text(AppUiStrings.chatWorkFile(uiLang), style = MaterialTheme.typography.labelSmall) },
                     modifier = Modifier.testTag("chat_open_shared_workspace")
                 )
             }
@@ -118,7 +123,7 @@ fun AgentChatScreen(
         ) {
             AssistChip(
                 onClick = { onRunTeamCollaboration(inputText.ifBlank { "تحديث خطة العمل وتنفيذ متطلبات $projectLabel" }) },
-                label = { Text("تشغيل تعاون النماذج على الملف المشترك") },
+                label = { Text(AppUiStrings.chatRunCollaboration(uiLang)) },
                 leadingIcon = { Icon(Icons.Rounded.Groups, contentDescription = null) },
                 modifier = Modifier.testTag("quick_cmd_team_collab")
             )
@@ -142,7 +147,7 @@ fun AgentChatScreen(
             if (messages.isEmpty() && !workspace.isAiStreaming) {
                 item {
                     CommandCard {
-                        Text("الوكيل الذكي جاهز لمشروع: $projectLabel", style = MaterialTheme.typography.titleMedium)
+                        Text(AppUiStrings.chatAgentReady(uiLang, projectLabel), style = MaterialTheme.typography.titleMedium)
                         Text(
                             "أرسل مهمة برمجية أو اختر أحد الأوامر السريعة أعلاه. يدعم الوكيل التحويل التلقائي بين حسابات AI عند انتهاء الحصة والعمل الخلفي مع التوقف عند أي موافقة.",
                             style = MaterialTheme.typography.bodySmall,
@@ -198,7 +203,7 @@ fun AgentChatScreen(
                             horizontalArrangement = Arrangement.spacedBy(8.dp)
                         ) {
                             CircularProgressIndicator(modifier = Modifier.size(16.dp), strokeWidth = 2.dp)
-                            Text("جارٍ التحليل والتنفيذ...", style = MaterialTheme.typography.labelMedium)
+                            Text(AppUiStrings.chatAnalyzing(uiLang), style = MaterialTheme.typography.labelMedium)
                         }
                         if (workspace.aiStreamingResponse.isNotBlank()) {
                             Text(
@@ -248,7 +253,7 @@ fun AgentChatScreen(
                 OutlinedTextField(
                     value = inputText,
                     onValueChange = { inputText = it },
-                    placeholder = { Text("اكتب أمراً للوكيل (مثال: تابع تطوير METRA)...") },
+                    placeholder = { Text(AppUiStrings.chatPlaceholder(uiLang)) },
                     maxLines = 3,
                     modifier = Modifier
                         .weight(1f)

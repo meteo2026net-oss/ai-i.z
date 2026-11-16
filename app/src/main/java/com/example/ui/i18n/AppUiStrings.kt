@@ -170,4 +170,77 @@ object AppUiStrings {
     fun aiAgentLabel(language: String?): String =
         if (isEnglish(language)) "AI agent" else "وكيل الذكاء"
 
+
+    // --- Dashboard ---
+    fun dashboardManageProjects(language: String?): String =
+        if (isEnglish(language)) "+ Manage projects" else "+ إدارة المشاريع"
+    fun dashboardOpenStudio(language: String?): String =
+        if (isEnglish(language)) "Open development studio and create a new project" else "فتح أستوديو التطوير وإنشاء مشروع جديد"
+    fun dashboardResumeBackgroundTask(language: String?): String =
+        if (isEnglish(language)) "Resume background task" else "استئناف المهمة في الخلفية"
+    fun dashboardSystemStatus(language: String?): String =
+        if (isEnglish(language)) "System status & metrics" else "حالة المنظومة والمقاييس"
+    fun dashboardRecentUpdates(language: String?): String =
+        if (isEnglish(language)) "Latest real activity" else "آخر المستجدات الفعلية"
+    fun dashboardQuickAccess(language: String?): String =
+        if (isEnglish(language)) "Quick access to all screens" else "الوصول السريع لجميع الشاشات"
+
+    // --- Tasks ---
+    fun tasksBackgroundTitle(language: String?): String =
+        if (isEnglish(language)) "Background-connected task (run to completion)" else "مهمة متصلة بالخلفية (حتى النهاية)"
+    fun tasksDescriptionLabel(language: String?): String =
+        if (isEnglish(language)) "Task description" else "وصف المهمة"
+    fun tasksDescriptionPlaceholder(language: String?): String =
+        if (isEnglish(language))
+            "Example: execute the work plan and keep fixing until tests pass"
+        else
+            "مثال: نفّذ خطة العمل وتابع الإصلاح حتى نجاح الاختبارات"
+    fun tasksLaunch(language: String?): String =
+        if (isEnglish(language)) "Launch task and follow to completion" else "إطلاق المهمة والمتابعة للنهاية"
+    fun tasksOpenSharedPlan(language: String?, path: String): String =
+        if (isEnglish(language)) "Open shared workplan and multi-model collaboration ($path)"
+        else "فتح ملف الخطة المشترك وتعاون النماذج ($path)"
+    fun tasksEmpty(language: String?): String =
+        if (isEnglish(language)) "No tasks recorded yet" else "لا توجد مهام مسجلة بعد"
+    fun tasksResumeNow(language: String?): String =
+        if (isEnglish(language)) "Continue / resume now" else "متابعة / استئناف الآن"
+
+    // --- Chat ---
+    fun chatAiAccounts(language: String?): String =
+        if (isEnglish(language)) "AI accounts & conversations" else "حسابات ومحادثات AI"
+    fun chatWorkFile(language: String?): String =
+        if (isEnglish(language)) "Work file" else "ملف العمل"
+    fun chatRunCollaboration(language: String?): String =
+        if (isEnglish(language)) "Run multi-model collaboration on the shared file" else "تشغيل تعاون النماذج على الملف المشترك"
+    fun chatAgentReady(language: String?, project: String): String =
+        if (isEnglish(language)) "Smart agent ready for project: $project" else "الوكيل الذكي جاهز لمشروع: $project"
+    fun chatAnalyzing(language: String?): String =
+        if (isEnglish(language)) "Analyzing and executing…" else "جارٍ التحليل والتنفيذ..."
+    fun chatPlaceholder(language: String?): String =
+        if (isEnglish(language)) "Type a command for the agent (e.g. continue METRA development)…" else "اكتب أمراً للوكيل (مثال: تابع تطوير METRA)..."
+
+    // --- Security / settings extras ---
+    fun logsExportSpecs(language: String?): String =
+        if (isEnglish(language)) "Export Flutter & Backend specs and report" else "تصدير مواصفات Flutter وBackend والتقرير"
+    fun logsShareSpecs(language: String?): String =
+        if (isEnglish(language)) "Share specs" else "مشاركة المواصفات"
+    fun logsEmptyCategory(language: String?): String =
+        if (isEnglish(language)) "No operations in this category yet" else "لا توجد عمليات مسجلة في هذا التصنيف بعد"
+    fun securityTitle(language: String?): String =
+        if (isEnglish(language)) "Security settings & three-tier permissions" else "إعدادات الأمان والصلاحيات ثلاثية المستويات"
+    fun securityTier1Auto(language: String?): String =
+        if (isEnglish(language)) "Auto-execute tier-1 actions" else "التنفيذ التلقائي للمستوى الأول"
+    fun securityNotificationsTitle(language: String?): String =
+        if (isEnglish(language)) "Attention alerts & instant notifications" else "إشعارات الانتباه والتنبيهات الفورية"
+    fun securityNotifEnabled(language: String?): String =
+        if (isEnglish(language)) "Enabled" else "مفعّلة"
+    fun securityNotifDenied(language: String?): String =
+        if (isEnglish(language)) "Not permitted" else "غير مصرح"
+    fun securityClearSecrets(language: String?): String =
+        if (isEnglish(language)) "Clear encrypted local GitHub PAT and API keys" else "مسح GitHub PAT ومفاتيح API المشفرة محلياً"
+    fun securityIpTitle(language: String?): String =
+        if (isEnglish(language)) "Intellectual property & app protection" else "حقوق الملكية الفكرية وحماية التطبيق"
+    fun securitySendTestNotif(language: String?): String =
+        if (isEnglish(language)) "Send a test notification to verify sound and vibration" else "إرسال إشعار تجريبي للتأكد من الصوت والاهتزاز"
+
 }

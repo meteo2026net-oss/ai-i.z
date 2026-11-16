@@ -1,5 +1,7 @@
 package com.example.ui.screens
 
+import com.example.ui.i18n.AppUiStrings
+
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
@@ -47,8 +49,10 @@ fun TasksScreen(
     sharedWorkFilePath: String,
     onCreateTaskAndRun: (String) -> Unit,
     onResumeTask: (AgentTask) -> Unit,
-    onOpenSharedWorkspace: () -> Unit
+    onOpenSharedWorkspace: () -> Unit,
+    appLanguage: String = "ar"
 ) {
+    val uiLang = appLanguage
     var newTaskPrompt by remember { mutableStateOf("") }
 
     LazyColumn(
@@ -63,7 +67,7 @@ fun TasksScreen(
                     horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
                     Icon(Icons.Rounded.AddTask, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
-                    Text("مهمة متصلة بالخلفية (حتى النهاية)", style = MaterialTheme.typography.titleMedium)
+                    Text(AppUiStrings.tasksBackgroundTitle(uiLang), style = MaterialTheme.typography.titleMedium)
                 }
                 Text(
                     text = "يتابع الوكيل الخطوات تلقائياً عبر جميع الحسابات والنماذج المتاحة وعند أي حصة منتهية يتحوّل للبديل ويعاود العمل من آخر نقطة محفوظة في Room وFirestore.",
@@ -73,8 +77,8 @@ fun TasksScreen(
                 OutlinedTextField(
                     value = newTaskPrompt,
                     onValueChange = { newTaskPrompt = it },
-                    label = { Text("وصف المهمة") },
-                    placeholder = { Text("مثال: نفّذ خطة العمل وتابع الإصلاح حتى نجاح الاختبارات") },
+                    label = { Text(AppUiStrings.tasksDescriptionLabel(uiLang)) },
+                    placeholder = { Text(AppUiStrings.tasksDescriptionPlaceholder(uiLang)) },
                     modifier = Modifier
                         .fillMaxWidth()
                         .testTag("new_task_prompt_input")
@@ -91,7 +95,7 @@ fun TasksScreen(
                         .fillMaxWidth()
                         .testTag("start_task_button")
                 ) {
-                    Text("إطلاق المهمة والمتابعة للنهاية")
+                    Text(AppUiStrings.tasksLaunch(uiLang))
                 }
                 OutlinedButton(
                     onClick = onOpenSharedWorkspace,
@@ -100,7 +104,7 @@ fun TasksScreen(
                         .testTag("tasks_open_shared_workspace_button")
                 ) {
                     Icon(Icons.Rounded.Groups, contentDescription = null)
-                    Text("فتح ملف الخطة المشترك وتعاون النماذج ($sharedWorkFilePath)")
+                    Text(AppUiStrings.tasksOpenSharedPlan(uiLang, sharedWorkFilePath))
                 }
             }
         }
@@ -108,7 +112,7 @@ fun TasksScreen(
         if (tasks.isEmpty()) {
             item {
                 CommandCard {
-                    Text("لا توجد مهام مسجلة بعد", style = MaterialTheme.typography.titleMedium)
+                    Text(AppUiStrings.tasksEmpty(uiLang), style = MaterialTheme.typography.titleMedium)
                     Text(
                         "أطلق مهمة من الأعلى أو من غرفة التعاون لتبدأ دورة Agent Loop المستمرة.",
                         style = MaterialTheme.typography.bodySmall,
@@ -198,7 +202,7 @@ fun TasksScreen(
                             .testTag("resume_task_${task.id}")
                     ) {
                         Icon(Icons.Rounded.PlayArrow, contentDescription = null)
-                        Text("متابعة / استئناف الآن")
+                        Text(AppUiStrings.tasksResumeNow(uiLang))
                     }
                 }
             }

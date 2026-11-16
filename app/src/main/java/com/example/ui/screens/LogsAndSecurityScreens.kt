@@ -75,9 +75,11 @@ import kotlinx.coroutines.withContext
 @Composable
 fun LogsScreen(
     logs: List<OperationLog>,
-    flutterSpecText: String
+    flutterSpecText: String,
+    appLanguage: String = "ar"
 ) {
     val context = LocalContext.current
+    val uiLang = appLanguage
     var categoryFilter by remember { mutableStateOf("all") }
     var copiedNotice by remember { mutableStateOf(false) }
 
@@ -97,7 +99,7 @@ fun LogsScreen(
                     horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
                     Icon(Icons.Rounded.IosShare, contentDescription = null, tint = ElectricCyan)
-                    Text("تصدير مواصفات Flutter وBackend والتقرير", style = MaterialTheme.typography.titleMedium)
+                    Text(AppUiStrings.logsExportSpecs(uiLang), style = MaterialTheme.typography.titleMedium)
                 }
                 Text(
                     text = "يمكنك مشاركة أو نسخ مواصفات Flutter الكاملة وعقد Backend Runner ومقترح PostgreSQL Migration.",
@@ -117,7 +119,7 @@ fun LogsScreen(
                             .weight(1f)
                             .testTag("export_flutter_spec_button")
                     ) {
-                        Text("مشاركة المواصفات")
+                        Text(AppUiStrings.logsShareSpecs(uiLang))
                     }
                     OutlinedButton(
                         onClick = {
@@ -165,7 +167,7 @@ fun LogsScreen(
                         horizontalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
                         Icon(Icons.Rounded.History, contentDescription = null)
-                        Text("لا توجد عمليات مسجلة في هذا التصنيف بعد", style = MaterialTheme.typography.titleMedium)
+                        Text(AppUiStrings.logsEmptyCategory(uiLang), style = MaterialTheme.typography.titleMedium)
                     }
                 }
             }
@@ -225,6 +227,7 @@ fun SecuritySettingsScreen(
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     val credentialManager = remember(context) { CredentialManager.create(context) }
+    val uiLang = settings.appLanguage
     var showDeleteAccountDialog by remember { mutableStateOf(false) }
     var deleteAccountError by remember { mutableStateOf<String?>(null) }
     var deleteAccountInProgress by remember { mutableStateOf(false) }
@@ -249,7 +252,7 @@ fun SecuritySettingsScreen(
                     horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
                     Icon(Icons.Rounded.Security, contentDescription = null, tint = EmeraldSuccess)
-                    Text("إعدادات الأمان والصلاحيات ثلاثية المستويات", style = MaterialTheme.typography.titleLarge)
+                    Text(AppUiStrings.securityTitle(uiLang), style = MaterialTheme.typography.titleLarge)
                 }
                 Row(
                     modifier = Modifier.fillMaxWidth(),
@@ -257,7 +260,7 @@ fun SecuritySettingsScreen(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Column(modifier = Modifier.weight(1f)) {
-                        Text("التنفيذ التلقائي للمستوى الأول", style = MaterialTheme.typography.titleMedium)
+                        Text(AppUiStrings.securityTier1Auto(uiLang), style = MaterialTheme.typography.titleMedium)
                         Text(
                             "قراءة الملفات، التحليل، التعديل داخل فرع عمل، تشغيل الاختبارات، وإنشاء التقارير.",
                             style = MaterialTheme.typography.bodySmall,
@@ -299,10 +302,10 @@ fun SecuritySettingsScreen(
                         horizontalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
                         Icon(Icons.Rounded.NotificationsActive, contentDescription = null, tint = ElectricCyan)
-                        Text("إشعارات الانتباه والتنبيهات الفورية", style = MaterialTheme.typography.titleMedium)
+                        Text(AppUiStrings.securityNotificationsTitle(uiLang), style = MaterialTheme.typography.titleMedium)
                     }
                     StatusPill(
-                        label = if (notifGranted) "مفعّلة" else "غير مصرح",
+                        label = if (notifGranted) AppUiStrings.securityNotifEnabled(uiLang) else AppUiStrings.securityNotifDenied(uiLang),
                         color = if (notifGranted) EmeraldSuccess else AmberWarning
                     )
                 }
@@ -360,7 +363,7 @@ fun SecuritySettingsScreen(
                         .fillMaxWidth()
                         .testTag("send_test_notification_button")
                 ) {
-                    Text("إرسال إشعار تجريبي للتأكد من الصوت والاهتزاز")
+                    Text(AppUiStrings.securitySendTestNotif(uiLang))
                 }
             }
         }
@@ -437,7 +440,7 @@ fun SecuritySettingsScreen(
                         .testTag("clear_vault_button")
                 ) {
                     Icon(Icons.Rounded.DeleteForever, contentDescription = null, tint = CrimsonError)
-                    Text("مسح GitHub PAT ومفاتيح API المشفرة محلياً")
+                    Text(AppUiStrings.securityClearSecrets(uiLang))
                 }
                 Button(
                     onClick = {
@@ -487,7 +490,7 @@ fun SecuritySettingsScreen(
                     horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
                     Icon(Icons.Rounded.Security, contentDescription = null, tint = EmeraldSuccess)
-                    Text("حقوق الملكية الفكرية وحماية التطبيق", style = MaterialTheme.typography.titleMedium)
+                    Text(AppUiStrings.securityIpTitle(uiLang), style = MaterialTheme.typography.titleMedium)
                 }
                 Text("اسم التطبيق: ai i.z", style = MaterialTheme.typography.bodyMedium)
                 Text("المطور والمالك: إبراهيم زينب (Ibrahim Zeinab)", style = MaterialTheme.typography.bodyMedium)

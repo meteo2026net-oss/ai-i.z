@@ -2307,14 +2307,20 @@ class MetraAgentViewModel(
         _workspace.update {
             it.copy(
                 studioSelectedFilePath = path,
-                studioEditedContent = file.content
+                studioEditedContent = file.content,
+                statusBannerMessage = null
             )
         }
     }
 
     fun updateStudioFileContent(newContent: String) {
         studioProjectOpenRequests.invalidate()
-        _workspace.update { it.copy(studioEditedContent = newContent) }
+        _workspace.update {
+            it.copy(
+                studioEditedContent = newContent,
+                statusBannerMessage = "توجد تعديلات غير محفوظة في مساحة العمل."
+            )
+        }
     }
 
     fun saveStudioFileChanges() {

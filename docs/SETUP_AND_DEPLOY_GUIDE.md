@@ -10,7 +10,7 @@
 - Node.js 22 أو أحدث لاختبارات وخادم `backend/`.
 - Android Studio حديث يدعم Kotlin وJetpack Compose.
 
-لا يحتوي المستودع حالياً على Gradle Wrapper؛ استخدم Gradle مثبتاً محلياً أو بيئة CI إلى أن تتم إضافة Wrapper موثوق.
+المستودع يتضمن الآن Gradle Wrapper (`./gradlew` و`gradlew.bat`). يُفضّل استخدامه للبناء المحلي لضمان نفس إصدار Gradle (9.3.1).
 
 ## 2. إعداد Google OIDC وخادم AI I.Z
 
@@ -38,8 +38,8 @@
 ```powershell
 $env:AI_IZ_API_BASE_URL = "https://api.example.invalid"
 $env:GOOGLE_WEB_CLIENT_ID = "your-client-id.apps.googleusercontent.com"
-gradle testDebugUnitTest
-gradle assembleDebug
+.\gradlew.bat testDebugUnitTest
+.\gradlew.bat assembleDebug
 ```
 
 العنوان أعلاه مثال توضيحي وليس خدمة منشورة. لا تستخدمه في تشغيل حقيقي.
@@ -75,8 +75,8 @@ gradle assembleDebug
 
 ```powershell
 npm test --prefix backend
-gradle testDebugUnitTest
-gradle assembleDebug
+.\gradlew.bat testDebugUnitTest
+.\gradlew.bat assembleDebug
 ```
 
 ينفذ GitHub Actions اختبارات Backend مع PostgreSQL مؤقت، ويختبر Android ويبني APK تجريبياً. نجاح CI لا يثبت صحة إعداد OAuth الإنتاجي أو نشر API أو جاهزية Backend Runner.

@@ -2209,11 +2209,15 @@ class MetraAgentViewModel(
         if (projectId in deletedStudioProjectIds || _workspace.value.savedStudioProjects.none { it.id == projectId }) return
         val requestId = studioProjectOpenRequests.next()
         viewModelScope.launch {
-            _workspace.update {
-                it.copy(
-                    isGeneratingStudioProject = false,
-                    statusBannerMessage = "جار تحميل ملفات المشروع المحفوظ…"
-                )
+            _workspace.update { state ->
+                if (studioProjectOpenRequests.isCurrent(requestId) && projectId !in deletedStudioProjectIds) {
+                    state.copy(
+                        isGeneratingStudioProject = false,
+                        statusBannerMessage = "جار تحميل ملفات المشروع المحفوظ…"
+                    )
+                } else {
+                    state
+                }
             }
             userDataRepository.getStudioProject(projectId)
                 .onSuccess { project ->
@@ -2224,13 +2228,18 @@ class MetraAgentViewModel(
                         }
                     } else {
                         val firstFile = project.files.firstOrNull { it.isEntrypoint } ?: project.files.firstOrNull()
-                        _workspace.update {
-                            it.copy(
-                                activeStudioProject = project,
-                                studioSelectedFilePath = firstFile?.path.orEmpty(),
-                                studioEditedContent = firstFile?.content.orEmpty(),
-                                statusBannerMessage = "تم فتح المشروع المحفوظ: ${project.projectName}"
-                            )
+                        _workspace.update { state ->
+                            if (studioProjectOpenRequests.isCurrent(requestId) && projectId !in deletedStudioProjectIds) {
+                                state.copy(
+                                    isGeneratingStudioProject = false,
+                                    activeStudioProject = project,
+                                    studioSelectedFilePath = firstFile?.path.orEmpty(),
+                                    studioEditedContent = firstFile?.content.orEmpty(),
+                                    statusBannerMessage = "تم فتح المشروع المحفوظ: ${project.projectName}"
+                                )
+                            } else {
+                                state
+                            }
                         }
                     }
                 }
@@ -2259,20 +2268,28 @@ class MetraAgentViewModel(
                         _workspace.update { state ->
                             val wasActive = state.activeStudioProject?.id == projectId
                             state.copy(
-                                isGeneratingStudioProject = false,
+                                isGeneratingStudioProject = if (wasActive) false else state.isGeneratingStudioProject,
                                 savedStudioProjects = state.savedStudioProjects.filterNot { it.id == projectId },
                                 activeStudioProject = if (wasActive) null else state.activeStudioProject,
                                 studioSelectedFilePath = if (wasActive) "" else state.studioSelectedFilePath,
                                 studioEditedContent = if (wasActive) "" else state.studioEditedContent,
-                                statusBannerMessage = "تم حذف المشروع من مكتبتك السحابية."
+                                statusBannerMessage = if (wasActive || state.statusBannerMessage == null) {
+                                    "تم حذف المشروع من مكتبتك السحابية."
+                                } else {
+                                    state.statusBannerMessage
+                                }
                             )
                         }
                     }
                     .onFailure { error ->
                         deletedStudioProjectIds.remove(projectId)
                         Log.w(TAG, "Studio project deletion failed", error)
-                        _workspace.update {
-                            it.copy(statusBannerMessage = "تعذر حذف المشروع المحفوظ: ${error.localizedMessage ?: "خطأ اتصال"}")
+                        _workspace.update { state ->
+                            if (state.activeStudioProject?.id == projectId || state.statusBannerMessage == null) {
+                                state.copy(statusBannerMessage = "تعذر حذف المشروع المحفوظ: ${error.localizedMessage ?: "خطأ اتصال"}")
+                            } else {
+                                state
+                            }
                         }
                     }
             }

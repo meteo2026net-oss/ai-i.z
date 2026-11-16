@@ -2306,6 +2306,9 @@ class MetraAgentViewModel(
                                 state
                             }
                         }
+                        // A refresh may have completed while this project was optimistically hidden.
+                        // Reload after restoring its visibility so the library cannot remain stale.
+                        refreshSavedStudioProjects()
                     }
             }
         }

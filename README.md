@@ -107,7 +107,7 @@ See:
 
 GitHub Actions runs Android unit tests, assembles a debug APK, and runs backend session, PostgreSQL API, and Runner security tests without starting Firebase emulators.
 
-Latest verified run on 2026-11-16: [GitHub Actions run 43833671435](https://github.com/meteo2026net-oss/ai-i.z/actions/runs/43833671435) passed both Android and Backend session/API integration jobs for commit `8a261c716d9f9a4727742af43a236f19c92917cc`. It uploaded `ai-iz-debug-apk` (artifact ID `14209159464`, SHA-256 `fa6f606fb867e9cd0d60eb1c64966d5adf68bed399a941460df1fea726f7a2ec`, 24,147,917 bytes; expires 2026-11-23 08:47:58 UTC). The artifact is a temporary debug build, not a signed production release. The latest code changes harden AI-generated Studio manifest paths against cloud credentials, private keys, secret files, Windows reserved names, and invalid whitespace. CI does not verify production OAuth configuration, deployed services, physical-device behavior, or every end-to-end workflow.
+Latest verified run on 2026-11-16: [GitHub Actions run 43835553782](https://github.com/meteo2026net-oss/ai-i.z/actions/runs/43835553782) passed both Android and Backend session/API integration jobs for commit `b5ae94f6e6ad512bb4c78622109134b1f04d0226`. It uploaded `ai-iz-debug-apk` (artifact ID `14210492810`, SHA-256 `8ef7d2bf4b1a9519747510d5c0aa2d2f8ec0d0f0d4637e459c3a943208a90262`, 24,148,506 bytes; expires 2026-11-23 09:01:24 UTC). This CI run includes the latest Universal Studio stale-response and failed-delete recovery fixes. The artifact is a temporary debug build, not a signed production release. CI does not verify production OAuth configuration, deployed services, physical-device behavior, or every end-to-end workflow.
 
 ## Product requirements and design references
 

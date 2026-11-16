@@ -19,8 +19,9 @@ interface SecretStorage {
 
 /**
  * Hardware-backed Android Keystore AES-GCM secret vault for storing
- * GitHub PAT, optional OpenAI API key, and Backend Runner token locally.
- * Secrets never leave the device into Firestore.
+ * AI I.Z session tokens, GitHub PATs, optional provider keys, and linked-account
+ * metadata locally. Ciphertext is excluded from backup and device transfer.
+ * Secrets never leave the device into a remote identity store.
  */
 class SecretVault(context: Context) : SecretStorage {
     private val prefs = context.applicationContext.getSharedPreferences(

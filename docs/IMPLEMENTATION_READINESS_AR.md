@@ -2,8 +2,8 @@
 
 آخر تحقق من المستودع وCI: 2026-11-16  
 الفرع: `feature/no-firebase-oidc-session-backend`  
-آخر نسخة عمل محفوظة: `90d9a0ea51bd4e1edf88acaf83d73b670a5be7f8`  
-آخر نسخة اجتازت CI كاملاً: `d07c71f8165a0ee9db983c4fda9514e0c16c9664`
+آخر نسخة عمل محفوظة: `1ab2e8c34203e81c253395491f4b2c10f81d48bd`  
+آخر نسخة اجتازت CI كاملاً: `1ab2e8c34203e81c253395491f4b2c10f81d48bd`
 
 > هذا السجل يفصل بين وجود الشفرة، ونجاح الاختبارات، والاختبار على جهاز فعلي، ونشر الخدمات. لا تعني نتيجة CI أن المنتج جاهز للإنتاج.
 
@@ -142,3 +142,14 @@
 - آخر تحقق من GitHub Actions: التشغيل 233 على commit `4f620682dd8ca82a6d94e6d4c8ac9130132b5719` ما زال `in_progress`؛ وظيفة Backend/Runner نجحت، ووظيفة Android بقيت في خطوة اختبارات الوحدة وتجميع Debug APK. لم يظهر artifact لهذا التشغيل.
 - لا توجد نتيجة CI مكتملة مؤكدة بعد للـcommit الجديد `90d9a0e` وقت كتابة هذا التحديث؛ لذلك لا يُسجل الاختبار الجديد كناجح قبل ظهور نتيجة Android.
 - هذا الاختبار يوسع التحقق من مدخلات Revision Tracker فقط، ولا يغني عن اختبارات دورة حياة ViewModel للحفظ والحذف والاستعادة.
+
+
+## تحديث 2026-11-16 — إصلاح التحقق من أسماء مفاتيح Firebase Admin
+
+- commit الحالي: `1ab2e8c34203e81c253395491f4b2c10f81d48bd`.
+- كشف CI على commit `413be7c` إخفاقاً في اختبار كشف ملفات Service Account؛ لم تكن صيغة اسم Firebase Admin SDK تطابق الملف الاختباري. تم تصحيح نمط المطابقة في Backend، مع الاحتفاظ باختبارات Backend وAndroid.
+- اكتمل GitHub Actions run [43829577044](https://github.com/meteo2026net-oss/ai-i.z/actions/runs/43829577044) بنجاح على SHA الحالي: وظيفة Android نجحت، ووظيفة Backend session/API integration tests نجحت.
+- اكتمل أيضاً التشغيل المرافق [43829568911](https://github.com/meteo2026net-oss/ai-i.z/actions/runs/43829568911) بنجاح.
+- artifact الناتج: `ai-iz-debug-apk`، ID `14207782832`، الحجم 24,146,136 bytes، SHA-256: `40f096223c75b161d7d678ea000bfe012c4af3a54550acf2a434239d2db8035c`، والاحتفاظ حتى 2026-11-23 08:16 UTC.
+- هذه حزمة Debug للاختبار وليست APK/AAB موقعاً بمفتاح Release، ولا تثبت إعداد OAuth الإنتاجي أو نشر API/Runner أو اختبار جهاز فعلي.
+- PR #6 ما زال مفتوحاً وDraft. لم يتم الدمج أو النشر.

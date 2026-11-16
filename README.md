@@ -20,7 +20,7 @@ The application is designed to guide a project from idea discovery and requireme
 
 - JDK 21 (matching the GitHub Actions build environment).
 - Android SDK / Android Studio capable of compiling SDK 36.
-- Gradle 9.3.1 or newer. The repository currently does not include the Gradle Wrapper scripts/JAR, so use a locally installed Gradle or the managed Gradle installation in CI.
+- Gradle 9.3.1 or newer. The repository includes the Gradle Wrapper (`./gradlew` / `gradlew.bat`). Prefer the wrapper for local builds; CI also uses a managed Gradle installation.
 - Firebase project configuration is currently required only by the Firebase AI Gemini provider integration, not by login or user-data persistence.
 - A Google OAuth Web client ID and deployed HTTPS AI I.Z API with PostgreSQL for the app-owned login/session flow.
 - A separately deployed HTTPS Backend Runner and dedicated isolated PostgreSQL database for the limited Runner capabilities currently implemented.
@@ -43,18 +43,20 @@ The workflow runs the Android unit-test task supported by the current Gradle con
 
 ## Build locally
 
+Prefer the Gradle Wrapper included in the repository.
+
 On Windows:
 
 ```powershell
-gradle testDebugUnitTest
-gradle assembleDebug
+.\gradlew.bat testDebugUnitTest
+.\gradlew.bat assembleDebug
 ```
 
 On macOS/Linux:
 
 ```bash
-gradle testDebugUnitTest
-gradle assembleDebug
+./gradlew testDebugUnitTest
+./gradlew assembleDebug
 ```
 
 The debug APK is generated at `app/build/outputs/apk/debug/app-debug.apk`.
@@ -64,8 +66,8 @@ For the app-owned login flow, provide these build-time values (do not hardcode t
 ```powershell
 $env:AI_IZ_API_BASE_URL = "https://your-deployed-ai-iz-api"
 $env:GOOGLE_WEB_CLIENT_ID = "your-web-client-id.apps.googleusercontent.com"
-gradle testDebugUnitTest
-gradle assembleDebug
+.\gradlew.bat testDebugUnitTest
+.\gradlew.bat assembleDebug
 ```
 
 The backend setup and required server environment are documented in `backend/README.md`.

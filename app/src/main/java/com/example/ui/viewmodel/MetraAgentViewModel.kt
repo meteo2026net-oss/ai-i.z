@@ -2259,6 +2259,7 @@ class MetraAgentViewModel(
                         _workspace.update { state ->
                             val wasActive = state.activeStudioProject?.id == projectId
                             state.copy(
+                                isGeneratingStudioProject = false,
                                 savedStudioProjects = state.savedStudioProjects.filterNot { it.id == projectId },
                                 activeStudioProject = if (wasActive) null else state.activeStudioProject,
                                 studioSelectedFilePath = if (wasActive) "" else state.studioSelectedFilePath,
@@ -2311,8 +2312,12 @@ class MetraAgentViewModel(
                 onFailure = { error ->
                     if (!studioProjectSaveRevisions.isCurrent(project.id, revision)) return@fold false
                     Log.w(TAG, "Studio project cloud save failed", error)
-                    _workspace.update {
-                        it.copy(statusBannerMessage = "التعديلات ما زالت في مساحة العمل الحالية فقط ولم تُحفظ سحابياً: ${error.localizedMessage ?: "خطأ اتصال"}")
+                    _workspace.update { state ->
+                        if (state.activeStudioProject?.id == project.id) {
+                            state.copy(statusBannerMessage = "التعديلات ما زالت في مساحة العمل الحالية فقط ولم تُحفظ سحابياً: ${error.localizedMessage ?: "خطأ اتصال"}")
+                        } else {
+                            state
+                        }
                     }
                     false
                 }
@@ -2321,9 +2326,9 @@ class MetraAgentViewModel(
     }
 
     fun selectStudioFile(path: String) {
-        studioProjectOpenRequests.invalidate()
         val proj = _workspace.value.activeStudioProject ?: return
         val file = proj.files.find { it.path == path } ?: return
+        studioProjectOpenRequests.invalidate()
         _workspace.update {
             it.copy(
                 isGeneratingStudioProject = false,
@@ -2346,8 +2351,8 @@ class MetraAgentViewModel(
     }
 
     fun saveStudioFileChanges() {
-        studioProjectOpenRequests.invalidate()
         val proj = _workspace.value.activeStudioProject ?: return
+        studioProjectOpenRequests.invalidate()
         val currentPath = _workspace.value.studioSelectedFilePath
         val newContent = _workspace.value.studioEditedContent
         val updatedFiles = StudioProjectFileEditGuard.updateSelectedFileContent(
@@ -2364,6 +2369,7 @@ class MetraAgentViewModel(
         val updatedProj = proj.copy(files = updatedFiles)
         _workspace.update {
             it.copy(
+                isGeneratingStudioProject = false,
                 activeStudioProject = updatedProj,
                 statusBannerMessage = "تم تحديث الملف في مساحة العمل؛ جارٍ حفظه ومزامنته سحابياً: " + currentPath
             )

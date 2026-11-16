@@ -2,8 +2,9 @@
 
 آخر تحقق من المستودع وCI: 2026-11-16  
 الفرع: `feature/no-firebase-oidc-session-backend`  
-آخر نسخة عمل محفوظة: `1ab2e8c34203e81c253395491f4b2c10f81d48bd`  
-آخر نسخة اجتازت CI كاملاً: `1ab2e8c34203e81c253395491f4b2c10f81d48bd`
+آخر نسخة عمل محفوظة على الفرع: `166826df0f21eeff5817e4551b5001cd5e92b2cd`  
+آخر تعديل برمجي للتطبيق: `1ab2e8c34203e81c253395491f4b2c10f81d48bd`  
+آخر نسخة اجتازت CI كاملاً: `166826df0f21eeff5817e4551b5001cd5e92b2cd`
 
 > هذا السجل يفصل بين وجود الشفرة، ونجاح الاختبارات، والاختبار على جهاز فعلي، ونشر الخدمات. لا تعني نتيجة CI أن المنتج جاهز للإنتاج.
 
@@ -153,3 +154,13 @@
 - artifact الناتج: `ai-iz-debug-apk`، ID `14207782832`، الحجم 24,146,136 bytes، SHA-256: `40f096223c75b161d7d678ea000bfe012c4af3a54550acf2a434239d2db8035c`، والاحتفاظ حتى 2026-11-23 08:16 UTC.
 - هذه حزمة Debug للاختبار وليست APK/AAB موقعاً بمفتاح Release، ولا تثبت إعداد OAuth الإنتاجي أو نشر API/Runner أو اختبار جهاز فعلي.
 - PR #6 ما زال مفتوحاً وDraft. لم يتم الدمج أو النشر.
+
+
+## تحديث 2026-11-16 — تحقق CI لآخر نسخة موثقة
+
+- اكتمل GitHub Actions run [43831374159](https://github.com/meteo2026net-oss/ai-i.z/actions/runs/43831374159) على commit `166826df0f21eeff5817e4551b5001cd5e92b2cd`: نجحت وظيفتا Android وBackend session/API integration tests.
+- اكتمل التشغيل المرافق [43831380813](https://github.com/meteo2026net-oss/ai-i.z/actions/runs/43831380813) على SHA نفسه بنجاح.
+- أُنتج artifact باسم `ai-iz-debug-apk`، ID `14208119138`، الحجم 24,146,135 bytes، SHA-256: `205d750ace2e2a7e6847332e75b8d4f67c9eba64e6c0fcefa7c5157f5fd87854`، والاحتفاظ حتى 2026-11-23 08:32 UTC.
+- هذا commit الأخير يحدّث سجل الأدلة وREADME؛ آخر تعديل برمجي للتطبيق لا يزال إصلاح التحقق من أسماء مفاتيح Firebase Admin في `1ab2e8c`.
+- التشغيلان [43831337328](https://github.com/meteo2026net-oss/ai-i.z/actions/runs/43831337328) و[43831329950](https://github.com/meteo2026net-oss/ai-i.z/actions/runs/43831329950) أُلغيا ولا يُحتسبان نجاحاً.
+- الـAPK الناتج Debug مؤقت وليس Release موقعاً. لا تزال بوابات النشر وOAuth الإنتاجي واختبار الجهاز الفعلي وRunner المعزول والخصوصية/النسخ الاحتياطي وإكمال LTR قائمة.

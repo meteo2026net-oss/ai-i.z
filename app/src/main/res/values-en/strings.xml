@@ -1,0 +1,16 @@
+<resources>
+    <string name="app_name">ai i.z</string>
+    <string name="developer_name">Ibrahim Zeinab</string>
+    <string name="copyright_notice">All rights reserved © 2026 Ibrahim Zeinab. This application is protected by intellectual property and copyright laws. Decompilation or reverse engineering is prohibited.</string>
+    <string name="nav_home">Home</string>
+    <string name="nav_studio">Universal Studio</string>
+    <string name="nav_tasks">Tasks</string>
+    <string name="nav_security">Security</string>
+    <string name="sign_out">Sign out</string>
+    <string name="delete_account">Permanently delete account</string>
+    <string name="delete_account_confirm_title">Confirm account deletion</string>
+    <string name="delete_account_confirm_body">Your account and all server-stored data (projects, tasks, logs, approvals) will be permanently deleted. This cannot be undone.</string>
+    <string name="language_arabic">Arabic</string>
+    <string name="language_english">English</string>
+    <string name="dark_theme">Elegant dark mode</string>
+</resources>

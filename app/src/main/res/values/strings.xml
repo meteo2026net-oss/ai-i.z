@@ -2,4 +2,15 @@
     <string name="app_name">ai i.z</string>
     <string name="developer_name">إبراهيم زينب</string>
     <string name="copyright_notice">جميع الحقوق محفوظة © 2026 إبراهيم زينب (Ibrahim Zeinab). هذا التطبيق محمي بموجب قوانين الملكية الفكرية وحقوق النشر والتأليف. يُحظر تفكيكه أو هندسته عكسياً.</string>
+    <string name="nav_home">الرئيسية</string>
+    <string name="nav_studio">Universal Studio</string>
+    <string name="nav_tasks">المهام</string>
+    <string name="nav_security">الأمان</string>
+    <string name="sign_out">تسجيل الخروج من الحساب</string>
+    <string name="delete_account">حذف الحساب نهائياً من الخادم</string>
+    <string name="delete_account_confirm_title">تأكيد حذف الحساب</string>
+    <string name="delete_account_confirm_body">سيُحذف حسابك وكل بياناتك المخزّنة على خادم AI I.Z (المشاريع، المهام، السجلات، الموافقات) بشكل نهائي. لا يمكن التراجع عن هذا الإجراء.</string>
+    <string name="language_arabic">العربية</string>
+    <string name="language_english">English</string>
+    <string name="dark_theme">الوضع الداكن الأنيق</string>
 </resources>

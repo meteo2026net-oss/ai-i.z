@@ -12,6 +12,8 @@ data class UserSettings(
     val backendUrl: String = "",
     val darkTheme: Boolean = true,
     val autoExecuteTier1: Boolean = true,
+    /** UI language: "ar" (RTL) or "en" (LTR). */
+    val appLanguage: String = "ar",
     val createdAt: Date? = null,
     val updatedAt: Date? = null
 )

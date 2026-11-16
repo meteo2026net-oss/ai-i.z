@@ -74,11 +74,12 @@ val MetraShapes = Shapes(
 @Composable
 fun MetraAgentTheme(
     darkTheme: Boolean = true,
+    layoutDirection: LayoutDirection = LayoutDirection.Rtl,
     content: @Composable () -> Unit
 ) {
     val colorScheme = if (darkTheme) MetraDarkColorScheme else MetraLightColorScheme
 
-    CompositionLocalProvider(LocalLayoutDirection provides LayoutDirection.Rtl) {
+    CompositionLocalProvider(LocalLayoutDirection provides layoutDirection) {
         MaterialTheme(
             colorScheme = colorScheme,
             typography = Typography,

@@ -383,6 +383,32 @@ fun SecuritySettingsScreen(
                         modifier = Modifier.testTag("dark_theme_switch")
                     )
                 }
+                Text(
+                    "لغة الواجهة / Interface language",
+                    style = MaterialTheme.typography.titleMedium
+                )
+                Text(
+                    "العربية (RTL) أو English (LTR). يتغير اتجاه التخطيط فوراً بعد الحفظ.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    FilterChip(
+                        selected = settings.appLanguage != "en",
+                        onClick = { onUpdateSettings(settings.copy(appLanguage = "ar")) },
+                        label = { Text("العربية") },
+                        modifier = Modifier.testTag("language_ar_chip")
+                    )
+                    FilterChip(
+                        selected = settings.appLanguage.equals("en", ignoreCase = true),
+                        onClick = { onUpdateSettings(settings.copy(appLanguage = "en")) },
+                        label = { Text("English") },
+                        modifier = Modifier.testTag("language_en_chip")
+                    )
+                }
             }
         }
 

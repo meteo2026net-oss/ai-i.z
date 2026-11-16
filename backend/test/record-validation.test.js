@@ -135,3 +135,14 @@ test('rejects common cloud credentials and private configuration directories', (
     }), false, unsafePath);
   }
 });
+
+test('settings accept optional ar/en appLanguage and reject unknown values', () => {
+  const base = {
+    activeRepo: 'owner/repo', activeBranch: 'main', aiProvider: 'gemini',
+    aiModel: 'gemini-2.0-flash', backendUrl: '', darkTheme: true, autoExecuteTier1: false
+  };
+  assert.equal(validateUserRecord('settings', base), true);
+  assert.equal(validateUserRecord('settings', { ...base, appLanguage: 'ar' }), true);
+  assert.equal(validateUserRecord('settings', { ...base, appLanguage: 'en' }), true);
+  assert.equal(validateUserRecord('settings', { ...base, appLanguage: 'fr' }), false);
+});

@@ -51,7 +51,8 @@ export function validateUserRecord(collection, data) {
   if (collection === 'settings') return boundedString(data.activeRepo, 0, 128) &&
     boundedString(data.activeBranch, 0, 128) && ['gemini', 'openai'].includes(data.aiProvider) &&
     boundedString(data.aiModel, 1, 64) && boundedString(data.backendUrl, 0, 300) &&
-    typeof data.darkTheme === 'boolean' && typeof data.autoExecuteTier1 === 'boolean';
+    typeof data.darkTheme === 'boolean' && typeof data.autoExecuteTier1 === 'boolean' &&
+    (data.appLanguage === undefined || ['ar', 'en'].includes(data.appLanguage));
   if (collection === 'tasks') return boundedString(data.repo, 0, 128) &&
     boundedString(data.branch, 0, 128) && boundedString(data.title, 1, 200) &&
     boundedString(data.prompt, 1, 2000) &&

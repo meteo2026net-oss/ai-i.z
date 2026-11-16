@@ -97,6 +97,7 @@ import com.example.ui.screens.TasksScreen
 import com.example.ui.screens.TestsScreen
 import com.example.ui.components.QuotaFailoverBanner
 import com.example.ui.theme.MetraAgentTheme
+import androidx.compose.ui.unit.LayoutDirection
 import com.example.ui.viewmodel.MetraAgentViewModel
 import com.example.ui.viewmodel.StreamUiState
 
@@ -120,7 +121,7 @@ fun MetraRootApp(
 
     val userId = currentUserId
     if (userId == null) {
-        MetraAgentTheme(darkTheme = true) {
+        MetraAgentTheme(darkTheme = true, layoutDirection = LayoutDirection.Rtl) {
             AuthScreen(onAuthSuccess = { authenticatedUserId -> currentUserId = authenticatedUserId })
         }
     } else {
@@ -318,7 +319,8 @@ private fun AuthenticatedMetraShell(
         }
     }
 
-    MetraAgentTheme(darkTheme = settings.darkTheme) {
+    val layoutDirection = if (settings.appLanguage.equals("en", ignoreCase = true)) LayoutDirection.Ltr else LayoutDirection.Rtl
+    MetraAgentTheme(darkTheme = settings.darkTheme, layoutDirection = layoutDirection) {
         BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
             val useRail = maxWidth >= 600.dp
 

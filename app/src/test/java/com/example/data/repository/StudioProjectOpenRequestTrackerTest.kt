@@ -36,6 +36,18 @@ class StudioProjectOpenRequestTrackerTest {
     }
 
     @Test
+    fun workspaceEditsInvalidatePendingSavedProjectOpenResponses() {
+        val tracker = StudioProjectOpenRequestTracker()
+        val pendingOpen = tracker.next()
+
+        // Selecting a file, editing content, saving, or creating another project
+        // represents newer workspace intent and must invalidate the pending open.
+        tracker.invalidate()
+
+        assertFalse(tracker.isCurrent(pendingOpen))
+    }
+
+    @Test
     fun failedDeletionCanBeFollowedByANewOpenRequest() {
         val tracker = StudioProjectOpenRequestTracker()
         val pending = tracker.next()

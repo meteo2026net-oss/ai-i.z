@@ -27,7 +27,6 @@ class AppUiStringsTest {
     }
 
     @Test
-    @Test
     fun englishModeHasNoArabicScriptForCoreChrome() {
         val arabicLetter = Regex("\\p{IsArabic}")
         val samples = listOf(

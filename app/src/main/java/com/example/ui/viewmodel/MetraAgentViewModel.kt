@@ -2284,6 +2284,8 @@ class MetraAgentViewModel(
             userDataRepository.saveStudioProject(project).fold(
                 onSuccess = {
                     if (project.id in deletedStudioProjectIds || !studioProjectSaveRevisions.isCurrent(project.id, revision)) return@fold false
+                    // A list response started before this save may omit the newly saved revision.
+                    studioProjectListRequests.invalidate()
                     _workspace.update { state ->
                         val withoutCurrent = state.savedStudioProjects.filterNot { it.id == project.id }
                         state.copy(

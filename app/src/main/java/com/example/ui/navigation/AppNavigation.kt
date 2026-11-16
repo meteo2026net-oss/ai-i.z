@@ -744,7 +744,8 @@ private fun AuthenticatedMetraShell(
                                         onSaveFileChanges = { viewModel.saveStudioFileChanges() },
                                         onRunAudit = { viewModel.runStudioAudit() },
                                         onApplyModel = { id, name -> viewModel.applyRecommendedModelToProject(id, name) },
-                                        onOpenChat = { navigateTo("chat") }
+                                        onOpenChat = { navigateTo("chat") },
+                                        appLanguage = settings.appLanguage
                                     )
                                 }
                                 composable("ai_conversations") {

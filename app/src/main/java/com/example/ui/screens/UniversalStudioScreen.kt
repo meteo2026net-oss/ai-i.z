@@ -1,5 +1,7 @@
 package com.example.ui.screens
 
+import com.example.ui.i18n.AppUiStrings
+
 import android.content.ClipData
 import android.content.Intent
 import android.widget.Toast
@@ -67,13 +69,19 @@ fun UniversalStudioScreen(
     onSaveFileChanges: () -> Unit,
     onRunAudit: () -> Unit,
     onApplyModel: (modelId: String, modelName: String) -> Unit,
-    onOpenChat: () -> Unit
+    onOpenChat: () -> Unit,
+    appLanguage: String = "ar"
 ) {
     val context = LocalContext.current
     val clipboardManager = LocalClipboardManager.current
+    val uiLang = appLanguage
 
     var selectedTab by remember { mutableStateOf(0) }
-    val tabTitles = listOf("منشئ المشاريع", "مستشار النماذج", "مستكشف الأكواد", "التشغيل والتدقيق", "مشاريعي")
+    val tabTitles = if (AppUiStrings.isEnglish(uiLang)) {
+        listOf("Project builder", "Model advisor", "Code explorer", "Run & audit", "My projects")
+    } else {
+        listOf("منشئ المشاريع", "مستشار النماذج", "مستكشف الأكواد", "التشغيل والتدقيق", "مشاريعي")
+    }
 
     // Project creation state
     var projectNameInput by remember { mutableStateOf("") }
@@ -143,7 +151,7 @@ fun UniversalStudioScreen(
 
                     AssistChip(
                         onClick = onOpenChat,
-                        label = { Text("وكيل الذكاء") },
+                        label = { Text(AppUiStrings.aiAgentLabel(uiLang)) },
                         leadingIcon = {
                             Icon(Icons.Rounded.AutoAwesome, contentDescription = null, tint = EmeraldSuccess, modifier = Modifier.size(16.dp))
                         },
@@ -256,16 +264,16 @@ private fun SavedStudioProjectsTab(
     if (projectPendingDeletion != null) {
         AlertDialog(
             onDismissRequest = { projectPendingDeletion = null },
-            title = { Text("حذف المشروع المحفوظ؟") },
-            text = { Text("سيُحذف ${projectPendingDeletion?.projectName} من مكتبتك السحابية. لا يمكن التراجع عن هذا الإجراء.") },
+            title = { Text(AppUiStrings.studioDeleteTitle(uiLang)) },
+            text = { Text(AppUiStrings.studioDeleteBody(uiLang, projectPendingDeletion?.projectName)) },
             confirmButton = {
                 TextButton(onClick = {
                     projectPendingDeletion?.id?.let(onDeleteProject)
                     projectPendingDeletion = null
-                }) { Text("حذف", color = MaterialTheme.colorScheme.error) }
+                }) { Text(AppUiStrings.studioDeleteConfirm(uiLang), color = MaterialTheme.colorScheme.error) }
             },
             dismissButton = {
-                TextButton(onClick = { projectPendingDeletion = null }) { Text("إلغاء") }
+                TextButton(onClick = { projectPendingDeletion = null }) { Text(AppUiStrings.cancel(uiLang)) }
             }
         )
     }
@@ -282,7 +290,7 @@ private fun SavedStudioProjectsTab(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Column(modifier = Modifier.weight(1f)) {
-                    Text("مكتبة مشاريع AI I.Z", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                    Text(AppUiStrings.studioLibraryTitle(uiLang), style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
                     Text(
                         "المشاريع محفوظة في حسابك السحابي ويمكن فتحها من جديد بعد تسجيل الدخول.",
                         style = MaterialTheme.typography.bodySmall,
@@ -298,7 +306,7 @@ private fun SavedStudioProjectsTab(
             item {
                 CommandCard {
                     Icon(Icons.Rounded.FolderOff, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
-                    Text("لا توجد مشاريع محفوظة في حسابك بعد.", style = MaterialTheme.typography.bodyMedium)
+                    Text(AppUiStrings.studioLibraryEmpty(uiLang), style = MaterialTheme.typography.bodyMedium)
                     Text(
                         "أنشئ مشروعاً من تبويب منشئ المشاريع، ثم احفظ ملفاته ليظهر هنا.",
                         style = MaterialTheme.typography.bodySmall,
@@ -379,7 +387,7 @@ private fun ProjectCreatorTab(
                 OutlinedTextField(
                     value = projectName,
                     onValueChange = onProjectNameChange,
-                    label = { Text("اسم المشروع (مثال: my-fintech-app)") },
+                    label = { Text(AppUiStrings.studioProjectNameLabel(uiLang)) },
                     singleLine = true,
                     modifier = Modifier
                         .fillMaxWidth()
@@ -389,8 +397,8 @@ private fun ProjectCreatorTab(
                 OutlinedTextField(
                     value = prompt,
                     onValueChange = onPromptChange,
-                    label = { Text("المتطلبات والتعليمات (الميزات، القواعد، الـ APIs، التصميم...)") },
-                    placeholder = { Text("مثال: تطبيق متجر إلكتروني متكامل مع سلة مشتريات وتوثيق JWT وبوابة دفع...") },
+                    label = { Text(AppUiStrings.studioRequirementsLabel(uiLang)) },
+                    placeholder = { Text(AppUiStrings.studioRequirementsPlaceholder(uiLang)) },
                     minLines = 3,
                     maxLines = 6,
                     modifier = Modifier
@@ -527,11 +535,11 @@ private fun ProjectCreatorTab(
                 if (isGenerating) {
                     CircularProgressIndicator(modifier = Modifier.size(24.dp), color = Color.Black, strokeWidth = 2.5.dp)
                     Spacer(modifier = Modifier.width(10.dp))
-                    Text("جاري بناء هيكل المشروع وتوليد الأكواد...", fontWeight = FontWeight.Bold)
+                    Text(AppUiStrings.studioBuilding(uiLang), fontWeight = FontWeight.Bold)
                 } else {
                     Icon(Icons.Rounded.RocketLaunch, contentDescription = null)
                     Spacer(modifier = Modifier.width(8.dp))
-                    Text("إنشاء المشروع وتحليله عبر مستشار النماذج", fontWeight = FontWeight.Bold, fontSize = 15.sp)
+                    Text(AppUiStrings.studioCreateAnalyze(uiLang), fontWeight = FontWeight.Bold, fontSize = 15.sp)
                 }
             }
         }
@@ -747,7 +755,7 @@ private fun ModelRecommendationCard(
             ) {
                 Icon(Icons.Rounded.CheckCircle, contentDescription = null, modifier = Modifier.size(18.dp))
                 Spacer(modifier = Modifier.width(6.dp))
-                Text("اعتماد هذا النموذج للمشروع في حوض AI")
+                Text(AppUiStrings.studioAdoptModel(uiLang))
             }
         }
     }
@@ -791,8 +799,8 @@ private fun CodeExplorerTab(
             Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.padding(24.dp)) {
                 Icon(Icons.Rounded.FolderOff, contentDescription = null, modifier = Modifier.size(64.dp), tint = MaterialTheme.colorScheme.onSurfaceVariant)
                 Spacer(modifier = Modifier.height(12.dp))
-                Text("لا يوجد مشروع مفتوح حالياً", style = MaterialTheme.typography.titleMedium)
-                Text("توجه إلى تبويب 'منشئ المشاريع' لإنشاء أول تطبيق في البيئة التي تختارها.", color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.bodySmall)
+                Text(AppUiStrings.studioNoOpenProject(uiLang), style = MaterialTheme.typography.titleMedium)
+                Text(AppUiStrings.studioNoOpenProjectHint(uiLang), color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.bodySmall)
             }
         }
         return
@@ -911,7 +919,7 @@ private fun ExecutionAndAuditTab(
             modifier = Modifier.fillMaxSize(),
             contentAlignment = Alignment.Center
         ) {
-            Text("يرجى إنشاء أو فتح مشروع أولاً لعرض أوامر التشغيل والتدقيق.")
+            Text(AppUiStrings.studioNeedProjectForRun(uiLang))
         }
         return
     }
@@ -1025,7 +1033,7 @@ private fun ExecutionAndAuditTab(
                 ) {
                     Icon(Icons.Rounded.CheckCircle, contentDescription = null)
                     Spacer(modifier = Modifier.width(8.dp))
-                    Text("إجراء فحص فوري لكافة ملفات المشروع")
+                    Text(AppUiStrings.studioSecurityScan(uiLang))
                 }
             }
         }

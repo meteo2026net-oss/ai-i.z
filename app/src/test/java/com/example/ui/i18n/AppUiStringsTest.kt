@@ -25,4 +25,14 @@ class AppUiStringsTest {
         assertTrue(AppUiStrings.deleteAccountConfirm("en").contains("Delete"))
         assertTrue(AppUiStrings.deleteAccountConfirm("ar").contains("حذف"))
     }
+
+    @Test
+    fun authAndStudioChromeAreLocalized() {
+        assertTrue(AppUiStrings.googleSignIn("en").contains("Google"))
+        assertTrue(AppUiStrings.googleSignIn("ar").contains("Google"))
+        assertTrue(AppUiStrings.studioLibraryTitle("en").contains("library"))
+        assertTrue(AppUiStrings.studioDeleteBody("en", "Demo").contains("Demo"))
+        assertTrue(AppUiStrings.studioDeleteBody("ar", "Demo").contains("Demo"))
+        assertTrue(AppUiStrings.studioBuilding("en").contains("Building"))
+    }
 }

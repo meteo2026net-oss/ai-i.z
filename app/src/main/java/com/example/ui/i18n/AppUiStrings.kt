@@ -97,4 +97,77 @@ object AppUiStrings {
             "Arabic (RTL) or English (LTR). Layout direction updates after save."
         else
             "العربية (RTL) أو English (LTR). يتغير اتجاه التخطيط فوراً بعد الحفظ."
+
+    fun googleSignIn(language: String?): String =
+        if (isEnglish(language)) "Sign in with Google" else "تسجيل الدخول باستخدام Google"
+
+    fun googleOauthMissing(language: String?): String =
+        if (isEnglish(language))
+            "Google OAuth is not configured. Set GOOGLE_WEB_CLIENT_ID."
+        else
+            "إعداد Google OAuth غير مكتمل. يلزم ضبط GOOGLE_WEB_CLIENT_ID."
+
+    fun studioLibraryTitle(language: String?): String =
+        if (isEnglish(language)) "AI I.Z project library" else "مكتبة مشاريع AI I.Z"
+
+    fun studioLibraryEmpty(language: String?): String =
+        if (isEnglish(language)) "No saved projects in your account yet." else "لا توجد مشاريع محفوظة في حسابك بعد."
+
+    fun studioDeleteTitle(language: String?): String =
+        if (isEnglish(language)) "Delete saved project?" else "حذف المشروع المحفوظ؟"
+
+    fun studioDeleteBody(language: String?, name: String?): String =
+        if (isEnglish(language))
+            "${name.orEmpty()} will be removed from your cloud library. This cannot be undone."
+        else
+            "سيُحذف ${name.orEmpty()} من مكتبتك السحابية. لا يمكن التراجع عن هذا الإجراء."
+
+    fun studioDeleteConfirm(language: String?): String =
+        if (isEnglish(language)) "Delete" else "حذف"
+
+    fun studioProjectNameLabel(language: String?): String =
+        if (isEnglish(language)) "Project name (e.g. my-fintech-app)" else "اسم المشروع (مثال: my-fintech-app)"
+
+    fun studioRequirementsLabel(language: String?): String =
+        if (isEnglish(language))
+            "Requirements and instructions (features, rules, APIs, design…)"
+        else
+            "المتطلبات والتعليمات (الميزات، القواعد، الـ APIs، التصميم...)"
+
+    fun studioRequirementsPlaceholder(language: String?): String =
+        if (isEnglish(language))
+            "Example: full e-commerce app with cart, JWT auth, and a payment gateway…"
+        else
+            "مثال: تطبيق متجر إلكتروني متكامل مع سلة مشتريات وتوثيق JWT وبوابة دفع..."
+
+    fun studioBuilding(language: String?): String =
+        if (isEnglish(language)) "Building project structure and generating code…" else "جاري بناء هيكل المشروع وتوليد الأكواد..."
+
+    fun studioCreateAnalyze(language: String?): String =
+        if (isEnglish(language)) "Create project and analyze via model advisor" else "إنشاء المشروع وتحليله عبر مستشار النماذج"
+
+    fun studioAdoptModel(language: String?): String =
+        if (isEnglish(language)) "Adopt this model for the project in the AI pool" else "اعتماد هذا النموذج للمشروع في حوض AI"
+
+    fun studioNoOpenProject(language: String?): String =
+        if (isEnglish(language)) "No project is open" else "لا يوجد مشروع مفتوح حالياً"
+
+    fun studioNoOpenProjectHint(language: String?): String =
+        if (isEnglish(language))
+            "Open the project builder tab to create your first app in the environment you choose."
+        else
+            "توجه إلى تبويب 'منشئ المشاريع' لإنشاء أول تطبيق في البيئة التي تختارها."
+
+    fun studioNeedProjectForRun(language: String?): String =
+        if (isEnglish(language))
+            "Create or open a project first to view run commands and audits."
+        else
+            "يرجى إنشاء أو فتح مشروع أولاً لعرض أوامر التشغيل والتدقيق."
+
+    fun studioSecurityScan(language: String?): String =
+        if (isEnglish(language)) "Run an immediate scan of all project files" else "إجراء فحص فوري لكافة ملفات المشروع"
+
+    fun aiAgentLabel(language: String?): String =
+        if (isEnglish(language)) "AI agent" else "وكيل الذكاء"
+
 }

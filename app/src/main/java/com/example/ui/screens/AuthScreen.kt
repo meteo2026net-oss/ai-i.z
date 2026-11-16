@@ -52,6 +52,8 @@ import androidx.credentials.CustomCredential
 import androidx.credentials.GetCredentialRequest
 import androidx.credentials.exceptions.GetCredentialCancellationException
 import com.example.R
+import com.example.ui.i18n.AppUiStrings
+import java.util.Locale
 import com.example.BuildConfig
 import com.example.ui.components.CommandCard
 import com.example.ui.components.StatusPill
@@ -77,6 +79,7 @@ fun AuthScreen(
     val credentialManager = remember(context) { CredentialManager.create(context) }
 
     var isLoading by remember { mutableStateOf(false) }
+    val uiLang = Locale.getDefault().language.let { if (it.equals("en", true)) "en" else "ar" }
     var errorMessage by remember { mutableStateOf<String?>(null) }
 
     LaunchedEffect(Unit) {
@@ -216,7 +219,7 @@ fun AuthScreen(
                             strokeWidth = 2.dp
                         )
                     } else {
-                        Text("تسجيل الدخول باستخدام Google")
+                        Text(AppUiStrings.googleSignIn(uiLang))
                     }
                 }
             }
@@ -277,7 +280,7 @@ fun onGoogleSignInClicked(
     onAuthCancelled: () -> Unit = {}
 ) {
     val clientId = BuildConfig.GOOGLE_WEB_CLIENT_ID.takeIf { it.isNotBlank() } ?: run {
-        onAuthError("إعداد Google OAuth غير مكتمل. يلزم ضبط GOOGLE_WEB_CLIENT_ID.")
+        onAuthError(AppUiStrings.googleOauthMissing(Locale.getDefault().language.let { if (it.equals("en", true)) "en" else "ar" }))
         return
     }
 

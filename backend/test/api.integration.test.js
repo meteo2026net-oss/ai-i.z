@@ -279,4 +279,41 @@ test('PostgreSQL API enforces authenticated tenant ownership and record invarian
     assert.equal(revokedReplacement.status, 401);
   });
 
+  await t.test('account deletion requires explicit confirmation and removes owned data', async () => {
+    const doomed = await pool.query(
+      "INSERT INTO app_users(email,email_verified,display_name) VALUES('doomed@example.test',true,'Doomed') RETURNING id"
+    );
+    const doomedId = doomed.rows[0].id;
+    const doomedSession = '55555555-5555-4555-8555-555555555555';
+    const doomedRefresh = generateRefreshToken();
+    await pool.query(
+      'INSERT INTO app_sessions(id,user_id,family_id,refresh_token_hash,expires_at) VALUES($1,$2,$3,$4,now()+interval \'1 day\')',
+      [doomedSession, doomedId, '66666666-6666-4666-8666-666666666666', hashRefreshToken(doomedRefresh)]
+    );
+    await pool.query(
+      "INSERT INTO user_records(user_id,collection,record_id,payload) VALUES($1,'settings','default',$2::jsonb)",
+      [doomedId, JSON.stringify({ activeRepo: '', activeBranch: '', aiProvider: 'gemini', aiModel: 'gemini-2.0-flash', backendUrl: '', darkTheme: true, autoExecuteTier1: false })]
+    );
+    const doomedToken = await createAccessToken(doomedId, doomedSession);
+
+    const missingConfirm = await api('/api/account/delete', doomedToken, 'POST', { confirm: 'nope' });
+    assert.equal(missingConfirm.status, 400);
+    assert.equal((await missingConfirm.json()).error.code, 'ACCOUNT_DELETE_CONFIRMATION_REQUIRED');
+    assert.equal((await api('/api/me', doomedToken)).status, 200);
+
+    const deleted = await api('/api/account/delete', doomedToken, 'POST', { confirm: 'DELETE_MY_ACCOUNT' });
+    assert.equal(deleted.status, 204);
+    assert.equal((await api('/api/me', doomedToken)).status, 401);
+    const users = await pool.query('SELECT id FROM app_users WHERE id=$1', [doomedId]);
+    assert.equal(users.rowCount, 0);
+    const records = await pool.query('SELECT 1 FROM user_records WHERE user_id=$1', [doomedId]);
+    assert.equal(records.rowCount, 0);
+    const sessions = await pool.query('SELECT 1 FROM app_sessions WHERE user_id=$1', [doomedId]);
+    assert.equal(sessions.rowCount, 0);
+    const audit = await pool.query(
+      "SELECT event_type FROM security_audit_events WHERE event_type IN ('account_delete_requested','account_deleted') ORDER BY id DESC LIMIT 2"
+    );
+    assert.equal(audit.rowCount, 2);
+  });
+
 });

@@ -187,6 +187,24 @@ class StudioProjectArchiveExporterTest {
         assertEquals(0, output.size())
     }
 
+    @Test
+    fun rejectsSecretFilesRegardlessOfCaseAndDirectory() {
+        val template = project().files.first()
+        listOf(
+            ".ENV", ".ENV.PRODUCTION", "config/.Env.Local",
+            "keys/PRIVATE.PEM", "keys/Signing.P12", "keys/Release.JKS",
+            "home/ID_RSA", "config/Credentials.JSON", "config/Secrets.YAML",
+            "config/.NPMRC", "config/.NETRC"
+        ).forEach { unsafePath ->
+            assertThrows(IllegalArgumentException::class.java) {
+                StudioProjectArchiveExporter.writeZip(
+                    project().copy(files = listOf(template.copy(path = unsafePath))),
+                    ByteArrayOutputStream()
+                )
+            }
+        }
+    }
+
     private fun project(): StudioProjectSpec {
         val model = AiModelRecommendation(
             modelId = "test",

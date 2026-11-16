@@ -92,7 +92,7 @@ object StudioAiProjectResponseParser {
 
     private fun validatePath(path: String) {
         require(path.isNotBlank() && path.length <= MAX_PATH_LENGTH) { "مسار الملف فارغ أو طويل جداً." }
-        require(!path.startsWith('/') && !path.contains('\\\\') && !path.contains(':')) {
+        require(!path.startsWith('/') && !path.contains('\\') && !path.contains(':')) {
             "مسار غير نسبي أو يحتوي على فاصل غير مسموح: $path"
         }
         val segments = path.split('/')
@@ -127,11 +127,12 @@ object StudioAiProjectResponseParser {
                     "google-credentials.json", "google_credentials.json",
                     "application_default_credentials.json", ".git-credentials",
                     ".npmrc", ".pypirc", ".netrc", ".ssh", ".aws", ".azure", ".kube"
-                ) || segment.matches(Regex("(?i).*(?:firebase-adminsdk|service[-_]?account).*\\\\.json$"))
+                ) || segment.matches(Regex("(?i).*(?:firebase-adminsdk|service[-_]?account).*\\.json$"))
         }) {
             "تم رفض ملف قد يحتوي على أسرار أو مفاتيح خاصة: $path"
         }
         require(path.matches(Regex("[A-Za-z0-9._@+/-]+"))) {
             "يحتوي مسار الملف على أحرف غير مدعومة: $path"
         }
-    }}
+    }
+}

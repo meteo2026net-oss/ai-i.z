@@ -204,6 +204,8 @@ class MetraAgentViewModel(
     // Serialize cloud writes/deletes and prevent a queued save from resurrecting a deleted project.
     private val studioProjectPersistenceMutex = Mutex()
     private val studioProjectSaveRevisions = StudioProjectSaveRevisionTracker()
+    private val studioProjectOpenRequests = com.example.data.repository.StudioProjectOpenRequestTracker()
+    private val studioProjectListRequests = com.example.data.repository.StudioProjectOpenRequestTracker()
     // Accessed by UI-triggered deletes and coroutine-based saves; use a concurrent set.
     private val deletedStudioProjectIds = java.util.concurrent.ConcurrentHashMap.newKeySet<String>()
 
@@ -236,15 +238,23 @@ class MetraAgentViewModel(
                 currentGoogleName = displayName
             )
         }
-        // Restore only the lightweight library first, then fetch the latest project's files.
+        // Restore the library only if this request is still current; a late response must not undo a delete.
         viewModelScope.launch {
+            val requestId = studioProjectListRequests.next()
             userDataRepository.listStudioProjects().onSuccess { projects ->
-                _workspace.update { it.copy(savedStudioProjects = projects) }
-                val latest = projects.firstOrNull() ?: return@onSuccess
+                if (!studioProjectListRequests.isCurrent(requestId)) return@onSuccess
+                val visibleProjects = projects.filterNot { it.id in deletedStudioProjectIds }
+                _workspace.update { it.copy(savedStudioProjects = visibleProjects) }
+                val latest = visibleProjects.firstOrNull() ?: return@onSuccess
                 if (_workspace.value.activeStudioProject == null) {
                     userDataRepository.getStudioProject(latest.id)
                         .onSuccess { project ->
-                            if (project != null && _workspace.value.activeStudioProject == null) {
+                            if (
+                                studioProjectListRequests.isCurrent(requestId) &&
+                                latest.id !in deletedStudioProjectIds &&
+                                project != null &&
+                                _workspace.value.activeStudioProject == null
+                            ) {
                                 val firstFile = project.files.firstOrNull { it.isEntrypoint }
                                     ?: project.files.firstOrNull()
                                 _workspace.update {
@@ -258,11 +268,15 @@ class MetraAgentViewModel(
                             }
                         }
                         .onFailure { error ->
-                            Log.w(TAG, "Latest Studio project detail restore unavailable", error)
+                            if (studioProjectListRequests.isCurrent(requestId)) {
+                                Log.w(TAG, "Latest Studio project detail restore unavailable", error)
+                            }
                         }
                 }
             }.onFailure { error ->
-                Log.w(TAG, "Studio project library restore unavailable", error)
+                if (studioProjectListRequests.isCurrent(requestId)) {
+                    Log.w(TAG, "Studio project library restore unavailable", error)
+                }
             }
         }
         if (gitHubRepo.hasToken()) {
@@ -2162,17 +2176,23 @@ class MetraAgentViewModel(
     }
 
     fun refreshSavedStudioProjects() {
+        val requestId = studioProjectListRequests.next()
         viewModelScope.launch {
             userDataRepository.listStudioProjects()
-                .onSuccess { projects -> _workspace.update { it.copy(savedStudioProjects = projects) } }
+                .onSuccess { projects ->
+                    if (!studioProjectListRequests.isCurrent(requestId)) return@onSuccess
+                    val visibleProjects = projects.filterNot { it.id in deletedStudioProjectIds }
+                    _workspace.update { it.copy(savedStudioProjects = visibleProjects) }
+                }
                 .onFailure { error ->
-                    Log.w(TAG, "Studio project list refresh failed", error)
-                    _workspace.update { it.copy(statusBannerMessage = "تعذر تحديث قائمة المشاريع المحفوظة.") }
+                    if (studioProjectListRequests.isCurrent(requestId)) {
+                        Log.w(TAG, "Studio project list refresh failed", error)
+                        _workspace.update { it.copy(statusBannerMessage = "تعذر تحديث قائمة المشاريع المحفوظة.") }
+                    }
                 }
         }
     }
 
-    private val studioProjectOpenRequests = com.example.data.repository.StudioProjectOpenRequestTracker()
 
     fun openSavedStudioProject(projectId: String) {
         if (projectId in deletedStudioProjectIds || _workspace.value.savedStudioProjects.none { it.id == projectId }) return
@@ -2210,8 +2230,9 @@ class MetraAgentViewModel(
     }
 
     fun deleteSavedStudioProject(projectId: String) {
-        // Invalidate in-flight opens so a late response cannot resurrect a deleted project in the UI.
+        // Invalidate in-flight reads so stale list/detail responses cannot resurrect deleted projects.
         studioProjectOpenRequests.invalidate()
+        studioProjectListRequests.invalidate()
         // Mark immediately so saves already queued behind the mutex cannot recreate this project.
         deletedStudioProjectIds.add(projectId)
         studioProjectSaveRevisions.next(projectId)

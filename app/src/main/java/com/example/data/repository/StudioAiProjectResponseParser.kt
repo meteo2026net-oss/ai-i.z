@@ -39,7 +39,7 @@ object StudioAiProjectResponseParser {
         val files = rawFiles.mapIndexed { index, raw ->
             val item = raw as? Map<*, *>
                 ?: throw IllegalArgumentException("تعريف الملف رقم ${index + 1} غير صالح.")
-            val path = (item["path"] as? String)?.trim()
+            val path = item["path"] as? String
                 ?: throw IllegalArgumentException("الملف رقم ${index + 1} لا يحتوي على path.")
             validatePath(path)
             val normalizedPath = path.lowercase(Locale.ROOT)

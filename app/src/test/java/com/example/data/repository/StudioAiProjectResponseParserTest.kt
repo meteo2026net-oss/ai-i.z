@@ -110,6 +110,65 @@ class StudioAiProjectResponseParserTest {
     }
 
     @Test
+    fun rejectsCloudCredentialsAndPrivateMaterialAnywhereInThePath() {
+        listOf(
+            "service-account.json",
+            "config/Service_Account.JSON",
+            "cloud/firebase-adminsdk-ab12c@example.iam.gserviceaccount.com.json",
+            "keys/private.key",
+            "keys/signing.p12",
+            "keys/signing.pfx",
+            "keys/release.jks",
+            "config/credentials.json",
+            "config/secrets.yaml",
+            "home/.ssh/config",
+            "deploy/.aws/credentials",
+            "cluster/.kube/config",
+            "cloud/.azure/profile",
+            "config/.npmrc",
+            ".git-credentials",
+            "src/.env.production"
+        ).forEach { unsafePath ->
+            assertThrows(IllegalArgumentException::class.java) {
+                StudioAiProjectResponseParser.parseFiles(
+                    manifest(unsafePath, "sensitive"),
+                    ProgrammingLanguage.KOTLIN
+                )
+            }
+        }
+    }
+
+    @Test
+    fun rejectsWindowsReservedNamesAndNonPortablePathSegments() {
+        listOf(
+            "CON.txt",
+            "src/NUL",
+            "folder/trailing.",
+            "folder/name "
+        ).forEach { unsafePath ->
+            assertThrows(IllegalArgumentException::class.java) {
+                StudioAiProjectResponseParser.parseFiles(
+                    manifest(unsafePath, "content"),
+                    ProgrammingLanguage.KOTLIN
+                )
+            }
+        }
+    }
+
+    @Test
+    fun allowsOnlyDocumentedEnvironmentTemplateFiles() {
+        listOf(".env.example", ".env.template", ".env.sample").forEach { safePath ->
+            assertEquals(
+                safePath,
+                StudioAiProjectResponseParser.parseFiles(
+                    manifest(safePath, "KEY=replace-me"),
+                    ProgrammingLanguage.KOTLIN
+                ).single().path
+            )
+        }
+    }
+
+    @Test
     fun rejectsOversizedModelResponsesBeforeParsing() {
         val response = " ".repeat(260_001)
         assertThrows(IllegalArgumentException::class.java) {

@@ -207,15 +207,15 @@ fun UniversalStudioScreen(
                     isGenerating = isGenerating,
                     onCreate = {
                         onCreateProject(projectNameInput, projectPromptInput, selectedEnv, selectedLang, selectedPriority)
-                    }
-                )
+                    },
+            uiLang = uiLang)
 
                 1 -> ModelAdvisorTab(
                     activeProject = activeProject,
                     models = if (activeProject != null) listOf(activeProject.recommendedModel) + activeProject.alternateModels else recommendedModels,
                     selectedEnv = activeProject?.environment ?: selectedEnv,
-                    onApplyModel = onApplyModel
-                )
+                    onApplyModel = onApplyModel,
+            uiLang = uiLang)
 
                 2 -> CodeExplorerTab(
                     project = activeProject,
@@ -230,22 +230,22 @@ fun UniversalStudioScreen(
                     },
                     onExport = {
                         activeProject?.let { shareStudioProjectArchive(context, it) }
-                    }
-                )
+                    },
+            uiLang = uiLang)
 
                 3 -> ExecutionAndAuditTab(
                     project = activeProject,
                     auditStatus = auditStatus,
-                    onRunAudit = onRunAudit
-                )
+                    onRunAudit = onRunAudit,
+            uiLang = uiLang)
 
                 4 -> SavedStudioProjectsTab(
                     projects = savedProjects,
                     activeProjectId = activeProject?.id,
                     onOpenProject = onOpenSavedProject,
                     onDeleteProject = onDeleteSavedProject,
-                    onRefresh = onRefreshSavedProjects
-                )
+                    onRefresh = onRefreshSavedProjects,
+            uiLang = uiLang)
             }
         }
     }
@@ -257,8 +257,8 @@ private fun SavedStudioProjectsTab(
     activeProjectId: String?,
     onOpenProject: (String) -> Unit,
     onDeleteProject: (String) -> Unit,
-    onRefresh: () -> Unit
-) {
+    onRefresh: () -> Unit,
+    uiLang: String) {
     var projectPendingDeletion by remember { mutableStateOf<com.example.domain.model.StudioProjectSummary?>(null) }
 
     if (projectPendingDeletion != null) {
@@ -364,8 +364,8 @@ private fun ProjectCreatorTab(
     selectedPriority: String,
     onSelectPriority: (String) -> Unit,
     isGenerating: Boolean,
-    onCreate: () -> Unit
-) {
+    onCreate: () -> Unit,
+    uiLang: String) {
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
         contentPadding = PaddingValues(16.dp),
@@ -551,8 +551,8 @@ private fun ModelAdvisorTab(
     activeProject: StudioProjectSpec?,
     models: List<com.example.domain.model.AiModelRecommendation>,
     selectedEnv: DevelopmentEnvironment,
-    onApplyModel: (modelId: String, modelName: String) -> Unit
-) {
+    onApplyModel: (modelId: String, modelName: String) -> Unit,
+    uiLang: String) {
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
         contentPadding = PaddingValues(16.dp),
@@ -582,8 +582,8 @@ private fun ModelAdvisorTab(
         items(models) { model ->
             ModelRecommendationCard(
                 recommendation = model,
-                onApply = { onApplyModel(model.modelId, model.modelName) }
-            )
+                onApply = { onApplyModel(model.modelId, model.modelName) },
+            uiLang = uiLang)
         }
 
         // Multi-Model Collaboration Team Architecture
@@ -664,8 +664,8 @@ private fun shareStudioProjectArchive(
 @Composable
 private fun ModelRecommendationCard(
     recommendation: com.example.domain.model.AiModelRecommendation,
-    onApply: () -> Unit
-) {
+    onApply: () -> Unit,
+    uiLang: String) {
     Card(
         modifier = Modifier
             .fillMaxWidth()
@@ -789,8 +789,8 @@ private fun CodeExplorerTab(
     onContentChange: (String) -> Unit,
     onSave: () -> Unit,
     onCopy: () -> Unit,
-    onExport: () -> Unit
-) {
+    onExport: () -> Unit,
+    uiLang: String) {
     if (project == null || project.files.isEmpty()) {
         Box(
             modifier = Modifier.fillMaxSize(),
@@ -912,8 +912,8 @@ private fun CodeExplorerTab(
 private fun ExecutionAndAuditTab(
     project: StudioProjectSpec?,
     auditStatus: String,
-    onRunAudit: () -> Unit
-) {
+    onRunAudit: () -> Unit,
+    uiLang: String) {
     if (project == null) {
         Box(
             modifier = Modifier.fillMaxSize(),

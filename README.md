@@ -110,7 +110,7 @@ See:
 
 GitHub Actions runs Android unit tests, assembles a debug APK, and runs backend session, PostgreSQL API, and Runner security tests without starting Firebase emulators.
 
-Latest verified run on 2026-11-16: [GitHub Actions run 43965970616](https://github.com/meteo2026net-oss/ai-i.z/actions/runs/43965970616) passed both Android and Backend/Runner jobs for commit `eadd403`. Artifacts: `ai-iz-debug-apk` (ID `14277936641`, ~24.2 MB) and `ai-iz-release-ci-validation` (ID `14275709575`, ~34.5 MB; temporary CI keystore only). Includes account-deletion de-identification, Arabic/English layout direction preference, and Windows helper scripts. Not a production-signed release. CI does not verify production OAuth, deployed services, or physical-device behavior.
+Latest verified run on 2026-11-16: [GitHub Actions run 43973790256](https://github.com/meteo2026net-oss/ai-i.z/actions/runs/43973790256) passed both Android and Backend/Runner jobs for commit `f493f8a`. Artifacts: `ai-iz-debug-apk` (ID `14280112762`, ~24.2 MB) and `ai-iz-release-ci-validation` (ID `14279677950`, ~34.5 MB; temporary CI keystore only). Includes bilingual navigation chrome (AppUiStrings), Studio lifecycle regression tests, and account-deletion audit de-identification. Not a production-signed release. CI does not verify production OAuth, deployed services, or physical-device behavior.
 
 ## Product requirements and design references
 

@@ -452,7 +452,24 @@ fun SecuritySettingsScreen(
             }
         }
 
-        if (showDeleteAccountDialog) {
+        item {
+            CommandCard {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    Icon(Icons.Rounded.Security, contentDescription = null, tint = EmeraldSuccess)
+                    Text("حقوق الملكية الفكرية وحماية التطبيق", style = MaterialTheme.typography.titleMedium)
+                }
+                Text("اسم التطبيق: ai i.z", style = MaterialTheme.typography.bodyMedium)
+                Text("المطور والمالك: إبراهيم زينب (Ibrahim Zeinab)", style = MaterialTheme.typography.bodyMedium)
+                Text("جميع الحقوق محفوظة © 2026", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Text("الأمان والتشفير: التطبيق محمي بالكامل عبر خوارزميات التشفير المتقدمة وضغط وإخفاء الأكواد (ProGuard/R8) لمنع تفكيكه أو سرقة أكواده.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            }
+        }
+    }
+
+    if (showDeleteAccountDialog) {
             AlertDialog(
                 onDismissRequest = {
                     if (!deleteAccountInProgress) showDeleteAccountDialog = false
@@ -504,23 +521,6 @@ fun SecuritySettingsScreen(
                     }
                 }
             )
-        }
-
-        item {
-            CommandCard {
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    Icon(Icons.Rounded.Security, contentDescription = null, tint = EmeraldSuccess)
-                    Text("حقوق الملكية الفكرية وحماية التطبيق", style = MaterialTheme.typography.titleMedium)
-                }
-                Text("اسم التطبيق: ai i.z", style = MaterialTheme.typography.bodyMedium)
-                Text("المطور والمالك: إبراهيم زينب (Ibrahim Zeinab)", style = MaterialTheme.typography.bodyMedium)
-                Text("جميع الحقوق محفوظة © 2026", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                Text("الأمان والتشفير: التطبيق محمي بالكامل عبر خوارزميات التشفير المتقدمة وضغط وإخفاء الأكواد (ProGuard/R8) لمنع تفكيكه أو سرقة أكواده.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-            }
-        }
     }
 }
 

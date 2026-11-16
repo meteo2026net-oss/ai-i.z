@@ -8,6 +8,16 @@
 
 > هذا السجل يفصل بين وجود الشفرة، ونجاح الاختبارات، والاختبار على جهاز فعلي، ونشر الخدمات. لا تعني نتيجة CI أن المنتج جاهز للإنتاج.
 
+
+## تحديث 2026-11-16 — حذف الحساب + CI أخضر على الرأس
+
+- commit `9ee6471`: نقل `AlertDialog` خارج `LazyColumn` لإصلاح فشل `compileDebugKotlin`.
+- commit `923ca5e`: اختبار تكامل Backend لحذف الحساب مع تأكيد صريح وإزالة البيانات المرتبطة.
+- GitHub Actions run [43946318213](https://github.com/meteo2026net-oss/ai-i.z/actions/runs/43946318213) على `923ca5e`: **نجاح** وظيفتي Android وBackend/Runner.
+- Artifacts: `ai-iz-debug-apk` (ID 14265631850) و`ai-iz-release-ci-validation` (ID 14265716452)؛ توقيع CI مؤقت وليس إنتاج.
+- Backend: يشمل اختبار حذف الحساب الجديد ونجح.
+- Android: unit tests + assembleDebug + minified Release نجحت بعد إصلاح الـ composable.
+
 ## تحديث 2026-11-16 — Gradle Wrapper وسكربتات Windows
 
 - commit `dfbace0`: إضافة `gradlew` و`gradlew.bat` و`gradle-wrapper.jar` لإصدار Gradle 9.3.1.

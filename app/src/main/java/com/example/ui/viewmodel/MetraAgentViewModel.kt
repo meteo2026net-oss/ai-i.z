@@ -2060,8 +2060,8 @@ class MetraAgentViewModel(
         language: com.example.domain.model.ProgrammingLanguage,
         priority: String
     ) {
-        // A new project request is a newer user intent than any pending saved-project open.
-        studioProjectOpenRequests.invalidate()
+        // Keep a request token so later opens/edits win if generation completes afterward.
+        val workspaceRequestId = studioProjectOpenRequests.invalidate()
         viewModelScope.launch {
             _workspace.update {
                 it.copy(
@@ -2120,10 +2120,12 @@ class MetraAgentViewModel(
                 """.trimIndent()
 
                 val generated = aiRepo.analyzeOnceWithFailover(prompt = generationPrompt, expectJson = true) { alert ->
-                    _workspace.update {
-                        it.copy(
-                            statusBannerMessage = "تعذر النموذج ${alert.exhaustedLabel}؛ يجري التحويل إلى نموذج متاح لتوليد المشروع."
-                        )
+                    if (studioProjectOpenRequests.isCurrent(workspaceRequestId)) {
+                        _workspace.update {
+                            it.copy(
+                                statusBannerMessage = "تعذر النموذج ${alert.exhaustedLabel}؛ يجري التحويل إلى نموذج متاح لتوليد المشروع."
+                            )
+                        }
                     }
                 }
 
@@ -2139,39 +2141,46 @@ class MetraAgentViewModel(
                             securityAuditScore = null
                         )
                         val firstFile = project.files.first { it.isEntrypoint }
-                        _workspace.update {
-                            it.copy(
-                                isGeneratingStudioProject = false,
-                                activeStudioProject = project,
-                                studioSelectedFilePath = firstFile.path,
-                                studioEditedContent = firstFile.content,
-                                statusBannerMessage = "اكتمل توليد مشروع مخصص بالذكاء الاصطناعي: ${files.size} ملفاً. لم يتم تشغيل البناء أو الاختبارات بعد."
-                            )
+                        if (studioProjectOpenRequests.isCurrent(workspaceRequestId)) {
+                            _workspace.update {
+                                it.copy(
+                                    isGeneratingStudioProject = false,
+                                    activeStudioProject = project,
+                                    studioSelectedFilePath = firstFile.path,
+                                    studioEditedContent = firstFile.content,
+                                    statusBannerMessage = "اكتمل توليد مشروع مخصص بالذكاء الاصطناعي: ${files.size} ملفاً. لم يتم تشغيل البناء أو الاختبارات بعد."
+                                )
+                            }
                         }
+                        // Persist even if the user switched workspaces; never steal focus back.
                         persistStudioProject(project, studioProjectSaveRevisions.next(project.id))
                     },
                     onFailure = { error ->
                         val firstFile = baseProject.files.firstOrNull { it.isEntrypoint }
                             ?: baseProject.files.firstOrNull()
-                        _workspace.update {
-                            it.copy(
-                                isGeneratingStudioProject = false,
-                                activeStudioProject = baseProject,
-                                studioSelectedFilePath = firstFile?.path ?: "",
-                                studioEditedContent = firstFile?.content ?: "",
-                                statusBannerMessage = "تعذر التوليد المخصص (${error.localizedMessage ?: "استجابة غير صالحة"}). عُرض قالب البداية فقط؛ لم يُعرض على أنه مشروع مولّد أو مختبَر."
-                            )
+                        if (studioProjectOpenRequests.isCurrent(workspaceRequestId)) {
+                            _workspace.update {
+                                it.copy(
+                                    isGeneratingStudioProject = false,
+                                    activeStudioProject = baseProject,
+                                    studioSelectedFilePath = firstFile?.path ?: "",
+                                    studioEditedContent = firstFile?.content ?: "",
+                                    statusBannerMessage = "تعذر التوليد المخصص (${error.localizedMessage ?: "استجابة غير صالحة"}). عُرض قالب البداية فقط؛ لم يُعرض على أنه مشروع مولّد أو مختبَر."
+                                )
+                            }
                         }
                     }
                 )
             } catch (e: kotlinx.coroutines.CancellationException) {
                 throw e
             } catch (e: Exception) {
-                _workspace.update {
-                    it.copy(
-                        isGeneratingStudioProject = false,
-                        statusBannerMessage = "تعذر إنشاء المشروع: ${e.localizedMessage ?: "خطأ غير معروف"}"
-                    )
+                if (studioProjectOpenRequests.isCurrent(workspaceRequestId)) {
+                    _workspace.update {
+                        it.copy(
+                            isGeneratingStudioProject = false,
+                            statusBannerMessage = "تعذر إنشاء المشروع: ${e.localizedMessage ?: "خطأ غير معروف"}"
+                        )
+                    }
                 }
             }
         }
@@ -2200,7 +2209,12 @@ class MetraAgentViewModel(
         if (projectId in deletedStudioProjectIds || _workspace.value.savedStudioProjects.none { it.id == projectId }) return
         val requestId = studioProjectOpenRequests.next()
         viewModelScope.launch {
-            _workspace.update { it.copy(statusBannerMessage = "جار تحميل ملفات المشروع المحفوظ…") }
+            _workspace.update {
+                it.copy(
+                    isGeneratingStudioProject = false,
+                    statusBannerMessage = "جار تحميل ملفات المشروع المحفوظ…"
+                )
+            }
             userDataRepository.getStudioProject(projectId)
                 .onSuccess { project ->
                     if (!studioProjectOpenRequests.isCurrent(requestId) || projectId in deletedStudioProjectIds) return@onSuccess
@@ -2283,7 +2297,11 @@ class MetraAgentViewModel(
                                     fileCount = project.files.size
                                 )
                             ) + withoutCurrent,
-                            statusBannerMessage = "تم حفظ المشروع وملفاته في حساب AI I.Z السحابي."
+                            statusBannerMessage = if (state.activeStudioProject?.id == project.id) {
+                                "تم حفظ المشروع وملفاته في حساب AI I.Z السحابي."
+                            } else {
+                                state.statusBannerMessage
+                            }
                         )
                     }
                     true
@@ -2306,6 +2324,7 @@ class MetraAgentViewModel(
         val file = proj.files.find { it.path == path } ?: return
         _workspace.update {
             it.copy(
+                isGeneratingStudioProject = false,
                 studioSelectedFilePath = path,
                 studioEditedContent = file.content,
                 statusBannerMessage = null
@@ -2317,6 +2336,7 @@ class MetraAgentViewModel(
         studioProjectOpenRequests.invalidate()
         _workspace.update {
             it.copy(
+                isGeneratingStudioProject = false,
                 studioEditedContent = newContent,
                 statusBannerMessage = "توجد تعديلات غير محفوظة في مساحة العمل."
             )

@@ -23,9 +23,10 @@
 # Preserve attributes needed for reflection, serialization, and Compose UI
 -keepattributes *Annotation*,Signature,InnerClasses,EnclosingMethod,SourceFile,LineNumberTable
 
-# Keep Model classes and Firestore data classes from aggressive renaming
--keep class com.example.model.** { *; }
+# Keep domain models and core security/storage classes used via reflection/Moshi
+-keep class com.example.domain.model.** { *; }
 -keep class com.example.core.** { *; }
+-keep class com.example.data.remote.** { *; }
 
 # Keep AndroidX and Compose components
 -keep class androidx.compose.** { *; }

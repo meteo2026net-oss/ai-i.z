@@ -198,7 +198,9 @@ class StudioProjectArchiveExporterTest {
             "service-account.json", "config/Service_Account.JSON",
             "google-credentials.json", "application_default_credentials.json",
             ".git-credentials", "home/.ssh/config", "deploy/.aws/credentials",
-            "cluster/.kube/config", "cloud/.azure/profile"
+            "cluster/.kube/config", "cloud/.azure/profile",
+            "firebase-adminsdk-ab12c@example.iam.gserviceaccount.com.json",
+            "config/production-service-account-key.json"
         ).forEach { unsafePath ->
             assertThrows(IllegalArgumentException::class.java) {
                 StudioProjectArchiveExporter.writeZip(

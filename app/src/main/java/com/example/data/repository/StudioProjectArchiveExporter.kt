@@ -92,7 +92,7 @@ object StudioProjectArchiveExporter {
                     "google-credentials.json", "google_credentials.json",
                     "application_default_credentials.json", ".git-credentials",
                     ".npmrc", ".pypirc", ".netrc", ".ssh", ".aws", ".azure", ".kube"
-                )
+                ) || segment.matches(Regex("(?i).*(?:firebase-adminsdk|service[-_]?account).*\\.json$"))
         }) {
             "تم رفض تصدير ملف قد يحتوي على أسرار أو مفاتيح خاصة."
         }

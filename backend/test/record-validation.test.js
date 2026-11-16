@@ -124,7 +124,9 @@ test('rejects common cloud credentials and private configuration directories', (
     'home/.ssh/config',
     'deploy/.aws/credentials',
     'cluster/.kube/config',
-    'cloud/.azure/profile'
+    'cloud/.azure/profile',
+    'firebase-adminsdk-ab12c@example.iam.gserviceaccount.com.json',
+    'config/production-service-account-key.json'
   ];
   for (const unsafePath of unsafePaths) {
     assert.equal(validateUserRecord('studio_projects', {

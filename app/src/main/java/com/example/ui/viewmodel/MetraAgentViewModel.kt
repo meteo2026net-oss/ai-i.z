@@ -2060,6 +2060,8 @@ class MetraAgentViewModel(
         language: com.example.domain.model.ProgrammingLanguage,
         priority: String
     ) {
+        // A new project request is a newer user intent than any pending saved-project open.
+        studioProjectOpenRequests.invalidate()
         viewModelScope.launch {
             _workspace.update {
                 it.copy(
@@ -2299,6 +2301,7 @@ class MetraAgentViewModel(
     }
 
     fun selectStudioFile(path: String) {
+        studioProjectOpenRequests.invalidate()
         val proj = _workspace.value.activeStudioProject ?: return
         val file = proj.files.find { it.path == path } ?: return
         _workspace.update {
@@ -2310,10 +2313,12 @@ class MetraAgentViewModel(
     }
 
     fun updateStudioFileContent(newContent: String) {
+        studioProjectOpenRequests.invalidate()
         _workspace.update { it.copy(studioEditedContent = newContent) }
     }
 
     fun saveStudioFileChanges() {
+        studioProjectOpenRequests.invalidate()
         val proj = _workspace.value.activeStudioProject ?: return
         val currentPath = _workspace.value.studioSelectedFilePath
         val newContent = _workspace.value.studioEditedContent

@@ -26,6 +26,7 @@ import androidx.compose.material.icons.rounded.History
 import androidx.compose.material.icons.rounded.IosShare
 import androidx.compose.material.icons.rounded.NotificationsActive
 import androidx.compose.material.icons.rounded.Security
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.FilterChip
@@ -222,6 +223,9 @@ fun SecuritySettingsScreen(
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     val credentialManager = remember(context) { CredentialManager.create(context) }
+    var showDeleteAccountDialog by remember { mutableStateOf(false) }
+    var deleteAccountError by remember { mutableStateOf<String?>(null) }
+    var deleteAccountInProgress by remember { mutableStateOf(false) }
     var notifGranted by remember {
         mutableStateOf(QuotaNotificationHelper.hasNotificationPermission(context))
     }
@@ -429,7 +433,77 @@ fun SecuritySettingsScreen(
                     Icon(Icons.AutoMirrored.Rounded.Logout, contentDescription = null)
                     Text("تسجيل الخروج من الحساب")
                 }
+                OutlinedButton(
+                    onClick = {
+                        deleteAccountError = null
+                        showDeleteAccountDialog = true
+                    },
+                    enabled = !deleteAccountInProgress,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .testTag("delete_account_button")
+                ) {
+                    Icon(Icons.Rounded.DeleteForever, contentDescription = null, tint = CrimsonError)
+                    Text("حذف الحساب نهائياً من الخادم")
+                }
+                deleteAccountError?.let { err ->
+                    Text(err, color = CrimsonError, style = MaterialTheme.typography.bodySmall)
+                }
             }
+        }
+
+        if (showDeleteAccountDialog) {
+            AlertDialog(
+                onDismissRequest = {
+                    if (!deleteAccountInProgress) showDeleteAccountDialog = false
+                },
+                title = { Text("تأكيد حذف الحساب") },
+                text = {
+                    Text(
+                        "سيُحذف حسابك وكل بياناتك المخزّنة على خادم AI I.Z (المشاريع، المهام، السجلات، الموافقات) بشكل نهائي. لا يمكن التراجع عن هذا الإجراء."
+                    )
+                },
+                confirmButton = {
+                    Button(
+                        onClick = {
+                            scope.launch {
+                                deleteAccountInProgress = true
+                                deleteAccountError = null
+                                val result = withContext(NonCancellable) {
+                                    AuthSessionRepository(SecretVault(context)).deleteAccount()
+                                }
+                                deleteAccountInProgress = false
+                                result.fold(
+                                    onSuccess = {
+                                        showDeleteAccountDialog = false
+                                        runCatching {
+                                            credentialManager.clearCredentialState(ClearCredentialStateRequest())
+                                        }
+                                        onSignedOut()
+                                    },
+                                    onFailure = { error ->
+                                        deleteAccountError = error.message
+                                            ?: "تعذر حذف الحساب. تحقق من الاتصال وحاول مجدداً."
+                                        showDeleteAccountDialog = false
+                                    }
+                                )
+                            }
+                        },
+                        enabled = !deleteAccountInProgress,
+                        colors = ButtonDefaults.buttonColors(containerColor = CrimsonError)
+                    ) {
+                        Text(if (deleteAccountInProgress) "جاري الحذف…" else "حذف نهائي")
+                    }
+                },
+                dismissButton = {
+                    OutlinedButton(
+                        onClick = { showDeleteAccountDialog = false },
+                        enabled = !deleteAccountInProgress
+                    ) {
+                        Text("إلغاء")
+                    }
+                }
+            )
         }
 
         item {

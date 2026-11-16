@@ -35,7 +35,8 @@ export function validateUserRecord(collection, data) {
             invalidPortableSegment(part) ||
             (part.startsWith('.env') && !envFilesAllowed.includes(part))) ||
           /\.(?:pem|key|p12|pfx|jks|keystore)$/i.test(file.path) ||
-          /^(?:id_rsa|id_ed25519|credentials(?:\.json)?|secrets?\.(?:json|ya?ml)|\.npmrc|\.pypirc|\.netrc)$/i.test(filename)) return false;
+          /^(?:id_rsa|id_ed25519|credentials(?:\.(?:json|ini))?|secrets?\.(?:json|ya?ml)|service[-_]?account(?:\.json)?|google[-_]credentials\.json|application_default_credentials\.json|\.git-credentials|\.npmrc|\.pypirc|\.netrc)$/i.test(filename) ||
+          segments.some(part => ['.ssh', '.aws', '.azure', '.kube'].includes(part))) return false;
       if (paths.has(normalizedPath)) return false;
       paths.add(normalizedPath);
       totalBytes += Buffer.byteLength(file.content, 'utf8');

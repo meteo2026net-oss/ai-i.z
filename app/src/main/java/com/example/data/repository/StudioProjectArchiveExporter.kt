@@ -87,8 +87,11 @@ object StudioProjectArchiveExporter {
                 segment.endsWith(".jks") || segment.endsWith(".keystore") ||
                 segment in setOf(
                     "id_rsa", "id_ed25519", "credentials", "credentials.json",
-                    "secrets.json", "secrets.yaml", "secrets.yml",
-                    ".npmrc", ".pypirc", ".netrc"
+                    "credentials.ini", "secrets.json", "secrets.yaml", "secrets.yml",
+                    "service-account.json", "service_account.json",
+                    "google-credentials.json", "google_credentials.json",
+                    "application_default_credentials.json", ".git-credentials",
+                    ".npmrc", ".pypirc", ".netrc", ".ssh", ".aws", ".azure", ".kube"
                 )
         }) {
             "تم رفض تصدير ملف قد يحتوي على أسرار أو مفاتيح خاصة."

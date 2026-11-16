@@ -112,3 +112,24 @@ test('validates durable Studio projects and rejects unsafe file manifests', () =
     files: [{ ...validStudioProject.files[0], content: 'x'.repeat(48001) }]
   }), false);
 });
+
+
+test('rejects common cloud credentials and private configuration directories', () => {
+  const unsafePaths = [
+    'service-account.json',
+    'config/Service_Account.JSON',
+    'google-credentials.json',
+    'application_default_credentials.json',
+    '.git-credentials',
+    'home/.ssh/config',
+    'deploy/.aws/credentials',
+    'cluster/.kube/config',
+    'cloud/.azure/profile'
+  ];
+  for (const unsafePath of unsafePaths) {
+    assert.equal(validateUserRecord('studio_projects', {
+      ...validStudioProject,
+      files: [{ ...validStudioProject.files[0], path: unsafePath }]
+    }), false, unsafePath);
+  }
+});

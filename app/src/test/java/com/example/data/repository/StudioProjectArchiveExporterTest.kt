@@ -194,7 +194,11 @@ class StudioProjectArchiveExporterTest {
             ".ENV", ".ENV.PRODUCTION", "config/.Env.Local",
             "keys/PRIVATE.PEM", "keys/Signing.P12", "keys/Release.JKS",
             "home/ID_RSA", "config/Credentials.JSON", "config/Secrets.YAML",
-            "config/.NPMRC", "config/.NETRC"
+            "config/.NPMRC", "config/.NETRC",
+            "service-account.json", "config/Service_Account.JSON",
+            "google-credentials.json", "application_default_credentials.json",
+            ".git-credentials", "home/.ssh/config", "deploy/.aws/credentials",
+            "cluster/.kube/config", "cloud/.azure/profile"
         ).forEach { unsafePath ->
             assertThrows(IllegalArgumentException::class.java) {
                 StudioProjectArchiveExporter.writeZip(

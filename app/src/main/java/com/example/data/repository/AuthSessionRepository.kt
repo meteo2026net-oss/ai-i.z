@@ -59,6 +59,19 @@ class AuthSessionRepository(private val vault: SecretVault) {
         }
     }.rethrowCancellation()
 
+    suspend fun deleteAccount(): Result<Unit> = runCatching {
+        val accessToken = vault.getSecret(SecretVault.KEY_AUTH_ACCESS_TOKEN)
+        require(accessToken.isNotBlank()) { "انتهت جلسة AI I.Z. سجّل الدخول مجدداً." }
+        service.deleteAccount("Bearer $accessToken", com.example.data.remote.DeleteAccountRequest())
+        // Clear local secrets regardless of whether the server already revoked the session.
+        vault.putSecret(SecretVault.KEY_AUTH_ACCESS_TOKEN, "")
+        vault.putSecret(SecretVault.KEY_AUTH_REFRESH_TOKEN, "")
+        vault.putSecret(SecretVault.KEY_AUTH_USER_ID, "")
+        vault.putSecret(SecretVault.KEY_AUTH_EMAIL, "")
+        vault.putSecret(SecretVault.KEY_AUTH_DISPLAY_NAME, "")
+        Unit
+    }.rethrowCancellation()
+
     suspend fun signOut() {
         val refreshToken = vault.getSecret(SecretVault.KEY_AUTH_REFRESH_TOKEN)
         if (refreshToken.isNotBlank()) runCatching { service.logout(RefreshSessionRequest(refreshToken)) }

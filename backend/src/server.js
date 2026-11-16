@@ -548,6 +548,52 @@ app.delete('/api/data/:collection/:recordId', requireSession, async (req, res) =
   res.status(204).end();
 });
 
+
+// Permanent account deletion. Requires an authenticated session and an explicit confirmation string.
+// Cascades remove identities, sessions, user_records, and runner_approvals. Audit rows keep user_id NULL.
+app.post('/api/account/delete', requireSession, async (req, res) => {
+  const confirm = req.body?.confirm;
+  if (confirm !== 'DELETE_MY_ACCOUNT') {
+    return jsonError(res, 400, 'ACCOUNT_DELETE_CONFIRMATION_REQUIRED',
+      'Send {"confirm":"DELETE_MY_ACCOUNT"} to permanently delete this account and all owned data.');
+  }
+  const userId = req.user.id;
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+    await client.query(
+      `INSERT INTO security_audit_events(user_id,event_type,session_id,details)
+       VALUES($1,'account_delete_requested',$2,$3::jsonb)`,
+      [userId, req.user.session_id || null, JSON.stringify({ confirmation: 'DELETE_MY_ACCOUNT' })]
+    );
+    await client.query(
+      'UPDATE app_sessions SET revoked_at=COALESCE(revoked_at,now()) WHERE user_id=$1 AND revoked_at IS NULL',
+      [userId]
+    );
+    const deleted = await client.query(
+      'DELETE FROM app_users WHERE id=$1 AND status=$2 RETURNING id',
+      [userId, 'active']
+    );
+    if (!deleted.rowCount) {
+      await client.query('ROLLBACK');
+      return jsonError(res, 409, 'ACCOUNT_NOT_DELETABLE', 'The account could not be deleted in its current state.');
+    }
+    await client.query(
+      `INSERT INTO security_audit_events(user_id,event_type,details)
+       VALUES(NULL,'account_deleted',$1::jsonb)`,
+      [JSON.stringify({ deletedUserId: userId })]
+    );
+    await client.query('COMMIT');
+    res.status(204).end();
+  } catch (error) {
+    await client.query('ROLLBACK').catch(() => {});
+    console.error('Account deletion failed:', error.message);
+    return jsonError(res, 500, 'ACCOUNT_DELETE_FAILED', 'The account could not be deleted.');
+  } finally {
+    client.release();
+  }
+});
+
 app.use((_req, res) => jsonError(res, 404, 'NOT_FOUND', 'The requested API route does not exist.'));
 app.use((error, _req, res, _next) => {
   console.error('Unhandled request error:', error.message);

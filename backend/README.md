@@ -17,6 +17,7 @@ Never commit `.env`, database credentials, OAuth client secrets, signing keys, o
 - `POST /api/auth/refresh` — body: `{ "refreshToken": "..." }`; rotates refresh token atomically.
 - `POST /api/auth/logout` — body: `{ "refreshToken": "..." }`; revokes the entire refresh-token family even if the access token has expired.
 - `GET /api/me` — current server-derived profile (Bearer access token).
+- `POST /api/account/delete` — permanent account deletion; body must be `{"confirm":"DELETE_MY_ACCOUNT"}`. Revokes sessions and cascades owned data.
 - `POST /api/runner/approvals` — create an immutable, expiring approval request bound to a canonical operation hash and exact target.
 - `GET /api/runner/approvals` and `GET /api/runner/approvals/{approvalId}` — list or retrieve only the caller's approval records.
 - `POST /api/runner/approvals/{approvalId}/decision` — explicitly approve or reject a pending request.

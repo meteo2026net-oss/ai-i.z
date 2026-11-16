@@ -1,8 +1,12 @@
 package com.example.data.repository
 
+import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
+import java.util.concurrent.Callable
+import java.util.concurrent.Executors
+import java.util.concurrent.TimeUnit
 
 class StudioProjectOpenRequestTrackerTest {
     @Test
@@ -86,5 +90,25 @@ class StudioProjectOpenRequestTrackerTest {
 
         assertFalse(tracker.isCurrent(pending))
         assertTrue(tracker.isCurrent(retry))
+    }
+    @Test
+    fun concurrentOpenRequestsRemainUniqueAndOnlyLatestRequestIsCurrent() {
+        val tracker = StudioProjectOpenRequestTracker()
+        val executor = Executors.newFixedThreadPool(8)
+        try {
+            val requests = (1..256).map {
+                executor.submit(Callable { tracker.next() })
+            }.map { it.get(5, TimeUnit.SECONDS) }
+
+            assertEquals(256, requests.toSet().size)
+            val latest = requests.maxOrNull()!!
+
+            assertTrue(tracker.isCurrent(latest))
+            requests.filterNot { it == latest }.forEach { requestId ->
+                assertFalse(tracker.isCurrent(requestId))
+            }
+        } finally {
+            executor.shutdownNow()
+        }
     }
 }

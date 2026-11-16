@@ -110,7 +110,7 @@ See:
 
 GitHub Actions runs Android unit tests, assembles a debug APK, and runs backend session, PostgreSQL API, and Runner security tests without starting Firebase emulators.
 
-Latest verified run on 2026-11-16: [GitHub Actions run 43835553782](https://github.com/meteo2026net-oss/ai-i.z/actions/runs/43835553782) passed both Android and Backend session/API integration jobs for commit `b5ae94f6e6ad512bb4c78622109134b1f04d0226`. It uploaded `ai-iz-debug-apk` (artifact ID `14210492810`, SHA-256 `8ef7d2bf4b1a9519747510d5c0aa2d2f8ec0d0f0d4637e459c3a943208a90262`, 24,148,506 bytes; expires 2026-11-23 09:01:24 UTC). This CI run includes the latest Universal Studio stale-response and failed-delete recovery fixes. The artifact is a temporary debug build, not a signed production release. CI does not verify production OAuth configuration, deployed services, physical-device behavior, or every end-to-end workflow.
+Latest verified run on 2026-11-16: [GitHub Actions run 43946318213](https://github.com/meteo2026net-oss/ai-i.z/actions/runs/43946318213) passed both Android and Backend/Runner jobs for commit `923ca5e`. It uploaded `ai-iz-debug-apk` (artifact ID `14265631850`, ~24.2 MB) and `ai-iz-release-ci-validation` (artifact ID `14265716452`). This run includes Gradle Wrapper, confirmed account deletion API/UI, and the compose AlertDialog placement fix. Artifacts are temporary CI builds, not production-signed releases. CI does not verify production OAuth configuration, deployed services, physical-device behavior, or every end-to-end workflow.
 
 ## Product requirements and design references
 

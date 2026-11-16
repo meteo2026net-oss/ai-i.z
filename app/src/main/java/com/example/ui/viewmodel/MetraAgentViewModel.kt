@@ -2191,14 +2191,23 @@ class MetraAgentViewModel(
         viewModelScope.launch {
             userDataRepository.listStudioProjects()
                 .onSuccess { projects ->
-                    if (!studioProjectListRequests.isCurrent(requestId)) return@onSuccess
                     val visibleProjects = projects.filterNot { it.id in deletedStudioProjectIds }
-                    _workspace.update { it.copy(savedStudioProjects = visibleProjects) }
+                    _workspace.update { state ->
+                        if (studioProjectListRequests.isCurrent(requestId)) {
+                            state.copy(savedStudioProjects = visibleProjects)
+                        } else {
+                            state
+                        }
+                    }
                 }
                 .onFailure { error ->
-                    if (studioProjectListRequests.isCurrent(requestId)) {
-                        Log.w(TAG, "Studio project list refresh failed", error)
-                        _workspace.update { it.copy(statusBannerMessage = "تعذر تحديث قائمة المشاريع المحفوظة.") }
+                    _workspace.update { state ->
+                        if (studioProjectListRequests.isCurrent(requestId)) {
+                            Log.w(TAG, "Studio project list refresh failed", error)
+                            state.copy(statusBannerMessage = "تعذر تحديث قائمة المشاريع المحفوظة.")
+                        } else {
+                            state
+                        }
                     }
                 }
         }
@@ -2223,8 +2232,12 @@ class MetraAgentViewModel(
                 .onSuccess { project ->
                     if (!studioProjectOpenRequests.isCurrent(requestId) || projectId in deletedStudioProjectIds) return@onSuccess
                     if (project == null) {
-                        _workspace.update {
-                            it.copy(statusBannerMessage = "لم يعد المشروع موجوداً في مكتبتك السحابية.")
+                        _workspace.update { state ->
+                            if (studioProjectOpenRequests.isCurrent(requestId) && projectId !in deletedStudioProjectIds) {
+                                state.copy(statusBannerMessage = "لم يعد المشروع موجوداً في مكتبتك السحابية.")
+                            } else {
+                                state
+                            }
                         }
                     } else {
                         val firstFile = project.files.firstOrNull { it.isEntrypoint } ?: project.files.firstOrNull()
@@ -2244,10 +2257,12 @@ class MetraAgentViewModel(
                     }
                 }
                 .onFailure { error ->
-                    if (studioProjectOpenRequests.isCurrent(requestId) && projectId !in deletedStudioProjectIds) {
-                        Log.w(TAG, "Studio project detail load failed", error)
-                        _workspace.update {
-                            it.copy(statusBannerMessage = "تعذر تحميل ملفات المشروع: ${error.localizedMessage ?: "خطأ اتصال"}")
+                    _workspace.update { state ->
+                        if (studioProjectOpenRequests.isCurrent(requestId) && projectId !in deletedStudioProjectIds) {
+                            Log.w(TAG, "Studio project detail load failed", error)
+                            state.copy(statusBannerMessage = "تعذر تحميل ملفات المشروع: ${error.localizedMessage ?: "خطأ اتصال"}")
+                        } else {
+                            state
                         }
                     }
                 }

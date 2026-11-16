@@ -1,5 +1,7 @@
 package com.example.ui.screens
 
+import com.example.ui.i18n.AppUiStrings
+
 import android.Manifest
 import android.content.ClipData
 import android.content.ClipboardManager
@@ -375,7 +377,7 @@ fun SecuritySettingsScreen(
                         horizontalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
                         Icon(Icons.Rounded.DarkMode, contentDescription = null)
-                        Text("الوضع الداكن الأنيق", style = MaterialTheme.typography.titleMedium)
+                        Text(AppUiStrings.darkThemeLabel(settings.appLanguage), style = MaterialTheme.typography.titleMedium)
                     }
                     Switch(
                         checked = settings.darkTheme,
@@ -384,11 +386,11 @@ fun SecuritySettingsScreen(
                     )
                 }
                 Text(
-                    "لغة الواجهة / Interface language",
+                    AppUiStrings.languageSectionTitle(settings.appLanguage),
                     style = MaterialTheme.typography.titleMedium
                 )
                 Text(
-                    "العربية (RTL) أو English (LTR). يتغير اتجاه التخطيط فوراً بعد الحفظ.",
+                    AppUiStrings.languageSectionHint(settings.appLanguage),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
@@ -457,7 +459,7 @@ fun SecuritySettingsScreen(
                         .testTag("sign_out_button")
                 ) {
                     Icon(Icons.AutoMirrored.Rounded.Logout, contentDescription = null)
-                    Text("تسجيل الخروج من الحساب")
+                    Text(AppUiStrings.signOut(settings.appLanguage))
                 }
                 OutlinedButton(
                     onClick = {
@@ -470,7 +472,7 @@ fun SecuritySettingsScreen(
                         .testTag("delete_account_button")
                 ) {
                     Icon(Icons.Rounded.DeleteForever, contentDescription = null, tint = CrimsonError)
-                    Text("حذف الحساب نهائياً من الخادم")
+                    Text(AppUiStrings.deleteAccount(settings.appLanguage))
                 }
                 deleteAccountError?.let { err ->
                     Text(err, color = CrimsonError, style = MaterialTheme.typography.bodySmall)
@@ -500,11 +502,9 @@ fun SecuritySettingsScreen(
                 onDismissRequest = {
                     if (!deleteAccountInProgress) showDeleteAccountDialog = false
                 },
-                title = { Text("تأكيد حذف الحساب") },
+                title = { Text(AppUiStrings.deleteAccountTitle(settings.appLanguage)) },
                 text = {
-                    Text(
-                        "سيُحذف حسابك وكل بياناتك المخزّنة على خادم AI I.Z (المشاريع، المهام، السجلات، الموافقات) بشكل نهائي. لا يمكن التراجع عن هذا الإجراء."
-                    )
+                    Text(AppUiStrings.deleteAccountBody(settings.appLanguage))
                 },
                 confirmButton = {
                     Button(
@@ -535,7 +535,7 @@ fun SecuritySettingsScreen(
                         enabled = !deleteAccountInProgress,
                         colors = ButtonDefaults.buttonColors(containerColor = CrimsonError)
                     ) {
-                        Text(if (deleteAccountInProgress) "جاري الحذف…" else "حذف نهائي")
+                        Text(if (deleteAccountInProgress) AppUiStrings.deleteAccountInProgress(settings.appLanguage) else AppUiStrings.deleteAccountConfirm(settings.appLanguage))
                     }
                 },
                 dismissButton = {
@@ -543,7 +543,7 @@ fun SecuritySettingsScreen(
                         onClick = { showDeleteAccountDialog = false },
                         enabled = !deleteAccountInProgress
                     ) {
-                        Text("إلغاء")
+                        Text(AppUiStrings.cancel(settings.appLanguage))
                     }
                 }
             )

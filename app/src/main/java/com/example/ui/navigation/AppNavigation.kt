@@ -97,6 +97,7 @@ import com.example.ui.screens.TasksScreen
 import com.example.ui.screens.TestsScreen
 import com.example.ui.components.QuotaFailoverBanner
 import com.example.ui.theme.MetraAgentTheme
+import com.example.ui.i18n.AppUiStrings
 import androidx.compose.ui.unit.LayoutDirection
 import com.example.ui.viewmodel.MetraAgentViewModel
 import com.example.ui.viewmodel.StreamUiState
@@ -212,20 +213,20 @@ private fun AuthenticatedMetraShell(
                 viewModel.completeFileDownload(
                     filePath = pending.fullPath,
                     success = true,
-                    message = "تم تنزيل وحفظ الملف: ${pending.fileName}"
+                    message = AppUiStrings.fileDownloadSaved(settings.appLanguage, pending.fileName)
                 )
             } catch (e: Exception) {
                 viewModel.completeFileDownload(
                     filePath = pending.fullPath,
                     success = false,
-                    message = "تعذر حفظ الملف: ${e.localizedMessage}"
+                    message = AppUiStrings.fileDownloadFailed(settings.appLanguage, e.localizedMessage)
                 )
             }
         } else {
             viewModel.completeFileDownload(
                 filePath = pending?.fullPath.orEmpty(),
                 success = false,
-                message = "تم إلغاء تنزيل الملف."
+                message = AppUiStrings.fileDownloadCancelled(settings.appLanguage)
             )
         }
     }
@@ -237,51 +238,36 @@ private fun AuthenticatedMetraShell(
         }
     }
 
+    val uiLang = settings.appLanguage
     val activeProjectTitle = workspace.platformConfig.activeProject?.name?.ifBlank {
         settings.activeRepo.substringAfter("/")
-    } ?: settings.activeRepo.substringAfter("/").ifBlank { "منصة الوكيل" }
+    } ?: settings.activeRepo.substringAfter("/").ifBlank { AppUiStrings.defaultProjectTitle(uiLang) }
 
     val primaryTabs = listOf(
-        TopNavTab("dashboard", "الرئيسية", Icons.Rounded.Dashboard),
-        TopNavTab("universal_studio", "الاستوديو", Icons.Rounded.Code),
-        TopNavTab("chat", "الوكيل", Icons.Rounded.AutoAwesome),
-        TopNavTab("tasks", "المهام", Icons.Rounded.Checklist),
-        TopNavTab("files", "المستودع", Icons.Rounded.FolderOpen),
-        TopNavTab("database", "القاعدة", Icons.Rounded.Storage)
+        TopNavTab("dashboard", AppUiStrings.tabLabel("dashboard", uiLang), Icons.Rounded.Dashboard),
+        TopNavTab("universal_studio", AppUiStrings.tabLabel("universal_studio", uiLang), Icons.Rounded.Code),
+        TopNavTab("chat", AppUiStrings.tabLabel("chat", uiLang), Icons.Rounded.AutoAwesome),
+        TopNavTab("tasks", AppUiStrings.tabLabel("tasks", uiLang), Icons.Rounded.Checklist),
+        TopNavTab("files", AppUiStrings.tabLabel("files", uiLang), Icons.Rounded.FolderOpen),
+        TopNavTab("database", AppUiStrings.tabLabel("database", uiLang), Icons.Rounded.Storage)
     )
     // Five mobile destinations follow the approved Figma information architecture.
     // Advanced tools remain accessible from dashboard shortcuts and the desktop navigation rail.
     val mobileTabs = listOf(
-        TopNavTab("dashboard", "الرئيسية", Icons.Rounded.Dashboard),
-        TopNavTab("chat", "الوكيل", Icons.Rounded.AutoAwesome),
-        TopNavTab("tasks", "المهام", Icons.Rounded.Checklist),
-        TopNavTab("linked_accounts", "المشاريع", Icons.Rounded.FolderOpen),
-        TopNavTab("security", "الإعدادات", Icons.Rounded.Settings)
+        TopNavTab("dashboard", AppUiStrings.tabLabel("dashboard", uiLang), Icons.Rounded.Dashboard),
+        TopNavTab("chat", AppUiStrings.tabLabel("chat", uiLang), Icons.Rounded.AutoAwesome),
+        TopNavTab("tasks", AppUiStrings.tabLabel("tasks", uiLang), Icons.Rounded.Checklist),
+        TopNavTab("linked_accounts", AppUiStrings.tabLabel("linked_accounts", uiLang), Icons.Rounded.FolderOpen),
+        TopNavTab("security", AppUiStrings.tabLabel("security", uiLang), Icons.Rounded.Settings)
     )
     val isTopTab = primaryTabs.any { it.route == currentRoute } ||
         mobileTabs.any { it.route == currentRoute }
 
-    val screenTitles = mapOf(
-        "dashboard" to "لوحة: $activeProjectTitle",
-        "universal_studio" to "أستوديو التطوير ومرشح النماذج (AI Studio Pro)",
-        "chat" to "المحادثة مع الوكيل",
-        "tasks" to "المهام وخطة التنفيذ",
-        "files" to "مستكشف وتنزيل الملفات",
-        "code_editor" to "محرر ومراجع الأكواد",
-        "branches" to "الفروع والـ Commits",
-        "prs" to "Pull Requests",
-        "actions" to "GitHub Actions",
-        "database" to "قواعد البيانات والأسرار",
-        "sql_review" to "مراجعة SQL والأمان",
-        "tests" to "الاختبارات",
-        "logs" to "سجل العمليات والتصدير",
-        "github_setup" to "ربط GitHub",
-        "ai_setup" to "وكلاء AI والأولوية وBackend",
-        "ai_conversations" to "محادثات وحسابات ChatGPT وGemini",
-        "security" to "إعدادات الأمان والصلاحيات",
-        "linked_accounts" to "المشاريع والحسابات المتعددة",
-        "workspace_plan" to "غرفة التعاون وملف العمل الموحد"
-    )
+    val screenTitles = listOf(
+        "dashboard", "universal_studio", "chat", "tasks", "files", "code_editor", "branches", "prs",
+        "actions", "database", "sql_review", "tests", "logs", "github_setup", "ai_setup",
+        "ai_conversations", "security", "linked_accounts", "workspace_plan"
+    ).associateWith { route -> AppUiStrings.screenTitle(route, uiLang, activeProjectTitle) }
 
     var hasNotificationPermission by remember {
         mutableStateOf(QuotaNotificationHelper.hasNotificationPermission(context))

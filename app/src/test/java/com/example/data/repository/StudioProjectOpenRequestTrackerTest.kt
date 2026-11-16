@@ -68,6 +68,16 @@ class StudioProjectOpenRequestTrackerTest {
     }
 
     @Test
+    fun successfulProjectSaveInvalidatesAnOlderLibraryRefresh() {
+        val tracker = StudioProjectOpenRequestTracker()
+        val pendingRefresh = tracker.next()
+
+        tracker.invalidate()
+
+        assertFalse(tracker.isCurrent(pendingRefresh))
+    }
+
+    @Test
     fun failedDeletionCanBeFollowedByANewOpenRequest() {
         val tracker = StudioProjectOpenRequestTracker()
         val pending = tracker.next()

@@ -2,9 +2,9 @@
 
 آخر تحقق من المستودع وCI: 2026-11-16  
 الفرع: `feature/no-firebase-oidc-session-backend`  
-آخر نسخة عمل محفوظة على الفرع عند بدء هذا التحديث: `8a261c716d9f9a4727742af43a236f19c92917cc`  
-آخر تعديل برمجي للتطبيق: `8a261c716d9f9a4727742af43a236f19c92917cc`  
-آخر نسخة اجتازت CI كاملاً: `8a261c716d9f9a4727742af43a236f19c92917cc`
+آخر نسخة عمل محفوظة على الفرع عند بدء هذا التحديث: `f115e0e07674b294163db0e3de1a964ecb41b054`  
+آخر تعديل برمجي للتطبيق: `46fa4944db98361a094ccc6e0bbfb2879b9b6192`  
+آخر نسخة اجتازت CI كاملاً: `46fa4944db98361a094ccc6e0bbfb2879b9b6192` (قبل إصلاح workflow الإصدار)
 
 > هذا السجل يفصل بين وجود الشفرة، ونجاح الاختبارات، والاختبار على جهاز فعلي، ونشر الخدمات. لا تعني نتيجة CI أن المنتج جاهز للإنتاج.
 
@@ -24,6 +24,17 @@
 
 ## أدلة التحقق
 
+| الدليل الأحدث | النتيجة |
+|---|---|
+| GitHub Actions run [43868752191](https://github.com/meteo2026net-oss/ai-i.z/actions/runs/43868752191), commit `46fa4944db98361a094ccc6e0bbfb2879b9b6192` | نجاح كامل لوظيفتي Android وBackend/Runner |
+| Android CI | نجحت اختبارات الوحدة، وبناء Debug، وبناء APK/AAB Release المصغّر |
+| Debug artifact | `ai-iz-debug-apk`, ID `14228065150`, 24,148,502 bytes |
+| Release validation artifact | `ai-iz-release-ci-validation`, ID `14227226026`, 34,390,357 bytes؛ توقيع CI مؤقت وليس توقيع إنتاج |
+| صلاحية artifacts | حتى 2026-11-23 تقريباً |
+| إصلاح workflow الإصدار | commit `f115e0e07674b294163db0e3de1a964ecb41b054` يستبدل `testReleaseUnitTest` غير المدعوم بـ `testDebugUnitTest` مع إبقاء بناء APK/AAB الموقع |
+| CI بعد إصلاح workflow | runs [43874752013](https://github.com/meteo2026net-oss/ai-i.z/actions/runs/43874752013) و[43874764824](https://github.com/meteo2026net-oss/ai-i.z/actions/runs/43874764824) قيد التنفيذ؛ لا تُسجل نتيجة نجاح حتى اكتمالهما |
+
+
 | الدليل | النتيجة |
 |---|---|
 | GitHub Actions run [43749607271](https://github.com/meteo2026net-oss/ai-i.z/actions/runs/43749607271) | نجاح كامل |
@@ -35,7 +46,7 @@
 | مدة الاحتفاظ بالـ APK | 7 أيام؛ ليس إصدار Release موقعاً |
 | PR #6 | مفتوح وDraft، لم يدمج |
 
-## تحسينات الأمان الأخيرة في نسخة 8871bfe
+## تحسينات الأمان السابقة في نسخة 8871bfe
 
 - نجحت اختبارات PostgreSQL/Backend وRunner وAndroid في GitHub Actions run [43761939017](https://github.com/meteo2026net-oss/ai-i.z/actions/runs/43761939017).
 - نجح بناء APK التجريبي ورفع artifact باسم `ai-iz-debug-apk` (artifact ID: `14180817247`، SHA-256: `d20bd6c8ae4c766afe0bff755563e430e8f71ac8596a668c014b4c177987dd2b`). ينتهي الاحتفاظ به في 2026-11-22.
@@ -185,3 +196,11 @@
 - يتضمن هذا التحقق إصلاحات منع استجابات فتح المشاريع وتحديث القائمة والحذف القديمة من تغيير مساحة العمل الحالية، ومعالجة استعادة القائمة بعد فشل حذف مشروع.
 - يوجد تشغيل مرافق [43835546775](https://github.com/meteo2026net-oss/ai-i.z/actions/runs/43835546775) على SHA نفسه نجح أيضاً وأنتج artifact منفصلاً؛ التشغيل الأساسي أعلاه هو دليل التوثيق المعتمد.
 - هذا دليل CI وحزمة Debug فقط؛ لا يثبت اختبار جهاز فعلياً أو نشر OAuth/API/PostgreSQL/Runner أو وجود توقيع Release. ما زالت بوابات الإصدار المذكورة أعلاه قائمة.
+
+
+## تحديث 2026-11-16 — إصلاح مسار إصدار Android الموقع
+
+- كشف فحص workflow اليدوي أن `testReleaseUnitTest` غير مدعوم في إعداد Gradle الحالي، وهو نفس نوع المهمة الذي سبق أن تسبب في فشل CI تاريخياً.
+- أصلح commit `f115e0e07674b294163db0e3de1a964ecb41b054` الأمر إلى `testDebugUnitTest assembleRelease bundleRelease`، وهو يطابق مهمة الاختبار المثبت نجاحها في CI مع الاستمرار في بناء مخرجات Release.
+- لا يزال تشغيل إصدار موقّع بمفتاح المالك يتطلب ضبط أسرار `ANDROID_KEYSTORE_BASE64`, `ANDROID_STORE_PASSWORD`, `ANDROID_KEY_PASSWORD` ومتغيري `AI_IZ_API_BASE_URL`, `GOOGLE_WEB_CLIENT_ID` في إعدادات GitHub؛ لم تُنفذ عملية نشر.
+- لا تُعد حزمة Release التجريبية الموقعة بمفتاح CI المؤقت بديلاً عن توقيع الإنتاج.

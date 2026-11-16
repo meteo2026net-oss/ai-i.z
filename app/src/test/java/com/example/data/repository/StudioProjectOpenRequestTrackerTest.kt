@@ -48,6 +48,26 @@ class StudioProjectOpenRequestTrackerTest {
     }
 
     @Test
+    fun openingSavedProjectInvalidatesAnInFlightGeneratedProject() {
+        val tracker = StudioProjectOpenRequestTracker()
+        val generationRequest = tracker.invalidate()
+        val openRequest = tracker.next()
+
+        assertFalse(tracker.isCurrent(generationRequest))
+        assertTrue(tracker.isCurrent(openRequest))
+    }
+
+    @Test
+    fun newerProjectGenerationInvalidatesAnOlderSavedProjectOpen() {
+        val tracker = StudioProjectOpenRequestTracker()
+        val openRequest = tracker.next()
+        val generationRequest = tracker.invalidate()
+
+        assertFalse(tracker.isCurrent(openRequest))
+        assertTrue(tracker.isCurrent(generationRequest))
+    }
+
+    @Test
     fun failedDeletionCanBeFollowedByANewOpenRequest() {
         val tracker = StudioProjectOpenRequestTracker()
         val pending = tracker.next()

@@ -47,26 +47,19 @@ jobs:
             -dname "CN=Android Debug,O=Android,C=US"
 
       - name: Generate ephemeral release keystore for CI validation
-        run: |
-          keytool -genkeypair -v \\
-            -keystore ci-release.keystore \\
-            -storepass ci-only-store-password \\
-            -alias upload \\
-            -keypass ci-only-key-password \\
-            -keyalg RSA \\
-            -keysize 2048 \\
-            -validity 2 \\
-            -dname "CN=CI Validation Only,O=AI i.z,C=GB"
+        run: >-
+          keytool -genkeypair -v -keystore ci-release.keystore -storepass ci-only-store-password
+          -alias upload -keypass ci-only-key-password -keyalg RSA -keysize 2048 -validity 2
+          -dname "CN=CI Validation Only,O=AI i.z,C=GB"
 
       - name: Run Android unit tests and validate debug and minified release builds
         env:
           KEYSTORE_PATH: ${{ github.workspace }}/ci-release.keystore
           STORE_PASSWORD: ci-only-store-password
           KEY_PASSWORD: ci-only-key-password
-        run: |
-          gradle --no-daemon --stacktrace \\
-            testDebugUnitTest assembleDebug \\
-            testReleaseUnitTest assembleRelease bundleRelease
+        run: >-
+          gradle --no-daemon --stacktrace testDebugUnitTest assembleDebug
+          testReleaseUnitTest assembleRelease bundleRelease
 
       - name: Upload debug APK
         if: success()

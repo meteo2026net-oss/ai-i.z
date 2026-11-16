@@ -11,7 +11,8 @@ These scripts assume you are running from a developer machine with:
 
 - `build-debug.bat` — runs `testDebugUnitTest` + `assembleDebug` via the Gradle Wrapper.
 - `run-backend-tests.bat` — installs dependencies and runs backend + runner tests.
-- `set-build-env.example.bat` — template for setting `AI_IZ_API_BASE_URL` and `GOOGLE_WEB_CLIENT_ID` in the current shell (copy and customize; do not commit real values).
+- `set-build-env.example.bat` / `setup-env.example.bat` — templates for build-time env vars (copy and customize; do not commit real values).
+- `build-release-ci.bat` — minified Release APK/AAB using a **temporary** local keystore for validation only (not production).
 
 Set environment variables before building the app for real login:
 

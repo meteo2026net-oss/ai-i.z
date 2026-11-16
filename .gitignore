@@ -17,3 +17,8 @@ local.properties
 .env
 debug.keystore
 *-debug.log
+
+# Local Windows env helpers (never commit secrets)
+setup-env.local.bat
+scripts/windows/setup-env.local.bat
+*.local.bat

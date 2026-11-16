@@ -581,7 +581,7 @@ app.post('/api/account/delete', requireSession, async (req, res) => {
     await client.query(
       `INSERT INTO security_audit_events(user_id,event_type,details)
        VALUES(NULL,'account_deleted',$1::jsonb)`,
-      [JSON.stringify({ deletedUserId: userId })]
+      [JSON.stringify({ deletionCompleted: true })]
     );
     await client.query('COMMIT');
     res.status(204).end();

@@ -561,10 +561,11 @@ app.post('/api/account/delete', requireSession, async (req, res) => {
   const client = await pool.connect();
   try {
     await client.query('BEGIN');
+    // Do not retain account or session identifiers in deletion audit rows.
     await client.query(
       `INSERT INTO security_audit_events(user_id,event_type,session_id,details)
-       VALUES($1,'account_delete_requested',$2,$3::jsonb)`,
-      [userId, req.user.session_id || null, JSON.stringify({ confirmation: 'DELETE_MY_ACCOUNT' })]
+       VALUES(NULL,'account_delete_requested',NULL,$1::jsonb)`,
+      [JSON.stringify({ confirmation: 'DELETE_MY_ACCOUNT', phase: 'requested' })]
     );
     await client.query(
       'UPDATE app_sessions SET revoked_at=COALESCE(revoked_at,now()) WHERE user_id=$1 AND revoked_at IS NULL',

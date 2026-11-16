@@ -2172,16 +2172,16 @@ class MetraAgentViewModel(
         }
     }
 
-    private var studioProjectOpenRequestId = 0
+    private val studioProjectOpenRequests = com.example.data.repository.StudioProjectOpenRequestTracker()
 
     fun openSavedStudioProject(projectId: String) {
-        if (_workspace.value.savedStudioProjects.none { it.id == projectId }) return
-        val requestId = ++studioProjectOpenRequestId
+        if (projectId in deletedStudioProjectIds || _workspace.value.savedStudioProjects.none { it.id == projectId }) return
+        val requestId = studioProjectOpenRequests.next()
         viewModelScope.launch {
             _workspace.update { it.copy(statusBannerMessage = "جار تحميل ملفات المشروع المحفوظ…") }
             userDataRepository.getStudioProject(projectId)
                 .onSuccess { project ->
-                    if (requestId != studioProjectOpenRequestId) return@onSuccess
+                    if (!studioProjectOpenRequests.isCurrent(requestId) || projectId in deletedStudioProjectIds) return@onSuccess
                     if (project == null) {
                         _workspace.update {
                             it.copy(statusBannerMessage = "لم يعد المشروع موجوداً في مكتبتك السحابية.")
@@ -2199,7 +2199,7 @@ class MetraAgentViewModel(
                     }
                 }
                 .onFailure { error ->
-                    if (requestId == studioProjectOpenRequestId) {
+                    if (studioProjectOpenRequests.isCurrent(requestId) && projectId !in deletedStudioProjectIds) {
                         Log.w(TAG, "Studio project detail load failed", error)
                         _workspace.update {
                             it.copy(statusBannerMessage = "تعذر تحميل ملفات المشروع: ${error.localizedMessage ?: "خطأ اتصال"}")
@@ -2210,6 +2210,8 @@ class MetraAgentViewModel(
     }
 
     fun deleteSavedStudioProject(projectId: String) {
+        // Invalidate in-flight opens so a late response cannot resurrect a deleted project in the UI.
+        studioProjectOpenRequests.invalidate()
         // Mark immediately so saves already queued behind the mutex cannot recreate this project.
         deletedStudioProjectIds.add(projectId)
         studioProjectSaveRevisions.next(projectId)

@@ -2,7 +2,7 @@
 
 آخر تحقق من المستودع وCI: 2026-11-16  
 الفرع: `feature/no-firebase-oidc-session-backend`  
-آخر commits على الفرع: `1b870b6` (docs + Windows scripts)، `dfbace0` (Gradle Wrapper 9.3.1)  
+آخر commits على الفرع: `06bcbbc` (SecretVault docs + Windows env template)، `3f8eddc`، `1b870b6`، `dfbace0` (Gradle Wrapper 9.3.1)  
 آخر تعديل برمجي للتطبيق (قبل Wrapper): `46fa4944db98361a094ccc6e0bbfb2879b9b6192`  
 آخر نسخة اجتازت CI كاملاً قبل هذه التوثيقات: `e9adfc4` / `46fa494`
 

@@ -39,7 +39,7 @@ Configure these repository variables:
 - `AI_IZ_API_BASE_URL`: deployed HTTPS AI I.Z API origin.
 - `GOOGLE_WEB_CLIENT_ID`: matching Google Web OAuth client ID.
 
-The workflow runs release unit tests and builds a signed APK and AAB, then uploads them as the `ai-iz-signed-release` artifact. It does **not** publish to Google Play or create a GitHub release. Keep the keystore and passwords in GitHub Actions secrets only; never paste them into chat or commit them. The signing alias expected by the current Gradle configuration is `upload`.
+The workflow runs the Android unit-test task supported by the current Gradle configuration (`testDebugUnitTest`), then builds the signed Release APK and AAB and uploads them as the `ai-iz-signed-release` artifact. A separate CI workflow also validates minified Release APK/AAB builds with an ephemeral CI-only key; those artifacts are not production-signed. It does **not** publish to Google Play or create a GitHub release. Keep the keystore and passwords in GitHub Actions secrets only; never paste them into chat or commit them. The signing alias expected by the current Gradle configuration is `upload`.
 
 ## Build locally
 

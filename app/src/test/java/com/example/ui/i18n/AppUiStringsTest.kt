@@ -60,7 +60,7 @@ class AppUiStringsTest {
 
     @Test
     fun projectsAndDatabaseChromeEnglishHasNoArabic() {
-        val arabicLetter = Regex("\p{IsArabic}")
+        val arabicLetter = Regex("\\p{IsArabic}")
         val samples = listOf(
             AppUiStrings.projectsManageTitle("en"),
             AppUiStrings.projectSaveActivate("en"),

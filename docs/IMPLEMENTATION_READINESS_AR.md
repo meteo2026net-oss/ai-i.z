@@ -9,6 +9,14 @@
 > هذا السجل يفصل بين وجود الشفرة، ونجاح الاختبارات، والاختبار على جهاز فعلي، ونشر الخدمات. لا تعني نتيجة CI أن المنتج جاهز للإنتاج.
 
 
+## تحديث 2026-11-17 — إكمال ترجمة LinkedAccounts/Setup/Database/Logs
+
+- `c93fedc`: حزم الربط، بيئات AI/Backend، أولوية المزودين، اختبارات المشروع، إشعارات، صفحة حول.
+- CI [44063913536](https://github.com/meteo2026net-oss/ai-i.z/actions/runs/44063913536) على `c93fedc`: **نجاح**.
+- Studio lifecycle tests (create/list/open-race/save-conflict/export/secrets) ضمن الحزمة الخضراء.
+- SQL/Runner execution ما زال 501.
+
+
 ## تحديث 2026-11-17 — Repo / SharedWorkspace / AI conversations i18n
 
 - `bbef902` / `846b0b0`: ترجمة مستكشف الملفات، الفروع، PRs، Actions، غرفة التعاون، محادثات AI، وبقايا Studio/Logs.

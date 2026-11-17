@@ -113,4 +113,20 @@ class AppUiStringsTest {
         }
     }
 
+
+    @Test
+    fun dashboardAndNotificationChromeEnglishHasNoArabic() {
+        val arabicLetter = Regex("\\p{IsArabic}")
+        listOf(
+            AppUiStrings.githubConnected("en"),
+            AppUiStrings.agentRunning("en"),
+            AppUiStrings.overviewTitle("en"),
+            AppUiStrings.contentDescExportZip("en"),
+            AppUiStrings.notifTaskCompleted("en", "Demo"),
+            AppUiStrings.notifQuotaWarning("en")
+        ).forEach { text ->
+            assertFalse("English copy leaked Arabic: $text", arabicLetter.containsMatchIn(text))
+        }
+    }
+
 }

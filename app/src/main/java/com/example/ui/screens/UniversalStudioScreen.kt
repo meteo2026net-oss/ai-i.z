@@ -863,13 +863,13 @@ private fun CodeExplorerTab(
 
             Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                 IconButton(onClick = onExport, modifier = Modifier.size(36.dp)) {
-                    Icon(Icons.Rounded.Share, contentDescription = "تصدير المشروع كملف ZIP", modifier = Modifier.size(18.dp), tint = ElectricCyan)
+                    Icon(Icons.Rounded.Share, contentDescription = AppUiStrings.contentDescExportZip(uiLang), modifier = Modifier.size(18.dp), tint = ElectricCyan)
                 }
                 IconButton(onClick = onCopy, modifier = Modifier.size(36.dp)) {
-                    Icon(Icons.Rounded.ContentCopy, contentDescription = "نسخ الكود", modifier = Modifier.size(18.dp))
+                    Icon(Icons.Rounded.ContentCopy, contentDescription = AppUiStrings.contentDescCopyCode(uiLang), modifier = Modifier.size(18.dp))
                 }
                 IconButton(onClick = onSave, modifier = Modifier.size(36.dp)) {
-                    Icon(Icons.Rounded.Save, contentDescription = "حفظ التعديلات", tint = EmeraldSuccess, modifier = Modifier.size(18.dp))
+                    Icon(Icons.Rounded.Save, contentDescription = AppUiStrings.contentDescSaveEdits(uiLang), tint = EmeraldSuccess, modifier = Modifier.size(18.dp))
                 }
             }
         }

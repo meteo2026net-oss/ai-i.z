@@ -119,4 +119,38 @@ class StudioProjectLifecycleTest {
             )
         }
     }
+
+    @Test
+    fun restoreAfterFailedNetworkOpenKeepsLatestRevision() {
+        val openTracker = StudioProjectOpenRequestTracker()
+        val saveTracker = StudioProjectSaveRevisionTracker()
+        val projectId = "restore_demo"
+
+        val openAttempt = openTracker.next()
+        assertTrue(openTracker.isCurrent(openAttempt))
+        // Network failure: abandon in-flight open
+        openTracker.invalidate()
+        assertFalse(openTracker.isCurrent(openAttempt))
+
+        val restoredOpen = openTracker.next()
+        assertTrue(openTracker.isCurrent(restoredOpen))
+
+        val localSave = saveTracker.next(projectId)
+        // Conflicting remote save arrives later and must win
+        val remoteSave = saveTracker.next(projectId)
+        assertFalse(saveTracker.isCurrent(projectId, localSave))
+        assertTrue(saveTracker.isCurrent(projectId, remoteSave))
+
+        // Export of a regenerated project still works after recovery
+        val project = UniversalStudioProjectGenerator.generateProject(
+            name = projectId,
+            prompt = "restore path",
+            environment = DevelopmentEnvironment.MOBILE_ANDROID,
+            language = ProgrammingLanguage.KOTLIN
+        )
+        val out = ByteArrayOutputStream()
+        StudioProjectArchiveExporter.writeZip(project, out)
+        assertTrue(out.toByteArray().size > 32)
+    }
+
 }

@@ -725,4 +725,56 @@ object AppUiStrings {
     fun dbHostPlaceholder(language: String?): String =
         if (isEnglish(language)) "https://xyzcompany.supabase.co or db.host:5432" else "https://xyzcompany.supabase.co أو db.host:5432"
 
+
+    fun githubConnected(language: String?): String =
+        if (isEnglish(language)) "GitHub connected" else "GitHub متصل"
+    fun githubDisconnected(language: String?): String =
+        if (isEnglish(language)) "GitHub disconnected" else "GitHub غير متصل"
+    fun githubNotLinked(language: String?): String =
+        if (isEnglish(language)) "GitHub not linked" else "GitHub غير مربوط"
+    fun agentRunning(language: String?): String =
+        if (isEnglish(language)) "Agent running" else "الوكيل يعمل"
+    fun controlPanel(language: String?): String =
+        if (isEnglish(language)) "Control panel" else "لوحة التحكم"
+    fun overviewTitle(language: String?): String =
+        if (isEnglish(language)) "Overview" else "نظرة عامة"
+    fun allEnvsAndLanguages(language: String?): String =
+        if (isEnglish(language)) "All environments & languages" else "كافة البيئات واللغات"
+    fun githubRequiredLiveData(language: String?): String =
+        if (isEnglish(language)) "GitHub link required for live data" else "ربط GitHub مطلوب للبيانات الحية"
+    fun agentStatusLabel(language: String?, status: String): String =
+        if (isEnglish(language)) "Agent status: $status" else "حالة الوكيل: $status"
+    fun aiAvailableCount(language: String?, n: Int): String =
+        if (isEnglish(language)) "AI: $n ready" else "AI: $n متاح"
+    fun backendConnected(language: String?): String =
+        if (isEnglish(language)) "Backend connected" else "Backend متصل"
+    fun backendOptional(language: String?): String =
+        if (isEnglish(language)) "Backend optional" else "Backend اختياري"
+    fun lastCommitLine(language: String?, detail: String): String =
+        if (isEnglish(language)) "Latest commit: $detail" else "آخر Commit: $detail"
+    fun workspaceSmartSpace(language: String?): String =
+        if (isEnglish(language)) "Your smart workspace to build and manage apps" else "مساحة عملك الذكية لبناء التطبيقات وإدارتها"
+    fun contentDescSend(language: String?): String =
+        if (isEnglish(language)) "Send" else "إرسال"
+    fun contentDescExportZip(language: String?): String =
+        if (isEnglish(language)) "Export project as ZIP" else "تصدير المشروع كملف ZIP"
+    fun contentDescCopyCode(language: String?): String =
+        if (isEnglish(language)) "Copy code" else "نسخ الكود"
+    fun contentDescSaveEdits(language: String?): String =
+        if (isEnglish(language)) "Save edits" else "حفظ التعديلات"
+    fun contentDescRefresh(language: String?): String =
+        if (isEnglish(language)) "Refresh" else "تحديث"
+    fun contentDescAppLogo(language: String?): String =
+        if (isEnglish(language)) "AI I.Z agent logo" else "شعار وكيل METRA"
+    fun notifTaskBlocked(language: String?, title: String): String =
+        if (isEnglish(language)) "Task stopped due to a security block: $title" else "توقفت المهمة بسبب حظر أمني: $title"
+    fun notifTaskPaused(language: String?, title: String): String =
+        if (isEnglish(language)) "Task paused: $title" else "توقف مؤقت للمهمة: $title"
+    fun notifTaskCompleted(language: String?, title: String): String =
+        if (isEnglish(language)) "Task completed: $title" else "اكتملت المهمة: $title"
+    fun notifQuotaWarning(language: String?): String =
+        if (isEnglish(language)) "AI API quota warning" else "⚠️ تنبيه حصة AI API"
+    fun notifAgentWorking(language: String?): String =
+        if (isEnglish(language)) "METRA Agent notifications are working" else "🔔 إشعارات METRA Agent تعمل"
+
 }

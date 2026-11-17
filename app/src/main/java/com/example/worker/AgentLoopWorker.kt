@@ -1,5 +1,8 @@
 package com.example.worker
 
+import com.example.ui.i18n.AppUiStrings
+import java.util.Locale
+
 import android.content.Context
 import androidx.work.BackoffPolicy
 import androidx.work.Constraints
@@ -235,7 +238,7 @@ class AgentLoopWorker(
                     )
                     QuotaNotificationHelper.showAgentStoppedNotification(
                         context = applicationContext,
-                        title = "توقفت المهمة بسبب حظر أمني: ${currentTask.title}",
+                        title = AppUiStrings.notifTaskBlocked(Locale.getDefault().language, currentTask.title),
                         reason = "${step.title}: ${guard.reason}",
                         isPausedWillRetry = false,
                         targetRoute = "tasks"
@@ -314,7 +317,7 @@ class AgentLoopWorker(
                         dao.upsertCheckpoint(pausedTask.toCheckpoint(stepsJson))
                         QuotaNotificationHelper.showAgentStoppedNotification(
                             context = applicationContext,
-                            title = "توقف مؤقت للمهمة: ${currentTask.title}",
+                            title = AppUiStrings.notifTaskPaused(Locale.getDefault().language, currentTask.title),
                             reason = stepResultObj.text,
                             isPausedWillRetry = true,
                             targetRoute = "tasks"
@@ -357,7 +360,7 @@ class AgentLoopWorker(
                     if (completedCount >= steps.size) {
                         QuotaNotificationHelper.showCommandCompletedNotification(
                             context = applicationContext,
-                            title = "اكتملت المهمة: ${currentTask.title}",
+                            title = AppUiStrings.notifTaskCompleted(Locale.getDefault().language, currentTask.title),
                             details = "أنهى الوكيل جميع الخطوات (${steps.size}/${steps.size}) في ${currentTask.repo}. آخر خطوة: ${step.title}",
                             targetRoute = "tasks"
                         )

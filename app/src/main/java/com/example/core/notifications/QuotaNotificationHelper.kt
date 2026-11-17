@@ -1,5 +1,8 @@
 package com.example.core.notifications
 
+import com.example.ui.i18n.AppUiStrings
+import java.util.Locale
+
 import android.Manifest
 import android.app.NotificationChannel
 import android.app.NotificationManager
@@ -191,7 +194,7 @@ object QuotaNotificationHelper {
         postNotification(
             context = context,
             channelId = CHANNEL_QUOTA,
-            title = "⚠️ تنبيه حصة AI API",
+            title = AppUiStrings.notifQuotaWarning(Locale.getDefault().language),
             body = body,
             targetRoute = targetRoute,
             priority = NotificationCompat.PRIORITY_HIGH,
@@ -204,7 +207,7 @@ object QuotaNotificationHelper {
         postNotification(
             context = context,
             channelId = CHANNEL_ACTION_REQUIRED,
-            title = "🔔 إشعارات METRA Agent تعمل",
+            title = AppUiStrings.notifAgentWorking(Locale.getDefault().language),
             body = "سيصلك تنبيه فوري بصوت واهتزاز عند انتهاء أي أمر أو توقف الوكيل أو طلب إجراء منك.",
             targetRoute = "dashboard",
             priority = NotificationCompat.PRIORITY_HIGH,

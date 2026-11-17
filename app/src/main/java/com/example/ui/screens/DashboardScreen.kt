@@ -127,7 +127,7 @@ fun DashboardScreen(
                     color = ElectricCyan
                 )
                 Text(
-                    text = "مساحة عملك الذكية لبناء التطبيقات وإدارتها",
+                    text = AppUiStrings.workspaceSmartSpace(uiLang),
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
@@ -136,11 +136,11 @@ fun DashboardScreen(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     StatusPill(
-                        label = if (workspace.isGitHubConnected) "GitHub متصل" else "GitHub غير متصل",
+                        label = if (workspace.isGitHubConnected) AppUiStrings.githubConnected(uiLang) else AppUiStrings.githubDisconnected(uiLang),
                         color = if (workspace.isGitHubConnected) EmeraldSuccess else AmberWarning
                     )
                     StatusPill(
-                        label = if (activeTask?.status == "running") "الوكيل يعمل" else "لوحة التحكم",
+                        label = if (activeTask?.status == "running") AppUiStrings.agentRunning(uiLang) else AppUiStrings.controlPanel(uiLang),
                         color = if (activeTask?.status == "running") ElectricCyan else AzureAccent
                     )
                 }
@@ -151,7 +151,7 @@ fun DashboardScreen(
         item {
             CommandCard(borderColor = AzureAccent.copy(alpha = 0.5f)) {
                 Text(
-                    text = "نظرة عامة",
+                    text = AppUiStrings.overviewTitle(uiLang),
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.Bold
                 )
@@ -243,7 +243,7 @@ fun DashboardScreen(
                             fontWeight = FontWeight.Bold
                         )
                     }
-                    StatusPill(label = "كافة البيئات واللغات", color = ElectricCyan)
+                    StatusPill(label = AppUiStrings.allEnvsAndLanguages(uiLang), color = ElectricCyan)
                 }
                 Text(
                     text = "إنشاء مشاريع متكاملة في كافة البيئات (أندرويد، Flutter، Next.js، FastAPI، Go، Rust) واقتراح النموذج الأقوى لكل مشروع.",
@@ -267,7 +267,7 @@ fun DashboardScreen(
         if (!workspace.isGitHubConnected) {
             item {
                 SetupRequiredBanner(
-                    title = "ربط GitHub مطلوب للبيانات الحية",
+                    title = AppUiStrings.githubRequiredLiveData(uiLang),
                     description = "اربط حساب GitHub لعرض الفروع، الملفات، تنزيل الأكواد، الـ commits، وActions الحقيقية لمشروع ${activeProject?.name ?: settings.activeRepo}.",
                     actionLabel = "الانتقال إلى ربط GitHub",
                     onAction = { onNavigateRoute("github_setup") },
@@ -320,7 +320,7 @@ fun DashboardScreen(
                             "completed" -> EmeraldSuccess
                             else -> EmeraldSuccess
                         }
-                        StatusPill(label = "حالة الوكيل: $agentStatusLabel", color = statusColor)
+                        StatusPill(label = AppUiStrings.agentStatusLabel(uiLang, agentStatusLabel), color = statusColor)
                     }
                 }
 
@@ -360,11 +360,11 @@ fun DashboardScreen(
                     verticalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
                     StatusPill(
-                        label = if (workspace.isGitHubConnected) "GitHub متصل" else "GitHub غير مربوط",
+                        label = if (workspace.isGitHubConnected) AppUiStrings.githubConnected(uiLang) else AppUiStrings.githubNotLinked(uiLang),
                         color = if (workspace.isGitHubConnected) EmeraldSuccess else AmberWarning
                     )
                     StatusPill(
-                        label = "AI: $readyAiCount متاح",
+                        label = AppUiStrings.aiAvailableCount(uiLang, readyAiCount),
                         color = if (readyAiCount > 0) EmeraldSuccess else CrimsonError
                     )
                     StatusPill(
@@ -373,7 +373,7 @@ fun DashboardScreen(
                         color = if (activeDb != null || workspace.backendHealth?.postgresConnected == true) EmeraldSuccess else AmberWarning
                     )
                     StatusPill(
-                        label = if (workspace.backendHealth != null) "Backend متصل" else "Backend اختياري",
+                        label = if (workspace.backendHealth != null) AppUiStrings.backendConnected(uiLang) else AppUiStrings.backendOptional(uiLang),
                         color = if (workspace.backendHealth != null) EmeraldSuccess else ElectricCyan
                     )
                 }

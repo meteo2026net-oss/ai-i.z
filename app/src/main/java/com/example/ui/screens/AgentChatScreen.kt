@@ -275,7 +275,7 @@ fun AgentChatScreen(
                         .size(48.dp)
                         .testTag("chat_send_button")
                 ) {
-                    Icon(Icons.AutoMirrored.Rounded.Send, contentDescription = "إرسال")
+                    Icon(Icons.AutoMirrored.Rounded.Send, contentDescription = AppUiStrings.contentDescSend(uiLang))
                 }
             }
         }

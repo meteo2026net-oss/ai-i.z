@@ -118,7 +118,7 @@ fun AuthScreen(
         ) {
             Image(
                 painter = painterResource(id = R.drawable.metra_agent_icon_1794595300432),
-                contentDescription = "شعار وكيل METRA",
+                contentDescription = AppUiStrings.contentDescAppLogo(uiLang),
                 contentScale = ContentScale.Crop,
                 modifier = Modifier
                     .size(96.dp)

@@ -19,7 +19,7 @@ class AuthSessionRepository(private val vault: SecretVault) {
     private val service: AuthSessionService by lazy {
         val baseUrl = BuildConfig.AI_IZ_API_BASE_URL.trim()
         require(baseUrl.startsWith("https://") || (BuildConfig.DEBUG && baseUrl.startsWith("http://10.0.2.2"))) {
-            "خدمة حساب AI I.Z غير مهيأة. يلزم ضبط عنوان HTTPS للخادم قبل تسجيل الدخول."
+            "AI I.Z API base URL is missing or invalid. Set AI_IZ_API_BASE_URL to an https:// endpoint before sign-in. / عنوان API غير صالح أو فارغ."
         }
         val moshi = Moshi.Builder().addLast(KotlinJsonAdapterFactory()).build()
         val client = OkHttpClient.Builder().connectTimeout(15, TimeUnit.SECONDS).readTimeout(20, TimeUnit.SECONDS).build()

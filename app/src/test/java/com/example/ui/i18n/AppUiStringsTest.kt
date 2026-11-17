@@ -144,4 +144,18 @@ class AppUiStringsTest {
         assertEquals("BACKEND_GO", com.example.domain.model.DevelopmentEnvironment.BACKEND_GO.name)
     }
 
+
+    @Test
+    fun firstRunConfigMessagesEnglishHaveNoArabic() {
+        val arabicLetter = Regex("\\p{IsArabic}")
+        listOf(
+            AppUiStrings.configSetupBanner("en"),
+            AppUiStrings.apiBaseUrlMissing("en"),
+            AppUiStrings.signInCancelled("en"),
+            AppUiStrings.offlineOrUnreachable("en")
+        ).forEach { text ->
+            assertFalse("English copy leaked Arabic: $text", arabicLetter.containsMatchIn(text))
+        }
+    }
+
 }

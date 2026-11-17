@@ -80,6 +80,9 @@ fun AuthScreen(
 
     var isLoading by remember { mutableStateOf(false) }
     val uiLang = Locale.getDefault().language.let { if (it.equals("en", true)) "en" else "ar" }
+    val apiConfigured = BuildConfig.AI_IZ_API_BASE_URL.trim().isNotBlank()
+    val oauthConfigured = BuildConfig.GOOGLE_WEB_CLIENT_ID.trim().isNotBlank()
+    val configReady = apiConfigured && oauthConfigured
     var errorMessage by remember { mutableStateOf<String?>(null) }
 
     LaunchedEffect(Unit) {
@@ -184,6 +187,33 @@ fun AuthScreen(
 
                 Spacer(modifier = Modifier.height(4.dp))
 
+                if (!configReady) {
+                    Surface(
+                        color = MaterialTheme.colorScheme.errorContainer,
+                        shape = RoundedCornerShape(12.dp),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Column(Modifier = Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                            Text(
+                                text = AppUiStrings.configSetupBanner(uiLang),
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.onErrorContainer
+                            )
+                            Text(
+                                text = if (apiConfigured) AppUiStrings.configApiOk(uiLang) else AppUiStrings.configApiMissing(uiLang),
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onErrorContainer
+                            )
+                            Text(
+                                text = if (oauthConfigured) AppUiStrings.configOauthOk(uiLang) else AppUiStrings.configOauthMissing(uiLang),
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onErrorContainer
+                            )
+                        }
+                    }
+                    Spacer(modifier = Modifier.height(8.dp))
+                }
+
                 Button(
                     onClick = {
                         isLoading = true
@@ -202,7 +232,7 @@ fun AuthScreen(
                             scope = scope,
                             onAuthCancelled = {
                                 isLoading = false
-                                errorMessage = "تم إلغاء تسجيل الدخول. اختر حساب Google للمتابعة."
+                                errorMessage = AppUiStrings.signInCancelled(uiLang)
                             }
                         )
                     },
@@ -298,17 +328,17 @@ fun onGoogleSignInClicked(
                     .onSuccess(onAuthSuccess)
                     .onFailure { error ->
                         Log.e(AUTH_TAG, "AI I.Z session exchange failed", error)
-                        onAuthError(error.localizedMessage ?: "تعذر ربط حساب Google بخادم AI I.Z.")
+                        onAuthError(AppUiStrings.signInLinkServerFailed(Locale.getDefault().language.let { if (it.equals("en", true)) "en" else "ar" }, error.localizedMessage))
                     }
             } else {
-                onAuthError("نوع بيانات اعتماد غير متوقع.")
+                onAuthError(AppUiStrings.signInUnexpectedCredential(Locale.getDefault().language.let { if (it.equals("en", true)) "en" else "ar" }))
             }
         } catch (e: GetCredentialCancellationException) {
             Log.w(AUTH_TAG, "Google Sign-In cancelled or dismissed: ${e.message}", e)
             onAuthCancelled()
         } catch (e: Exception) {
             Log.e(AUTH_TAG, "Google Sign-In failed", e)
-            onAuthError(e.localizedMessage ?: "فشل تسجيل الدخول باستخدام Google.")
+            onAuthError(AppUiStrings.signInGoogleFailed(Locale.getDefault().language.let { if (it.equals("en", true)) "en" else "ar" }, e.localizedMessage))
         }
     }
 }

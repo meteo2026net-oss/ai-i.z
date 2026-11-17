@@ -829,4 +829,43 @@ object AppUiStrings {
         if (isEnglish(language)) "Environment: $envTitle | Language: $langName"
         else "البيئة: $envTitle | اللغة: $langName"
 
+
+    fun apiBaseUrlMissing(language: String?): String =
+        if (isEnglish(language))
+            "AI I.Z API base URL is not set. Build with AI_IZ_API_BASE_URL pointing to your HTTPS API."
+        else
+            "عنوان خادم AI I.Z غير مضبوط. أعد البناء مع AI_IZ_API_BASE_URL يشير إلى واجهة HTTPS."
+    fun configSetupBanner(language: String?): String =
+        if (isEnglish(language))
+            "This build is not fully configured for cloud sign-in. Set AI_IZ_API_BASE_URL and GOOGLE_WEB_CLIENT_ID, then rebuild."
+        else
+            "هذا البناء غير مكتمل لتسجيل الدخول السحابي. اضبط AI_IZ_API_BASE_URL وGOOGLE_WEB_CLIENT_ID ثم أعد البناء."
+    fun configApiOk(language: String?): String =
+        if (isEnglish(language)) "API URL: configured" else "عنوان API: مضبوط"
+    fun configApiMissing(language: String?): String =
+        if (isEnglish(language)) "API URL: missing" else "عنوان API: غير مضبوط"
+    fun configOauthOk(language: String?): String =
+        if (isEnglish(language)) "Google OAuth: configured" else "Google OAuth: مضبوط"
+    fun configOauthMissing(language: String?): String =
+        if (isEnglish(language)) "Google OAuth: missing" else "Google OAuth: غير مضبوط"
+    fun signInCancelled(language: String?): String =
+        if (isEnglish(language)) "Sign-in cancelled. Choose a Google account to continue." else "تم إلغاء تسجيل الدخول. اختر حساب Google للمتابعة."
+    fun signInUnexpectedCredential(language: String?): String =
+        if (isEnglish(language)) "Unexpected credential type." else "نوع بيانات اعتماد غير متوقع."
+    fun signInGoogleFailed(language: String?, detail: String?): String =
+        if (isEnglish(language))
+            "Google sign-in failed: ${detail.orEmpty()}"
+        else
+            "فشل تسجيل الدخول باستخدام Google: ${detail.orEmpty()}"
+    fun signInLinkServerFailed(language: String?, detail: String?): String =
+        if (isEnglish(language))
+            "Could not link Google account to the AI I.Z server: ${detail.orEmpty()}"
+        else
+            "تعذر ربط حساب Google بخادم AI I.Z: ${detail.orEmpty()}"
+    fun offlineOrUnreachable(language: String?): String =
+        if (isEnglish(language))
+            "Cannot reach the AI I.Z API. Check network connectivity and that the API is online."
+        else
+            "تعذر الوصول إلى واجهة AI I.Z. تحقق من الشبكة وأن الخادم يعمل."
+
 }

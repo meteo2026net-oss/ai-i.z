@@ -279,6 +279,26 @@ test('PostgreSQL API enforces authenticated tenant ownership and record invarian
     assert.equal(revokedReplacement.status, 401);
   });
 
+
+  await t.test('expired refresh token is rejected and session is revoked', async () => {
+    const expiredUser = await pool.query(
+      "INSERT INTO app_users(email,email_verified,display_name) VALUES('expired@example.test',true,'Expired') RETURNING id"
+    );
+    const userId = expiredUser.rows[0].id;
+    const sessionId = '77777777-7777-4777-8777-777777777777';
+    const familyId = '88888888-8888-4888-8888-888888888888';
+    const expiredRefresh = generateRefreshToken();
+    await pool.query(
+      "INSERT INTO app_sessions(id,user_id,family_id,refresh_token_hash,expires_at) VALUES($1,$2,$3,$4,now() - interval '1 hour')",
+      [sessionId, userId, familyId, hashRefreshToken(expiredRefresh)]
+    );
+    const response = await api('/api/auth/refresh', null, 'POST', { refreshToken: expiredRefresh });
+    assert.equal(response.status, 401);
+    assert.equal((await response.json()).error.code, 'REFRESH_EXPIRED');
+    const session = await pool.query('SELECT revoked_at FROM app_sessions WHERE id=$1', [sessionId]);
+    assert.ok(session.rows[0].revoked_at);
+  });
+
   await t.test('account deletion requires explicit confirmation and removes owned data', async () => {
     const doomed = await pool.query(
       "INSERT INTO app_users(email,email_verified,display_name) VALUES('doomed@example.test',true,'Doomed') RETURNING id"

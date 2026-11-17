@@ -33,3 +33,17 @@
 -keep class com.google.firebase.** { *; }
 -keepattributes *JavascriptInterface*
 -keepattributes *JavascriptInterface*,Signature
+
+
+# Auth/session and Studio repositories used with Retrofit/Moshi at runtime
+-keep class com.example.data.repository.** { *; }
+-keep class com.example.core.config.** { *; }
+-keepattributes Signature
+-keepattributes *Annotation*
+-dontwarn retrofit2.**
+-keep class retrofit2.** { *; }
+-keep class com.squareup.moshi.** { *; }
+-keep class * extends com.squareup.moshi.JsonAdapter
+-keepclassmembers class * {
+    @com.squareup.moshi.Json <fields>;
+}

@@ -9,6 +9,13 @@
 > هذا السجل يفصل بين وجود الشفرة، ونجاح الاختبارات، والاختبار على جهاز فعلي، ونشر الخدمات. لا تعني نتيجة CI أن المنتج جاهز للإنتاج.
 
 
+## تحديث 2026-11-17 — Repo / SharedWorkspace / AI conversations i18n
+
+- `bbef902` / `846b0b0`: ترجمة مستكشف الملفات، الفروع، PRs، Actions، غرفة التعاون، محادثات AI، وبقايا Studio/Logs.
+- CI [43987797005](https://github.com/meteo2026net-oss/ai-i.z/actions/runs/43987797005) على `846b0b0`: **نجاح**.
+- SQL/Runner execution ما زال 501.
+
+
 ## تحديث 2026-11-17 — LinkedAccounts / Database / Setup i18n
 
 - `d145ea7` / `9785dcc` / `9577546`: ترجمة أساسية لمشاريع/حسابات، قواعد البيانات ومراجعة SQL، وإعداد GitHub وAI.

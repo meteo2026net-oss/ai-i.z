@@ -129,4 +129,19 @@ class AppUiStringsTest {
         }
     }
 
+
+    @Test
+    fun studioEnvironmentTitlesLocalizeWithoutChangingEnumNames() {
+        val arabicLetter = Regex("\\p{IsArabic}")
+        val en = AppUiStrings.environmentTitle("MOBILE_ANDROID", "en")
+        val ar = AppUiStrings.environmentTitle("MOBILE_ANDROID", "ar")
+        assertTrue(en.contains("Android"))
+        assertFalse(arabicLetter.containsMatchIn(en))
+        assertTrue(ar.isNotBlank())
+        assertTrue(AppUiStrings.environmentCategory("BACKEND_NODE", "en").contains("Backend"))
+        // Storage key remains the enum name, independent of display language
+        assertEquals("MOBILE_ANDROID", com.example.domain.model.DevelopmentEnvironment.MOBILE_ANDROID.name)
+        assertEquals("BACKEND_GO", com.example.domain.model.DevelopmentEnvironment.BACKEND_GO.name)
+    }
+
 }

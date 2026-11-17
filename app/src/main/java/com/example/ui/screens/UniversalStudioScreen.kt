@@ -325,7 +325,7 @@ private fun SavedStudioProjectsTab(
                         Column(modifier = Modifier.weight(1f)) {
                             Text(project.projectName, style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold)
                             Text(
-                                "${project.environment.title} • ${project.primaryLanguage.displayName}",
+                                AppUiStrings.environmentTitle(project.environment.name, uiLang) + " • " + project.primaryLanguage.displayName,
                                 style = MaterialTheme.typography.bodySmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
@@ -432,7 +432,7 @@ private fun ProjectCreatorTab(
                         FilterChip(
                             selected = isSelected,
                             onClick = { onSelectEnv(env) },
-                            label = { Text(env.title, fontSize = 12.sp) },
+                            label = { Text(AppUiStrings.environmentTitle(env.name, uiLang), fontSize = 12.sp) },
                             leadingIcon = {
                                 if (isSelected) {
                                     Icon(Icons.Rounded.Check, contentDescription = null, modifier = Modifier.size(16.dp))
@@ -450,13 +450,13 @@ private fun ProjectCreatorTab(
                 ) {
                     Column(modifier = Modifier.padding(10.dp)) {
                         Text(
-                            text = "حزمة البيئة المختارة: ${selectedEnv.subtitle}",
+                            text = AppUiStrings.studioEnvPackageLabel(uiLang, selectedEnv.subtitle),
                             style = MaterialTheme.typography.bodySmall,
                             fontWeight = FontWeight.SemiBold,
                             color = ElectricCyan
                         )
                         Text(
-                            text = "أداة البناء الافتراضية: ${selectedEnv.buildTool} | التصنيف: ${selectedEnv.category}",
+                            text = AppUiStrings.studioBuildToolCategory(uiLang, selectedEnv.buildTool, AppUiStrings.environmentCategory(selectedEnv.name, uiLang)),
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
@@ -572,7 +572,7 @@ private fun ModelAdvisorTab(
                     )
                 }
                 Text(
-                    text = "يقوم النظام بدراسة طبيعة المشروع (${selectedEnv.title})، واختيار النموذج أو فريق النماذج الأكثر تفوقاً في العالم لكتابة وتنقيح الأكواد بأعلى دقة.",
+                    text = AppUiStrings.studioAnalyzingEnv(uiLang, AppUiStrings.environmentTitle(selectedEnv.name, uiLang)),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
@@ -938,7 +938,7 @@ private fun ExecutionAndAuditTab(
                     fontWeight = FontWeight.Bold
                 )
                 Text(
-                    text = "البيئة: ${project.environment.title} | اللغة: ${project.primaryLanguage.displayName}",
+                    text = AppUiStrings.studioEnvLanguageLine(uiLang, AppUiStrings.environmentTitle(project.environment.name, uiLang), project.primaryLanguage.displayName),
                     style = MaterialTheme.typography.bodySmall,
                     color = ElectricCyan
                 )

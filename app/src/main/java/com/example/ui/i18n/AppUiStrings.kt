@@ -777,4 +777,56 @@ object AppUiStrings {
     fun notifAgentWorking(language: String?): String =
         if (isEnglish(language)) "METRA Agent notifications are working" else "🔔 إشعارات METRA Agent تعمل"
 
+
+    /**
+     * Display labels for [com.example.domain.model.DevelopmentEnvironment].
+     * Storage/API continue to use enum.name; only UI chrome is localized.
+     */
+    fun environmentTitle(envName: String, language: String?): String {
+        val en = isEnglish(language)
+        return when (envName) {
+            "MOBILE_ANDROID" -> if (en) "Android Native development" else "تطوير أندرويد (Android Native)"
+            "MOBILE_FLUTTER" -> if (en) "Cross-platform apps (Flutter)" else "تطبيقات متعددة المنصات (Flutter)"
+            "MOBILE_REACT_NATIVE" -> if (en) "Hybrid apps (React Native / Expo)" else "تطبيقات هجينة (React Native / Expo)"
+            "WEB_REACT_NEXT" -> if (en) "Modern web apps (Next.js & React)" else "تطبيقات الويب المتطورة (Next.js & React)"
+            "WEB_VUE_SVELTE" -> if (en) "Fast web UIs (Vue 3 / Svelte)" else "واجهات الويب السريعة (Vue 3 / Svelte)"
+            "BACKEND_PYTHON" -> if (en) "APIs & servers (Python FastAPI / Django)" else "الخوادم والـ APIs (Python FastAPI / Django)"
+            "BACKEND_NODE" -> if (en) "Fast Node.js & NestJS servers" else "خوادم Node.js وNestJS السريعة"
+            "BACKEND_GO" -> if (en) "Cloud microservices (Go)" else "الأنظمة السحابية المصغرة (Go Microservices)"
+            "SYSTEMS_RUST" -> if (en) "High-performance secure systems (Rust)" else "الأنظمة فائقة الأداء والأمان (Rust Actix / Axum)"
+            "DATA_SCIENCE_AI" -> if (en) "AI & data analysis (PyTorch)" else "الذكاء الاصطناعي وتحليل البيانات (AI / ML & PyTorch)"
+            "CLOUD_DEVOPS" -> if (en) "Infrastructure & cloud (DevOps & CI/CD)" else "البنية التحتية والحوسبة السحابية (DevOps & CI/CD)"
+            else -> envName
+        }
+    }
+
+    fun environmentCategory(envName: String, language: String?): String {
+        val en = isEnglish(language)
+        return when (envName) {
+            "MOBILE_ANDROID", "MOBILE_FLUTTER", "MOBILE_REACT_NATIVE" -> if (en) "Mobile" else "موبايل (Mobile)"
+            "WEB_REACT_NEXT", "WEB_VUE_SVELTE" -> if (en) "Web" else "ويب (Web)"
+            "BACKEND_PYTHON", "BACKEND_NODE" -> if (en) "Backend" else "خوادم خلفية (Backend)"
+            "BACKEND_GO", "SYSTEMS_RUST", "CLOUD_DEVOPS" -> if (en) "Systems / Cloud" else "سحابي وأنظمة (Systems/Cloud)"
+            "DATA_SCIENCE_AI" -> if (en) "AI / Data" else "ذكاء اصطناعي (AI/Data)"
+            else -> envName
+        }
+    }
+
+    fun studioEnvPackageLabel(language: String?, subtitle: String): String =
+        if (isEnglish(language)) "Selected environment kit: $subtitle" else "حزمة البيئة المختارة: $subtitle"
+
+    fun studioBuildToolCategory(language: String?, buildTool: String, category: String): String =
+        if (isEnglish(language)) "Default build tool: $buildTool | Category: $category"
+        else "أداة البناء الافتراضية: $buildTool | التصنيف: $category"
+
+    fun studioAnalyzingEnv(language: String?, envTitle: String): String =
+        if (isEnglish(language))
+            "The system studies the project nature ($envTitle) and selects the best model or model team to write and refine code with high precision."
+        else
+            "يقوم النظام بدراسة طبيعة المشروع ($envTitle)، واختيار النموذج أو فريق النماذج الأكثر تفوقاً في العالم لكتابة وتنقيح الأكواد بأعلى دقة."
+
+    fun studioEnvLanguageLine(language: String?, envTitle: String, langName: String): String =
+        if (isEnglish(language)) "Environment: $envTitle | Language: $langName"
+        else "البيئة: $envTitle | اللغة: $langName"
+
 }

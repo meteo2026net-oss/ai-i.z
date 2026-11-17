@@ -58,9 +58,9 @@ object UniversalStudioProjectGenerator {
             DevelopmentEnvironment.BACKEND_PYTHON -> "pip install -r requirements.txt && uvicorn main:app --reload"
             DevelopmentEnvironment.BACKEND_GO -> "go mod tidy && go build -o server main.go"
             DevelopmentEnvironment.SYSTEMS_RUST -> "cargo build --release"
-            DevelopmentEnvironment.DATA_SCIENCE_AI -> "pip install -r requirements.txt && python train_or_infer.py"
+            DevelopmentEnvironment.DATA_SCIENCE_AI -> "pip install -r requirements.txt"
             DevelopmentEnvironment.CLOUD_DEVOPS -> "docker compose up -d"
-            else -> "make build"
+            else -> "لم يتم تحديد أمر بناء موثوق لهذه البيئة في القالب الأولي؛ استخدم إعدادات المشروع المولّد."
         }
 
         val runInst = when (environment) {
@@ -71,19 +71,19 @@ object UniversalStudioProjectGenerator {
             DevelopmentEnvironment.BACKEND_GO -> "./server"
             DevelopmentEnvironment.SYSTEMS_RUST -> "./target/release/main"
             DevelopmentEnvironment.DATA_SCIENCE_AI -> "python agent_pipeline.py"
-            DevelopmentEnvironment.CLOUD_DEVOPS -> "docker ps"
-            else -> "./run.sh"
+            DevelopmentEnvironment.CLOUD_DEVOPS -> "docker compose ps"
+            else -> "لم يتم تحديد أمر تشغيل موثوق لهذه البيئة في القالب الأولي؛ راجع README الخاص بالمشروع."
         }
 
         val testInst = when (environment) {
             DevelopmentEnvironment.MOBILE_ANDROID -> "gradle testDebugUnitTest"
             DevelopmentEnvironment.MOBILE_FLUTTER -> "flutter test"
-            DevelopmentEnvironment.WEB_REACT_NEXT -> "npm test"
+            DevelopmentEnvironment.WEB_REACT_NEXT -> "npm run lint (فحص lint؛ ليس اختبار وحدات)"
             DevelopmentEnvironment.BACKEND_PYTHON -> "pytest tests/ -v"
             DevelopmentEnvironment.BACKEND_GO -> "go test ./... -v"
             DevelopmentEnvironment.SYSTEMS_RUST -> "cargo test"
-            DevelopmentEnvironment.DATA_SCIENCE_AI -> "pytest -v"
-            else -> "echo 'All tests passed'"
+            DevelopmentEnvironment.DATA_SCIENCE_AI -> "لم يتم تضمين اختبارات آلية في القالب الأولي؛ أضف اختبارات pytest قبل تشغيلها."
+            else -> "لم يتم تحديد أمر اختبار لهذه البيئة بعد؛ أضف إطار اختبارات مناسباً للمشروع ثم عرّف أمر تشغيله."
         }
 
         return StudioProjectSpec(
@@ -98,7 +98,7 @@ object UniversalStudioProjectGenerator {
             buildInstructions = buildInst,
             runInstructions = runInst,
             testInstructions = testInst,
-            securityAuditScore = 98
+            securityAuditScore = null
         )
     }
 

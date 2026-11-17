@@ -1,5 +1,8 @@
 package com.example.worker
 
+import com.example.ui.i18n.AppUiStrings
+import java.util.Locale
+
 import android.content.Context
 import androidx.work.BackoffPolicy
 import androidx.work.Constraints
@@ -11,7 +14,6 @@ import androidx.work.WorkManager
 import java.util.concurrent.TimeUnit
 import androidx.work.WorkerParameters
 import androidx.work.workDataOf
-import com.example.R
 import com.example.core.notifications.QuotaNotificationHelper
 import com.example.core.security.AgentActionType
 import com.example.core.security.ApprovalGuard
@@ -22,14 +24,11 @@ import com.example.data.local.LocalTaskCheckpoint
 import com.example.data.local.MetraLocalDatabase
 import com.example.data.repository.AiFailoverAlert
 import com.example.data.repository.AiOrchestratorRepository
-import com.example.data.repository.FirestoreAgentRepository
+import com.example.data.repository.UserDataRepository
 import com.example.data.repository.GitHubRepository
 import com.example.domain.model.AgentTask
 import com.example.domain.model.ApprovalRequest
 import com.example.domain.model.OperationLog
-import com.google.firebase.Firebase
-import com.google.firebase.auth.auth
-import com.google.firebase.firestore.FirebaseFirestore
 import org.json.JSONArray
 import org.json.JSONObject
 
@@ -40,19 +39,15 @@ class AgentLoopWorker(
 
     override suspend fun doWork(): Result {
         val taskId = inputData.getString(KEY_TASK_ID) ?: return Result.failure()
-        val uid = Firebase.auth.currentUser?.uid ?: return Result.retry()
-
-        val db = FirebaseFirestore.getInstance(
-            applicationContext.getString(R.string.firestore_database_id)
-        )
-        val firestoreRepo = FirestoreAgentRepository(db)
-        val dao = MetraLocalDatabase.getInstance(applicationContext).agentDao()
         val vault = SecretVault(applicationContext)
+        val uid = vault.getSecret(SecretVault.KEY_AUTH_USER_ID).takeIf { it.isNotBlank() } ?: return Result.retry()
+        val dataRepo = UserDataRepository(applicationContext)
+        val dao = MetraLocalDatabase.getInstance(applicationContext).agentDao()
         val configStore = PlatformConfigStore(vault)
         val gitHubRepo = GitHubRepository(vault)
         val aiRepo = AiOrchestratorRepository(vault)
 
-        val remoteTask = firestoreRepo.getTaskById(taskId, uid).getOrNull()
+        val remoteTask = dataRepo.getTaskById(taskId, uid).getOrNull()
         val checkpoint = dao.getCheckpoint(taskId)
         val task = remoteTask ?: checkpoint?.toAgentTask() ?: return Result.failure()
 
@@ -71,7 +66,7 @@ class AgentLoopWorker(
                 switchedToLabel = alert.switchedToLabel,
                 reason = alert.reason
             )
-            firestoreRepo.addLog(
+            dataRepo.addLog(
                 OperationLog(
                     userId = uid,
                     category = "ai",
@@ -129,7 +124,7 @@ class AgentLoopWorker(
                     status = if (isTemporaryQuotaOrNet) "paused" else "failed",
                     lastError = reason
                 )
-                firestoreRepo.updateTask(nextTaskState)
+                dataRepo.updateTask(nextTaskState)
                 dao.upsertCheckpoint(nextTaskState.toCheckpoint("[]"))
                 QuotaNotificationHelper.showAgentStoppedNotification(
                     context = applicationContext,
@@ -161,14 +156,14 @@ class AgentLoopWorker(
                 nextSteps = plan.steps.map { it.title },
                 lastResultSummary = plan.summary
             )
-            firestoreRepo.updateTask(updated)
+            dataRepo.updateTask(updated)
             dao.upsertCheckpoint(updated.toCheckpoint(jsonArr.toString()))
             return runStepsFrom(
                 updated,
                 plan.steps.map { StepSpec(it.title, it.tier, it.actionType, it.rationale) },
                 jsonArr.toString(),
                 uid,
-                firestoreRepo,
+                dataRepo,
                 dao,
                 gitHubRepo,
                 aiRepo,
@@ -184,7 +179,7 @@ class AgentLoopWorker(
             steps,
             checkpoint?.stepsJson ?: "[]",
             uid,
-            firestoreRepo,
+            dataRepo,
             dao,
             gitHubRepo,
             aiRepo,
@@ -200,7 +195,7 @@ class AgentLoopWorker(
         steps: List<StepSpec>,
         stepsJson: String,
         uid: String,
-        firestoreRepo: FirestoreAgentRepository,
+        dataRepo: UserDataRepository,
         dao: com.example.data.local.AgentDao,
         gitHubRepo: GitHubRepository,
         aiRepo: AiOrchestratorRepository,
@@ -228,9 +223,9 @@ class AgentLoopWorker(
                         status = "failed",
                         lastError = guard.reason
                     )
-                    firestoreRepo.updateTask(blocked)
+                    dataRepo.updateTask(blocked)
                     dao.upsertCheckpoint(blocked.toCheckpoint(stepsJson))
-                    firestoreRepo.addLog(
+                    dataRepo.addLog(
                         OperationLog(
                             userId = uid,
                             category = "security",
@@ -243,7 +238,7 @@ class AgentLoopWorker(
                     )
                     QuotaNotificationHelper.showAgentStoppedNotification(
                         context = applicationContext,
-                        title = "توقفت المهمة بسبب حظر أمني: ${currentTask.title}",
+                        title = AppUiStrings.notifTaskBlocked(Locale.getDefault().language, currentTask.title),
                         reason = "${step.title}: ${guard.reason}",
                         isPausedWillRetry = false,
                         targetRoute = "tasks"
@@ -263,7 +258,7 @@ class AgentLoopWorker(
                         AgentActionType.PROD_DEPLOY -> "prod_deploy"
                         else -> "git_push"
                     }
-                    firestoreRepo.createApproval(
+                    dataRepo.createApproval(
                         ApprovalRequest(
                             userId = uid,
                             taskId = currentTask.id,
@@ -281,9 +276,9 @@ class AgentLoopWorker(
                         nextSteps = steps.drop(index).map { it.title },
                         lastResultSummary = "توقف الوكيل بانتظار موافقتك على: ${step.title}"
                     )
-                    firestoreRepo.updateTask(waitingTask)
+                    dataRepo.updateTask(waitingTask)
                     dao.upsertCheckpoint(waitingTask.toCheckpoint(stepsJson))
-                    firestoreRepo.addLog(
+                    dataRepo.addLog(
                         OperationLog(
                             userId = uid,
                             category = "agent",
@@ -318,11 +313,11 @@ class AgentLoopWorker(
                             status = "paused",
                             lastError = stepResultObj.text
                         )
-                        firestoreRepo.updateTask(pausedTask)
+                        dataRepo.updateTask(pausedTask)
                         dao.upsertCheckpoint(pausedTask.toCheckpoint(stepsJson))
                         QuotaNotificationHelper.showAgentStoppedNotification(
                             context = applicationContext,
-                            title = "توقف مؤقت للمهمة: ${currentTask.title}",
+                            title = AppUiStrings.notifTaskPaused(Locale.getDefault().language, currentTask.title),
                             reason = stepResultObj.text,
                             isPausedWillRetry = true,
                             targetRoute = "tasks"
@@ -349,9 +344,9 @@ class AgentLoopWorker(
                         modifiedFiles = updatedFiles,
                         nextSteps = steps.drop(completedCount).map { it.title }
                     )
-                    firestoreRepo.updateTask(currentTask)
+                    dataRepo.updateTask(currentTask)
                     dao.upsertCheckpoint(currentTask.toCheckpoint(stepsJson))
-                    firestoreRepo.addLog(
+                    dataRepo.addLog(
                         OperationLog(
                             userId = uid,
                             category = "agent",
@@ -365,7 +360,7 @@ class AgentLoopWorker(
                     if (completedCount >= steps.size) {
                         QuotaNotificationHelper.showCommandCompletedNotification(
                             context = applicationContext,
-                            title = "اكتملت المهمة: ${currentTask.title}",
+                            title = AppUiStrings.notifTaskCompleted(Locale.getDefault().language, currentTask.title),
                             details = "أنهى الوكيل جميع الخطوات (${steps.size}/${steps.size}) في ${currentTask.repo}. آخر خطوة: ${step.title}",
                             targetRoute = "tasks"
                         )

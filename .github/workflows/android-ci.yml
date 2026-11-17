@@ -2,7 +2,9 @@ name: Android CI
 
 on:
   push:
-    branches: [main]
+    branches:
+      - main
+      - 'feature/**'
   pull_request:
     branches: [main]
   workflow_dispatch:
@@ -29,19 +31,8 @@ jobs:
           distribution: temurin
           java-version: '21'
 
-      - name: Set up Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: '22'
-
       - name: Set up Gradle
         uses: gradle/actions/setup-gradle@v4
-
-      - name: Install JavaScript test dependencies
-        run: npm install --no-audit --no-fund
-
-      - name: Install Firebase CLI
-        run: npm install --global firebase-tools
 
       - name: Generate ephemeral debug keystore
         run: |
@@ -55,12 +46,19 @@ jobs:
             -validity 10000 \
             -dname "CN=Android Debug,O=Android,C=US"
 
-      - name: Run Firestore rules tests, Android unit tests, and assemble debug APK
-        run: |
-          firebase emulators:exec \
-            --project demo-no-project \
-            --only auth,firestore \
-            "npm run test:firestore && gradle --no-daemon --stacktrace testDebugUnitTest assembleDebug"
+      - name: Generate ephemeral release keystore for CI validation
+        run: >-
+          keytool -genkeypair -v -keystore ci-release.keystore -storetype PKCS12 -storepass ci-only-store-password
+          -alias upload -keypass ci-only-store-password -keyalg RSA -keysize 2048 -validity 2
+          -dname "CN=CI Validation Only,O=AI i.z,C=GB"
+
+      - name: Run Android unit tests and validate debug and minified release builds
+        env:
+          KEYSTORE_PATH: ${{ github.workspace }}/ci-release.keystore
+          STORE_PASSWORD: ci-only-store-password
+          KEY_PASSWORD: ci-only-store-password
+        run: >-
+          gradle --no-daemon --stacktrace testDebugUnitTest assembleDebug assembleRelease bundleRelease
 
       - name: Upload debug APK
         if: success()
@@ -70,3 +68,52 @@ jobs:
           path: app/build/outputs/apk/debug/app-debug.apk
           if-no-files-found: error
           retention-days: 7
+
+      - name: Upload minified release outputs for CI validation only
+        if: success()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ai-iz-release-ci-validation
+          path: |
+            app/build/outputs/apk/release/app-release.apk
+            app/build/outputs/bundle/release/app-release.aab
+          if-no-files-found: error
+          retention-days: 7
+
+  backend-security:
+    name: Backend session and API integration tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: ai_iz_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d ai_iz_test"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      TEST_DATABASE_URL: postgres://postgres:postgres@localhost:5432/ai_iz_test
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Install backend dependencies
+        run: npm install --prefix backend --no-audit --no-fund
+      - name: Check backend server syntax
+        run: node --check backend/src/server.js
+      - name: Run backend session, validation, and PostgreSQL API integration tests
+        run: npm test --prefix backend
+      - name: Install Runner dependencies
+        run: npm install --prefix runner --no-audit --no-fund
+      - name: Check Runner syntax and security tests
+        run: node --check runner/src/server.js && npm test --prefix runner

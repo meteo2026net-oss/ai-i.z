@@ -8,7 +8,6 @@ import androidx.activity.enableEdgeToEdge
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
-import com.example.core.firebase.configureAppCheck
 import com.example.core.notifications.QuotaNotificationHelper
 import com.example.ui.navigation.MetraRootApp
 
@@ -19,8 +18,6 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
-        // Configure Firebase App Check with launch intent before rendering UI or ViewModels.
-        configureAppCheck(this, intent)
         QuotaNotificationHelper.ensureChannels(this)
         extractNotificationRoute(intent)
 

@@ -22,12 +22,12 @@ import com.example.data.repository.AiFailoverAlert
 import com.example.data.repository.AiOrchestratorRepository
 import com.example.data.repository.BackendRepository
 import com.example.data.repository.CollaborationContribution
-import com.example.data.repository.FirestoreAgentRepository
+import com.example.data.repository.UserDataRepository
 import com.example.data.repository.FlutterSpecExporter
 import com.example.data.repository.GitHubRepository
 import com.example.data.repository.SharedWorkplanCodec
-import com.google.firebase.Firebase
-import com.google.firebase.auth.auth
+import com.example.data.repository.StudioProjectSaveRevisionTracker
+import com.example.data.repository.StudioProjectFileEditGuard
 import com.example.domain.model.AgentTask
 import com.example.domain.model.ApprovalRequest
 import com.example.domain.model.BackendHealthResponse
@@ -46,7 +46,6 @@ import com.example.domain.model.GitHubWorkflowRun
 import com.example.domain.model.OperationLog
 import com.example.domain.model.UserSettings
 import com.example.worker.AgentLoopWorker
-import com.google.firebase.firestore.FirebaseFirestoreException
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -57,6 +56,8 @@ import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 
 sealed interface StreamUiState<out T> {
     data object Loading : StreamUiState<Nothing>
@@ -119,6 +120,7 @@ data class WorkspaceUiState(
     val currentGoogleName: String = "",
     val notificationPrefs: AgentNotificationPrefs = AgentNotificationPrefs(),
     val activeStudioProject: com.example.domain.model.StudioProjectSpec? = null,
+    val savedStudioProjects: List<com.example.domain.model.StudioProjectSummary> = emptyList(),
     val isGeneratingStudioProject: Boolean = false,
     val studioSelectedFilePath: String = "",
     val studioEditedContent: String = "",
@@ -127,7 +129,7 @@ data class WorkspaceUiState(
 
 class MetraAgentViewModel(
     private val currentUserId: String,
-    private val firestoreRepo: FirestoreAgentRepository,
+    private val userDataRepository: UserDataRepository,
     private val gitHubRepo: GitHubRepository,
     private val aiRepo: AiOrchestratorRepository,
     private val backendRepo: BackendRepository,
@@ -137,56 +139,51 @@ class MetraAgentViewModel(
     private val platformConfigStore: PlatformConfigStore = PlatformConfigStore(vault)
 ) : ViewModel() {
 
-    val settingsState: StateFlow<StreamUiState<UserSettings>> = firestoreRepo.observeSettings(currentUserId)
+    val settingsState: StateFlow<StreamUiState<UserSettings>> = userDataRepository.observeSettings(currentUserId)
         .map<UserSettings, StreamUiState<UserSettings>> { StreamUiState.Success(it) }
         .catch { error ->
-            val fsError = unwrapFirestoreError(error)
-            if (fsError == null && error is CancellationException) throw error
-            val root = fsError ?: error
+            if (error is CancellationException) throw error
+            val root = error
             Log.w(TAG, "observeSettings error", root)
             emit(StreamUiState.Error(root.localizedMessage ?: "تعذر تحميل الإعدادات"))
         }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000L), StreamUiState.Loading)
 
-    val tasksState: StateFlow<StreamUiState<List<AgentTask>>> = firestoreRepo.observeTasks(currentUserId)
+    val tasksState: StateFlow<StreamUiState<List<AgentTask>>> = userDataRepository.observeTasks(currentUserId)
         .map<List<AgentTask>, StreamUiState<List<AgentTask>>> { StreamUiState.Success(it) }
         .catch { error ->
-            val fsError = unwrapFirestoreError(error)
-            if (fsError == null && error is CancellationException) throw error
-            val root = fsError ?: error
+            if (error is CancellationException) throw error
+            val root = error
             Log.w(TAG, "observeTasks error", root)
             emit(StreamUiState.Error(root.localizedMessage ?: "تعذر تحميل المهام"))
         }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000L), StreamUiState.Loading)
 
-    val approvalsState: StateFlow<StreamUiState<List<ApprovalRequest>>> = firestoreRepo.observeApprovals(currentUserId)
+    val approvalsState: StateFlow<StreamUiState<List<ApprovalRequest>>> = userDataRepository.observeApprovals(currentUserId)
         .map<List<ApprovalRequest>, StreamUiState<List<ApprovalRequest>>> { StreamUiState.Success(it) }
         .catch { error ->
-            val fsError = unwrapFirestoreError(error)
-            if (fsError == null && error is CancellationException) throw error
-            val root = fsError ?: error
+            if (error is CancellationException) throw error
+            val root = error
             Log.w(TAG, "observeApprovals error", root)
             emit(StreamUiState.Error(root.localizedMessage ?: "تعذر تحميل طلبات الموافقة"))
         }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000L), StreamUiState.Loading)
 
-    val chatState: StateFlow<StreamUiState<List<ChatMessage>>> = firestoreRepo.observeChatMessages(currentUserId)
+    val chatState: StateFlow<StreamUiState<List<ChatMessage>>> = userDataRepository.observeChatMessages(currentUserId)
         .map<List<ChatMessage>, StreamUiState<List<ChatMessage>>> { StreamUiState.Success(it) }
         .catch { error ->
-            val fsError = unwrapFirestoreError(error)
-            if (fsError == null && error is CancellationException) throw error
-            val root = fsError ?: error
+            if (error is CancellationException) throw error
+            val root = error
             Log.w(TAG, "observeChatMessages error", root)
             emit(StreamUiState.Error(root.localizedMessage ?: "تعذر تحميل المحادثة"))
         }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000L), StreamUiState.Loading)
 
-    val logsState: StateFlow<StreamUiState<List<OperationLog>>> = firestoreRepo.observeLogs(currentUserId)
+    val logsState: StateFlow<StreamUiState<List<OperationLog>>> = userDataRepository.observeLogs(currentUserId)
         .map<List<OperationLog>, StreamUiState<List<OperationLog>>> { StreamUiState.Success(it) }
         .catch { error ->
-            val fsError = unwrapFirestoreError(error)
-            if (fsError == null && error is CancellationException) throw error
-            val root = fsError ?: error
+            if (error is CancellationException) throw error
+            val root = error
             Log.w(TAG, "observeLogs error", root)
             emit(StreamUiState.Error(root.localizedMessage ?: "تعذر تحميل السجل"))
         }
@@ -204,14 +201,17 @@ class MetraAgentViewModel(
     )
     val workspace: StateFlow<WorkspaceUiState> = _workspace.asStateFlow()
 
+    // Serialize cloud writes/deletes and prevent a queued save from resurrecting a deleted project.
+    private val studioProjectPersistenceMutex = Mutex()
+    private val studioProjectSaveRevisions = StudioProjectSaveRevisionTracker()
+    private val studioProjectOpenRequests = com.example.data.repository.StudioProjectOpenRequestTracker()
+    private val studioProjectListRequests = com.example.data.repository.StudioProjectOpenRequestTracker()
+    // Accessed by UI-triggered deletes and coroutine-based saves; use a concurrent set.
+    private val deletedStudioProjectIds = java.util.concurrent.ConcurrentHashMap.newKeySet<String>()
+
     init {
-        val currentFirebaseUser = try {
-            Firebase.auth.currentUser
-        } catch (_: Exception) {
-            null
-        }
-        val email = currentFirebaseUser?.email.orEmpty()
-        val displayName = currentFirebaseUser?.displayName.orEmpty()
+        val email = vault.getSecret(SecretVault.KEY_AUTH_EMAIL)
+        val displayName = vault.getSecret(SecretVault.KEY_AUTH_DISPLAY_NAME)
         val updatedSnap = accountLinkStore.recordGoogleAccount(
             uid = currentUserId,
             email = email,
@@ -237,6 +237,47 @@ class MetraAgentViewModel(
                 currentGoogleEmail = email,
                 currentGoogleName = displayName
             )
+        }
+        // Restore the library only if this request is still current; a late response must not undo a delete.
+        viewModelScope.launch {
+            val requestId = studioProjectListRequests.next()
+            userDataRepository.listStudioProjects().onSuccess { projects ->
+                if (!studioProjectListRequests.isCurrent(requestId)) return@onSuccess
+                val visibleProjects = projects.filterNot { it.id in deletedStudioProjectIds }
+                _workspace.update { it.copy(savedStudioProjects = visibleProjects) }
+                val latest = visibleProjects.firstOrNull() ?: return@onSuccess
+                if (_workspace.value.activeStudioProject == null) {
+                    userDataRepository.getStudioProject(latest.id)
+                        .onSuccess { project ->
+                            if (
+                                studioProjectListRequests.isCurrent(requestId) &&
+                                latest.id !in deletedStudioProjectIds &&
+                                project != null &&
+                                _workspace.value.activeStudioProject == null
+                            ) {
+                                val firstFile = project.files.firstOrNull { it.isEntrypoint }
+                                    ?: project.files.firstOrNull()
+                                _workspace.update {
+                                    it.copy(
+                                        activeStudioProject = project,
+                                        studioSelectedFilePath = firstFile?.path.orEmpty(),
+                                        studioEditedContent = firstFile?.content.orEmpty(),
+                                        statusBannerMessage = "تمت استعادة آخر مشروع محفوظ في AI I.Z."
+                                    )
+                                }
+                            }
+                        }
+                        .onFailure { error ->
+                            if (studioProjectListRequests.isCurrent(requestId)) {
+                                Log.w(TAG, "Latest Studio project detail restore unavailable", error)
+                            }
+                        }
+                }
+            }.onFailure { error ->
+                if (studioProjectListRequests.isCurrent(requestId)) {
+                    Log.w(TAG, "Studio project library restore unavailable", error)
+                }
+            }
         }
         if (gitHubRepo.hasToken()) {
             refreshGitHubWorkspace()
@@ -307,7 +348,7 @@ class MetraAgentViewModel(
                 reason = alert.reason
             )
         }
-        firestoreRepo.addLog(
+        userDataRepository.addLog(
             OperationLog(
                 userId = currentUserId,
                 category = "ai",
@@ -322,7 +363,7 @@ class MetraAgentViewModel(
 
     fun saveUserSettings(updated: UserSettings) {
         viewModelScope.launch {
-            firestoreRepo.saveSettings(updated.copy(userId = currentUserId))
+            userDataRepository.saveSettings(updated.copy(userId = currentUserId))
                 .onSuccess {
                     _workspace.update { it.copy(statusBannerMessage = "تم حفظ الإعدادات والمزامنة السحابية.") }
                 }
@@ -365,7 +406,7 @@ class MetraAgentViewModel(
                             statusBannerMessage = "تم ربط حساب GitHub: ${user.login}"
                         )
                     }
-                    firestoreRepo.addLog(
+                    userDataRepository.addLog(
                         OperationLog(
                             userId = currentUserId,
                             category = "github",
@@ -573,7 +614,7 @@ class MetraAgentViewModel(
         }
         if (filePath.isNotBlank()) {
             viewModelScope.launch {
-                firestoreRepo.addLog(
+                userDataRepository.addLog(
                     OperationLog(
                         userId = currentUserId,
                         category = "github",
@@ -653,7 +694,7 @@ class MetraAgentViewModel(
             val preview = state.fileDiffPreview.ifBlank {
                 "تحديث ${state.selectedFilePath} على فرع ${settings.activeBranch}"
             }
-            firestoreRepo.createApproval(
+            userDataRepository.createApproval(
                 ApprovalRequest(
                     userId = currentUserId,
                     taskId = "direct_edit",
@@ -662,7 +703,15 @@ class MetraAgentViewModel(
                     title = "رفع تعديل: ${state.selectedFilePath}",
                     description = "رسالة Commit: ${commitMessage.ifBlank { "Update ${state.selectedFilePath}" }}",
                     payloadPreview = preview.take(7500),
-                    targetResource = "${settings.activeRepo}:${settings.activeBranch}"
+                    targetResource = "${settings.activeRepo}:${settings.activeBranch}",
+                    operationPayload = mapOf(
+                        "repo" to settings.activeRepo,
+                        "branch" to settings.activeBranch,
+                        "filePath" to state.selectedFilePath,
+                        "newContent" to state.editedFileContent,
+                        "commitMessage" to commitMessage.ifBlank { "Update ${state.selectedFilePath}" },
+                        "existingSha" to state.selectedFileSha
+                    )
                 )
             ).onSuccess {
                 _workspace.update {
@@ -693,7 +742,7 @@ class MetraAgentViewModel(
             _workspace.update { it.copy(isBusyGitHub = true) }
             gitHubRepo.createWorkingBranch(settings.activeRepo, newBranchName, baseSha)
                 .onSuccess {
-                    firestoreRepo.addLog(
+                    userDataRepository.addLog(
                         OperationLog(
                             userId = currentUserId,
                             category = "github",
@@ -788,7 +837,7 @@ class MetraAgentViewModel(
     ) {
         val settings = currentSettings()
         viewModelScope.launch {
-            firestoreRepo.createApproval(
+            userDataRepository.createApproval(
                 ApprovalRequest(
                     userId = currentUserId,
                     taskId = "pr_create",
@@ -797,7 +846,14 @@ class MetraAgentViewModel(
                     title = "إنشاء Draft PR: $title",
                     description = "من $headBranch إلى $baseBranch",
                     payloadPreview = body,
-                    targetResource = settings.activeRepo
+                    targetResource = settings.activeRepo,
+                    operationPayload = mapOf(
+                        "repo" to settings.activeRepo,
+                        "title" to title,
+                        "headBranch" to headBranch,
+                        "baseBranch" to baseBranch,
+                        "body" to body
+                    )
                 )
             ).onSuccess {
                 _workspace.update { it.copy(statusBannerMessage = "تم إرسال طلب إنشاء Draft PR للموافقة (المستوى 2).") }
@@ -817,7 +873,7 @@ class MetraAgentViewModel(
     fun requestMergePrApproval(pr: GitHubPullRequest, context: Context? = null) {
         val settings = currentSettings()
         viewModelScope.launch {
-            firestoreRepo.createApproval(
+            userDataRepository.createApproval(
                 ApprovalRequest(
                     userId = currentUserId,
                     taskId = "pr_merge_${pr.number}",
@@ -826,7 +882,14 @@ class MetraAgentViewModel(
                     title = "دمج Pull Request #${pr.number}",
                     description = pr.title,
                     payloadPreview = "merge ${pr.head.ref} -> ${pr.base.ref}",
-                    targetResource = "${settings.activeRepo}#${pr.number}"
+                    targetResource = "${settings.activeRepo}#${pr.number}",
+                    operationPayload = mapOf(
+                        "repo" to settings.activeRepo,
+                        "pullNumber" to pr.number,
+                        "commitTitle" to pr.title,
+                        "headBranch" to pr.head.ref,
+                        "baseBranch" to pr.base.ref
+                    )
                 )
             ).onSuccess {
                 _workspace.update { it.copy(statusBannerMessage = "دمج PR يتطلب موافقة صريحة مستقلة (المستوى 3).") }
@@ -843,234 +906,63 @@ class MetraAgentViewModel(
         }
     }
 
+    /**
+     * Approves the immutable server-owned request. Execution is deliberately
+     * not performed by this Android process: the isolated Runner execution
+     * endpoints are still disabled, and a client-side GitHub call would bypass
+     * the server enforcement boundary. Keep the approval pending for Runner.
+     */
     fun approveAndExecute(approval: ApprovalRequest, context: Context? = null) {
-        val settings = currentSettings()
+        if (!approval.serverOwned || approval.operationHash.isBlank()) {
+            _workspace.update {
+                it.copy(backendError = "طلب الموافقة قديم أو غير مرتبط بالخادم. أعد إنشاء الطلب قبل المتابعة.")
+            }
+            return
+        }
         viewModelScope.launch {
-            firestoreRepo.decideApproval(approval.id, "approved", "تمت الموافقة من المطور", currentUserId)
-                .onSuccess {
-                    var stepExecutionSucceeded = false
-                    when (approval.actionType) {
-                        "git_push" -> {
-                            val state = _workspace.value
-                            val isSharedWorkFilePush = approval.taskId == "shared_workfile"
-                            val targetPath = if (isSharedWorkFilePush) state.sharedWorkFilePath else state.selectedFilePath
-                            val targetContent = if (isSharedWorkFilePush) state.sharedWorkFileDraft else state.editedFileContent
-                            val targetSha = if (isSharedWorkFilePush) state.sharedWorkFileSha else state.selectedFileSha
-
-                            if (targetPath.isNotBlank() && targetContent.isNotBlank()) {
-                                gitHubRepo.commitFileEdit(
-                                    repoSlug = settings.activeRepo,
-                                    filePath = targetPath,
-                                    newContent = targetContent,
-                                    commitMessage = approval.description.removePrefix("رسالة Commit: ").trim(),
-                                    branch = settings.activeBranch,
-                                    existingSha = targetSha.ifBlank { null }
-                                ).onSuccess {
-                                    stepExecutionSucceeded = true
-                                    firestoreRepo.decideApproval(approval.id, "executed", "تم الرفع إلى GitHub", currentUserId)
-                                    if (isSharedWorkFilePush) {
-                                        _workspace.update {
-                                            it.copy(
-                                                sharedWorkFileOriginal = targetContent,
-                                                sharedWorkFileDiff = "",
-                                                statusBannerMessage = "تم رفع تحديث الملف المشترك ($targetPath) إلى GitHub."
-                                            )
-                                        }
-                                    }
-                                    firestoreRepo.addLog(
-                                        OperationLog(
-                                            userId = currentUserId,
-                                            category = "github",
-                                            tier = 2L,
-                                            action = approval.title,
-                                            details = "تم تنفيذ Push بنجاح إلى ${settings.activeBranch} ($targetPath)",
-                                            outcome = "success",
-                                            repo = settings.activeRepo
-                                        )
-                                    )
-                                    refreshGitHubWorkspace()
-                                    if (context != null) {
-                                        QuotaNotificationHelper.showCommandCompletedNotification(
-                                            context = context,
-                                            title = "تم تنفيذ الرفع: ${approval.title}",
-                                            details = "تم رفع $targetPath إلى فرع ${settings.activeBranch} بنجاح.",
-                                            targetRoute = if (isSharedWorkFilePush) "workspace_plan" else "dashboard"
-                                        )
-                                    }
-                                }.onFailure { err ->
-                                    _workspace.update { it.copy(gitHubError = err.localizedMessage) }
-                                    if (context != null) {
-                                        QuotaNotificationHelper.showAgentStoppedNotification(
-                                            context = context,
-                                            title = "فشل رفع التعديل: ${approval.title}",
-                                            reason = err.localizedMessage ?: "تعذر الرفع إلى GitHub",
-                                            targetRoute = "security"
-                                        )
-                                    }
-                                }
-                            }
-                        }
-                        "create_pr" -> {
-                            val parts = approval.description.removePrefix("من ").split(" إلى ")
-                            val head = parts.getOrNull(0)?.trim() ?: settings.activeBranch
-                            val base = parts.getOrNull(1)?.trim() ?: "main"
-                            gitHubRepo.createDraftPullRequest(
-                                repoSlug = settings.activeRepo,
-                                title = approval.title.removePrefix("إنشاء Draft PR: ").trim(),
-                                headBranch = head,
-                                baseBranch = base,
-                                body = approval.payloadPreview
-                            ).onSuccess {
-                                stepExecutionSucceeded = true
-                                firestoreRepo.decideApproval(approval.id, "executed", "تم إنشاء Draft PR #${it.number}", currentUserId)
-                                refreshGitHubWorkspace()
-                                if (context != null) {
-                                    QuotaNotificationHelper.showCommandCompletedNotification(
-                                        context = context,
-                                        title = "تم إنشاء Draft PR #${it.number}",
-                                        details = "من $head إلى $base",
-                                        targetRoute = "prs"
-                                    )
-                                }
-                            }.onFailure { err ->
-                                if (context != null) {
-                                    QuotaNotificationHelper.showAgentStoppedNotification(
-                                        context = context,
-                                        title = "توقف إنشاء Draft PR",
-                                        reason = err.localizedMessage ?: "تعذر إنشاء PR",
-                                        targetRoute = "prs"
-                                    )
-                                }
-                            }
-                        }
-                        "merge_pr" -> {
-                            val prNumber = approval.targetResource.substringAfter("#").toIntOrNull()
-                            if (prNumber != null) {
-                                gitHubRepo.mergePullRequest(
-                                    repoSlug = settings.activeRepo,
-                                    pullNumber = prNumber,
-                                    commitTitle = approval.description
-                                ).onSuccess {
-                                    stepExecutionSucceeded = true
-                                    firestoreRepo.decideApproval(approval.id, "executed", "تم الدمج بنجاح", currentUserId)
-                                    refreshGitHubWorkspace()
-                                    if (context != null) {
-                                        QuotaNotificationHelper.showCommandCompletedNotification(
-                                            context = context,
-                                            title = "تم دمج PR #$prNumber",
-                                            details = approval.description,
-                                            targetRoute = "prs"
-                                        )
-                                    }
-                                }.onFailure { err ->
-                                    if (context != null) {
-                                        QuotaNotificationHelper.showAgentStoppedNotification(
-                                            context = context,
-                                            title = "توقف دمج PR #$prNumber",
-                                            reason = err.localizedMessage ?: "تعذر الدمج",
-                                            targetRoute = "prs"
-                                        )
-                                    }
-                                }
-                            }
-                        }
-                        "db_sql", "db_migration", "db_rls_grants" -> {
-                            if (settings.backendUrl.isBlank()) {
-                                val msg = "يلزم ربط عنوان خادم Backend لتنفيذ استعلام SQL المعتمد."
-                                _workspace.update { it.copy(backendError = msg) }
-                                if (context != null) {
-                                    QuotaNotificationHelper.showActionRequiredNotification(
-                                        context = context,
-                                        title = "مطلوب ربط خادم Backend",
-                                        reason = msg,
-                                        tier = 2,
-                                        targetRoute = "ai_setup"
-                                    )
-                                }
-                            } else {
-                                backendRepo.executeApprovedSql(
-                                    baseUrl = settings.backendUrl,
-                                    targetDatabase = approval.targetResource,
-                                    sql = approval.payloadPreview,
-                                    approvalId = approval.id
-                                ).onSuccess { res ->
-                                    stepExecutionSucceeded = true
-                                    firestoreRepo.decideApproval(approval.id, "executed", res.impactSummary, currentUserId)
-                                    _workspace.update { it.copy(sqlResult = res) }
-                                    if (context != null) {
-                                        QuotaNotificationHelper.showCommandCompletedNotification(
-                                            context = context,
-                                            title = "تم تنفيذ SQL المعتمد",
-                                            details = res.impactSummary,
-                                            targetRoute = "sql_review"
-                                        )
-                                    }
-                                }.onFailure { err ->
-                                    _workspace.update { it.copy(backendError = err.localizedMessage) }
-                                    if (context != null) {
-                                        QuotaNotificationHelper.showAgentStoppedNotification(
-                                            context = context,
-                                            title = "توقف تنفيذ SQL المعتمد",
-                                            reason = err.localizedMessage ?: "خطأ من الخادم",
-                                            targetRoute = "sql_review"
-                                        )
-                                    }
-                                }
-                            }
-                        }
-                    }
-
-                    // Continuous Auto-Resume: advance parent task past approved step and continue remaining steps
-                    if (stepExecutionSucceeded &&
-                        approval.taskId.isNotBlank() &&
-                        approval.taskId !in listOf("direct_edit", "shared_workfile", "pr_create", "sql_review") &&
-                        !approval.taskId.startsWith("pr_merge_")
-                    ) {
-                        val linkedTask = firestoreRepo.getTaskById(approval.taskId, currentUserId).getOrNull()
-                        val continuous = platformConfigStore.loadSnapshot().activeProject?.continuousExecutionEnabled ?: true
-                        if (linkedTask != null && linkedTask.status == "awaiting_approval") {
-                            val nextIdx = (linkedTask.currentStepIndex + 1L).coerceAtMost(linkedTask.totalSteps.coerceAtLeast(1L))
-                            val done = nextIdx >= linkedTask.totalSteps && linkedTask.totalSteps > 0L
-                            val pct = if (linkedTask.totalSteps > 0L) ((nextIdx * 100L) / linkedTask.totalSteps).coerceIn(0L, 100L) else 100L
-                            val updatedTask = linkedTask.copy(
-                                status = if (done) "completed" else "running",
-                                currentStepIndex = nextIdx,
-                                progressPercent = pct,
-                                lastCompletedStep = approval.title,
-                                lastResultSummary = "تمت الموافقة والتنفيذ: ${approval.title}",
-                                nextSteps = linkedTask.nextSteps.drop(1)
-                            )
-                            firestoreRepo.updateTask(updatedTask)
-                            if (done && context != null) {
-                                QuotaNotificationHelper.showCommandCompletedNotification(
-                                    context = context,
-                                    title = "اكتملت المهمة: ${updatedTask.title}",
-                                    details = "تم تنفيذ جميع الخطوات بنجاح.",
-                                    targetRoute = "tasks"
-                                )
-                            } else if (!done && continuous && context != null) {
-                                AgentLoopWorker.enqueue(
-                                    context = context,
-                                    taskId = updatedTask.id,
-                                    provider = settings.aiProvider,
-                                    model = settings.aiModel,
-                                    autoTier1 = settings.autoExecuteTier1,
-                                    replaceExisting = true
-                                )
-                                _workspace.update {
-                                    it.copy(statusBannerMessage = "تم تنفيذ الموافقة واستأنف الوكيل بقية الخطوات تلقائياً للنهاية.")
-                                }
-                            }
-                        }
-                    }
+            userDataRepository.decideApproval(
+                approval.id,
+                "approved",
+                "تمت الموافقة صراحةً؛ التنفيذ ينتظر خدمة Runner المعزولة.",
+                currentUserId
+            ).onSuccess {
+                _workspace.update {
+                    it.copy(
+                        statusBannerMessage = "تم حفظ الموافقة على الخادم. لم يُنفذ الإجراء بعد؛ خدمة Runner المعزولة غير مفعلة حالياً."
+                    )
                 }
+                userDataRepository.addLog(
+                    OperationLog(
+                        userId = currentUserId,
+                        category = "security",
+                        tier = approval.tier,
+                        action = "اعتماد طلب بانتظار Runner: ${approval.title}",
+                        details = "تم اعتماد العملية المرتبطة ببصمة الخادم ${approval.operationHash.take(12)}، ولم يُنفذ أي تغيير خارجي.",
+                        outcome = "pending",
+                        repo = currentSettings().activeRepo
+                    )
+                )
+                if (context != null) {
+                    QuotaNotificationHelper.showActionRequiredNotification(
+                        context = context,
+                        title = "تم اعتماد الطلب بانتظار Runner",
+                        reason = "حُفظت الموافقة، لكن التنفيذ الفعلي لم يبدأ لأن خدمة التنفيذ المعزولة غير متاحة بعد.",
+                        tier = approval.tier.toInt().coerceIn(2, 3),
+                        targetRoute = "security"
+                    )
+                }
+            }.onFailure { error ->
+                _workspace.update {
+                    it.copy(backendError = error.localizedMessage ?: "تعذر حفظ الموافقة على الخادم.")
+                }
+            }
         }
     }
 
     fun rejectApproval(approval: ApprovalRequest) {
         viewModelScope.launch {
-            firestoreRepo.decideApproval(approval.id, "rejected", "تم الرفض من المطور", currentUserId)
-            firestoreRepo.addLog(
+            userDataRepository.decideApproval(approval.id, "rejected", "تم الرفض من المطور", currentUserId)
+            userDataRepository.addLog(
                 OperationLog(
                     userId = currentUserId,
                     category = "security",
@@ -1093,7 +985,7 @@ class MetraAgentViewModel(
         val activeDb = pSnap.activeDatabase
 
         viewModelScope.launch {
-            firestoreRepo.addChatMessage(
+            userDataRepository.addChatMessage(
                 ChatMessage(
                     userId = currentUserId,
                     role = "user",
@@ -1118,7 +1010,7 @@ class MetraAgentViewModel(
             }
 
             // Create durable task and schedule WorkManager for multi-step execution
-            val taskId = firestoreRepo.createTask(
+            val taskId = userDataRepository.createTask(
                 AgentTask(
                     userId = currentUserId,
                     repo = settings.activeRepo,
@@ -1166,7 +1058,7 @@ class MetraAgentViewModel(
                 }
                 if (finalResponse.isNotBlank()) {
                     val headerPrefix = if (finalEndpointUsed.isNotBlank()) "[$finalEndpointUsed]\n" else ""
-                    firestoreRepo.addChatMessage(
+                    userDataRepository.addChatMessage(
                         ChatMessage(
                             userId = currentUserId,
                             role = "assistant",
@@ -1207,7 +1099,7 @@ class MetraAgentViewModel(
     fun resumeTaskInBackground(task: AgentTask, context: Context) {
         val settings = currentSettings()
         viewModelScope.launch {
-            firestoreRepo.updateTask(task.copy(status = "running"))
+            userDataRepository.updateTask(task.copy(status = "running"))
             AgentLoopWorker.enqueue(
                 context = context,
                 taskId = task.id,
@@ -1227,7 +1119,6 @@ class MetraAgentViewModel(
         aiModel: String,
         profileLabel: String = ""
     ) {
-        if (backendToken.isNotBlank()) vault.putSecret(SecretVault.KEY_BACKEND_TOKEN, backendToken.trim())
         if (openAiKey.isNotBlank()) vault.putSecret(SecretVault.KEY_OPENAI_API, openAiKey.trim())
         accountLinkStore.upsertBackendProfile(
             label = profileLabel,
@@ -1235,7 +1126,7 @@ class MetraAgentViewModel(
             aiModel = aiModel,
             openAiKey = openAiKey.trim(),
             backendUrl = backendUrl.trim(),
-            backendToken = backendToken.trim(),
+            backendToken = "",
             setActive = true
         )
         val updated = currentSettings().copy(
@@ -1618,7 +1509,7 @@ class MetraAgentViewModel(
                         statusBannerMessage = col.summary
                     )
                 }
-                firestoreRepo.addChatMessage(
+                userDataRepository.addChatMessage(
                     ChatMessage(
                         userId = currentUserId,
                         role = "assistant",
@@ -1629,7 +1520,7 @@ class MetraAgentViewModel(
                         repoContext = settings.activeRepo
                     )
                 )
-                firestoreRepo.addLog(
+                userDataRepository.addLog(
                     OperationLog(
                         userId = currentUserId,
                         category = "agent",
@@ -1677,7 +1568,7 @@ class MetraAgentViewModel(
             val preview = state.sharedWorkFileDiff.ifBlank {
                 "تحديث ملف العمل المشترك ${state.sharedWorkFilePath} على فرع ${settings.activeBranch}"
             }
-            firestoreRepo.createApproval(
+            userDataRepository.createApproval(
                 ApprovalRequest(
                     userId = currentUserId,
                     taskId = "shared_workfile",
@@ -1686,7 +1577,15 @@ class MetraAgentViewModel(
                     title = "رفع ملف العمل المشترك: ${state.sharedWorkFilePath}",
                     description = "رسالة Commit: ${commitMessage.ifBlank { "Update shared agent workplan" }}",
                     payloadPreview = preview.take(7500),
-                    targetResource = "${settings.activeRepo}:${settings.activeBranch}"
+                    targetResource = "${settings.activeRepo}:${settings.activeBranch}",
+                    operationPayload = mapOf(
+                        "repo" to settings.activeRepo,
+                        "branch" to settings.activeBranch,
+                        "filePath" to state.sharedWorkFilePath,
+                        "newContent" to state.sharedWorkFileDraft,
+                        "commitMessage" to commitMessage.ifBlank { "Update shared agent workplan" },
+                        "existingSha" to state.sharedWorkFileSha
+                    )
                 )
             ).onSuccess {
                 _workspace.update {
@@ -1906,7 +1805,7 @@ class MetraAgentViewModel(
             backendRepo.runTests(settings.backendUrl, settings.activeRepo, settings.activeBranch, target)
                 .onSuccess { run ->
                     _workspace.update { it.copy(isBusyBackend = false, lastTestRun = run) }
-                    firestoreRepo.addLog(
+                    userDataRepository.addLog(
                         OperationLog(
                             userId = currentUserId,
                             category = "test",
@@ -1985,7 +1884,7 @@ class MetraAgentViewModel(
                 it.copy(backendError = "محظور تماماً الاتصال بقاعدة البيانات المحمية/القديمة أو تعديلها أو حذفها.")
             }
             viewModelScope.launch {
-                firestoreRepo.addLog(
+                userDataRepository.addLog(
                     OperationLog(
                         userId = currentUserId,
                         category = "security",
@@ -2049,7 +1948,7 @@ class MetraAgentViewModel(
                     }
                 }
                 is GuardDecision.RequiresApproval -> {
-                    firestoreRepo.createApproval(
+                    userDataRepository.createApproval(
                         ApprovalRequest(
                             userId = currentUserId,
                             taskId = "sql_review",
@@ -2060,7 +1959,12 @@ class MetraAgentViewModel(
                             title = "تنفيذ SQL / Migration على $targetDatabase",
                             description = guard.reason,
                             payloadPreview = cleanSql.take(7500),
-                            targetResource = targetDatabase
+                            targetResource = targetDatabase,
+                            operationPayload = mapOf(
+                                "targetDatabase" to targetDatabase,
+                                "sql" to cleanSql,
+                                "operationType" to if (cleanSql.contains("POLICY", true) || cleanSql.contains("GRANT", true)) "db_rls_grants" else "db_migration"
+                            )
                         )
                     )
                     _workspace.update {
@@ -2149,12 +2053,6 @@ class MetraAgentViewModel(
         return sb.toString()
     }
 
-    private fun unwrapFirestoreError(error: Throwable): FirebaseFirestoreException? {
-        return generateSequence(error) { it.cause }
-            .filterIsInstance<FirebaseFirestoreException>()
-            .firstOrNull()
-    }
-
     fun createStudioProject(
         name: String,
         prompt: String,
@@ -2162,74 +2060,417 @@ class MetraAgentViewModel(
         language: com.example.domain.model.ProgrammingLanguage,
         priority: String
     ) {
+        // Keep a request token so later opens/edits win if generation completes afterward.
+        val workspaceRequestId = studioProjectOpenRequests.invalidate()
         viewModelScope.launch {
-            _workspace.update { it.copy(isGeneratingStudioProject = true) }
+            _workspace.update {
+                it.copy(
+                    isGeneratingStudioProject = true,
+                    statusBannerMessage = "يتم إعداد بنية المشروع ثم توليد ملفات مخصصة بالذكاء الاصطناعي…"
+                )
+            }
             try {
-                val project = com.example.data.repository.UniversalStudioProjectGenerator.generateProject(
+                val baseProject = com.example.data.repository.UniversalStudioProjectGenerator.generateProject(
                     name = name,
                     prompt = prompt,
                     environment = environment,
                     language = language,
                     priority = priority
                 )
-                val firstFile = project.files.firstOrNull { it.isEntrypoint } ?: project.files.firstOrNull()
-                _workspace.update {
-                    it.copy(
-                        isGeneratingStudioProject = false,
-                        activeStudioProject = project,
-                        studioSelectedFilePath = firstFile?.path ?: "",
-                        studioEditedContent = firstFile?.content ?: "",
-                        statusBannerMessage = "تم إنشاء مشروع " + project.projectName + " بنجاح في بيئة " + environment.title + " مع ترشيح النموذج: " + project.recommendedModel.modelName
-                    )
+                val starterManifest = baseProject.files.joinToString("\n") {
+                    "- ${it.path}: ${it.purpose}"
                 }
+                val generationPrompt = """
+                    أنشئ ملفات مشروع برمجي حقيقية ومترابطة بناءً على مواصفات المستخدم.
+                    أعد كائن JSON خاماً فقط، بلا Markdown أو أسوار كود، وبالبنية التالية حصراً:
+                    {
+                      "files": [
+                        {
+                          "path": "relative/path",
+                          "language": "KOTLIN",
+                          "purpose": "وصف موجز",
+                          "isEntrypoint": true,
+                          "content": "محتوى الملف كاملاً كنص JSON صحيح"
+                        }
+                      ]
+                    }
+
+                    شروط إلزامية:
+                    - أنشئ 8 إلى 16 ملفاً مترابطاً قدر الإمكان، وبحد أقصى 24 ملفاً.
+                    - عيّن ملف تشغيل رئيسياً واحداً فقط عبر isEntrypoint=true.
+                    - اكتب ملفات قابلة للبناء فعلياً، لا pseudocode ولا TODOs ولا نصوصاً شكلية.
+                    - أدرج ملفات الاعتماديات وإعدادات البناء والاختبارات المناسبة للبيئة.
+                    - اجعل الملفات متوافقة مع بعضها ومع إصدارات الأدوات المعروفة؛ لا تخترع مكتبات.
+                    - أضف README يشرح المتطلبات والبناء والتشغيل والاختبار.
+                    - لا تضع أسراراً أو مفاتيح أو كلمات مرور أو ملفات .env حقيقية؛ استخدم .env.example عند الحاجة.
+                    - لا تضع أوامر تنفيذ تلقائي أو تعليمات لتجاوز الأمان.
+                    - استخدم مسارات نسبية فقط، ولا تنشئ ملفات داخل .git أو مسارات parent.
+                    - حافظ على JSON صالح: اهرب الأسطر وعلامات الاقتباس داخل content.
+                    - لا تدّعِ أن الاختبارات نُفذت؛ أنشئ ملفات الاختبارات فقط.
+
+                    اسم المشروع: ${baseProject.projectName}
+                    بيئة التطوير: ${environment.name} — ${environment.title}
+                    اللغة الأساسية: ${language.name} — ${language.displayName}
+                    أولوية اختيار النموذج: ${priority}
+                    وصف ومتطلبات المستخدم:
+                    ${prompt.take(8_000)}
+
+                    هيكل ابتدائي مقترح للاستفادة منه وتوسيعه:
+                    $starterManifest
+                """.trimIndent()
+
+                val generated = aiRepo.analyzeOnceWithFailover(prompt = generationPrompt, expectJson = true) { alert ->
+                    if (studioProjectOpenRequests.isCurrent(workspaceRequestId)) {
+                        _workspace.update {
+                            it.copy(
+                                statusBannerMessage = "تعذر النموذج ${alert.exhaustedLabel}؛ يجري التحويل إلى نموذج متاح لتوليد المشروع."
+                            )
+                        }
+                    }
+                }
+
+                generated.fold(
+                    onSuccess = { response ->
+                        val files = com.example.data.repository.StudioAiProjectResponseParser.parseFiles(
+                            response = response.text,
+                            defaultLanguage = language
+                        )
+                        val project = baseProject.copy(
+                            files = files,
+                            description = prompt.ifBlank { baseProject.description },
+                            securityAuditScore = null
+                        )
+                        val firstFile = project.files.first { it.isEntrypoint }
+                        if (studioProjectOpenRequests.isCurrent(workspaceRequestId)) {
+                            _workspace.update {
+                                it.copy(
+                                    isGeneratingStudioProject = false,
+                                    activeStudioProject = project,
+                                    studioSelectedFilePath = firstFile.path,
+                                    studioEditedContent = firstFile.content,
+                                    statusBannerMessage = "اكتمل توليد مشروع مخصص بالذكاء الاصطناعي: ${files.size} ملفاً. لم يتم تشغيل البناء أو الاختبارات بعد."
+                                )
+                            }
+                        }
+                        // Persist even if the user switched workspaces; never steal focus back.
+                        persistStudioProject(project, studioProjectSaveRevisions.next(project.id))
+                    },
+                    onFailure = { error ->
+                        val firstFile = baseProject.files.firstOrNull { it.isEntrypoint }
+                            ?: baseProject.files.firstOrNull()
+                        if (studioProjectOpenRequests.isCurrent(workspaceRequestId)) {
+                            _workspace.update {
+                                it.copy(
+                                    isGeneratingStudioProject = false,
+                                    activeStudioProject = baseProject,
+                                    studioSelectedFilePath = firstFile?.path ?: "",
+                                    studioEditedContent = firstFile?.content ?: "",
+                                    statusBannerMessage = "تعذر التوليد المخصص (${error.localizedMessage ?: "استجابة غير صالحة"}). عُرض قالب البداية فقط؛ لم يُعرض على أنه مشروع مولّد أو مختبَر."
+                                )
+                            }
+                        }
+                    }
+                )
+            } catch (e: kotlinx.coroutines.CancellationException) {
+                throw e
             } catch (e: Exception) {
-                _workspace.update {
-                    it.copy(
-                        isGeneratingStudioProject = false,
-                        statusBannerMessage = "تعذر توليد المشروع: " + (e.message ?: "خطأ غير معروف")
-                    )
+                if (studioProjectOpenRequests.isCurrent(workspaceRequestId)) {
+                    _workspace.update {
+                        it.copy(
+                            isGeneratingStudioProject = false,
+                            statusBannerMessage = "تعذر إنشاء المشروع: ${e.localizedMessage ?: "خطأ غير معروف"}"
+                        )
+                    }
                 }
             }
+        }
+    }
+
+    fun refreshSavedStudioProjects() {
+        val requestId = studioProjectListRequests.next()
+        viewModelScope.launch {
+            userDataRepository.listStudioProjects()
+                .onSuccess { projects ->
+                    val visibleProjects = projects.filterNot { it.id in deletedStudioProjectIds }
+                    _workspace.update { state ->
+                        if (studioProjectListRequests.isCurrent(requestId)) {
+                            state.copy(savedStudioProjects = visibleProjects)
+                        } else {
+                            state
+                        }
+                    }
+                }
+                .onFailure { error ->
+                    _workspace.update { state ->
+                        if (studioProjectListRequests.isCurrent(requestId)) {
+                            Log.w(TAG, "Studio project list refresh failed", error)
+                            state.copy(statusBannerMessage = "تعذر تحديث قائمة المشاريع المحفوظة.")
+                        } else {
+                            state
+                        }
+                    }
+                }
+        }
+    }
+
+
+    fun openSavedStudioProject(projectId: String) {
+        if (projectId in deletedStudioProjectIds || _workspace.value.savedStudioProjects.none { it.id == projectId }) return
+        val requestId = studioProjectOpenRequests.next()
+        viewModelScope.launch {
+            _workspace.update { state ->
+                if (studioProjectOpenRequests.isCurrent(requestId) && projectId !in deletedStudioProjectIds) {
+                    state.copy(
+                        isGeneratingStudioProject = false,
+                        statusBannerMessage = "جار تحميل ملفات المشروع المحفوظ…"
+                    )
+                } else {
+                    state
+                }
+            }
+            userDataRepository.getStudioProject(projectId)
+                .onSuccess { project ->
+                    if (!studioProjectOpenRequests.isCurrent(requestId) || projectId in deletedStudioProjectIds) return@onSuccess
+                    if (project == null) {
+                        _workspace.update { state ->
+                            if (studioProjectOpenRequests.isCurrent(requestId) && projectId !in deletedStudioProjectIds) {
+                                state.copy(statusBannerMessage = "لم يعد المشروع موجوداً في مكتبتك السحابية.")
+                            } else {
+                                state
+                            }
+                        }
+                    } else {
+                        val firstFile = project.files.firstOrNull { it.isEntrypoint } ?: project.files.firstOrNull()
+                        _workspace.update { state ->
+                            if (studioProjectOpenRequests.isCurrent(requestId) && projectId !in deletedStudioProjectIds) {
+                                state.copy(
+                                    isGeneratingStudioProject = false,
+                                    activeStudioProject = project,
+                                    studioSelectedFilePath = firstFile?.path.orEmpty(),
+                                    studioEditedContent = firstFile?.content.orEmpty(),
+                                    statusBannerMessage = "تم فتح المشروع المحفوظ: ${project.projectName}"
+                                )
+                            } else {
+                                state
+                            }
+                        }
+                    }
+                }
+                .onFailure { error ->
+                    _workspace.update { state ->
+                        if (studioProjectOpenRequests.isCurrent(requestId) && projectId !in deletedStudioProjectIds) {
+                            Log.w(TAG, "Studio project detail load failed", error)
+                            state.copy(statusBannerMessage = "تعذر تحميل ملفات المشروع: ${error.localizedMessage ?: "خطأ اتصال"}")
+                        } else {
+                            state
+                        }
+                    }
+                }
+        }
+    }
+
+    fun deleteSavedStudioProject(projectId: String) {
+        // Invalidate in-flight reads so stale list/detail responses cannot resurrect deleted projects.
+        studioProjectOpenRequests.invalidate()
+        studioProjectListRequests.invalidate()
+        // Mark immediately so saves already queued behind the mutex cannot recreate this project.
+        deletedStudioProjectIds.add(projectId)
+        studioProjectSaveRevisions.next(projectId)
+        viewModelScope.launch {
+            studioProjectPersistenceMutex.withLock {
+                userDataRepository.deleteStudioProject(projectId)
+                    .onSuccess {
+                        _workspace.update { state ->
+                            val wasActive = state.activeStudioProject?.id == projectId
+                            state.copy(
+                                isGeneratingStudioProject = if (wasActive) false else state.isGeneratingStudioProject,
+                                savedStudioProjects = state.savedStudioProjects.filterNot { it.id == projectId },
+                                activeStudioProject = if (wasActive) null else state.activeStudioProject,
+                                studioSelectedFilePath = if (wasActive) "" else state.studioSelectedFilePath,
+                                studioEditedContent = if (wasActive) "" else state.studioEditedContent,
+                                statusBannerMessage = if (wasActive || state.statusBannerMessage == null) {
+                                    "تم حذف المشروع من مكتبتك السحابية."
+                                } else {
+                                    state.statusBannerMessage
+                                }
+                            )
+                        }
+                    }
+                    .onFailure { error ->
+                        deletedStudioProjectIds.remove(projectId)
+                        Log.w(TAG, "Studio project deletion failed", error)
+                        _workspace.update { state ->
+                            if (state.activeStudioProject?.id == projectId || state.statusBannerMessage == null) {
+                                state.copy(statusBannerMessage = "تعذر حذف المشروع المحفوظ: ${error.localizedMessage ?: "خطأ اتصال"}")
+                            } else {
+                                state
+                            }
+                        }
+                        // A refresh may have completed while this project was optimistically hidden.
+                        // Reload after restoring its visibility so the library cannot remain stale.
+                        refreshSavedStudioProjects()
+                    }
+            }
+        }
+    }
+
+    private suspend fun persistStudioProject(project: com.example.domain.model.StudioProjectSpec, revision: Long): Boolean {
+        return studioProjectPersistenceMutex.withLock {
+            if (project.id in deletedStudioProjectIds || !studioProjectSaveRevisions.isCurrent(project.id, revision)) return@withLock false
+            userDataRepository.saveStudioProject(project).fold(
+                onSuccess = {
+                    if (project.id in deletedStudioProjectIds || !studioProjectSaveRevisions.isCurrent(project.id, revision)) return@fold false
+                    // A list response started before this save may omit the newly saved revision.
+                    studioProjectListRequests.invalidate()
+                    _workspace.update { state ->
+                        val withoutCurrent = state.savedStudioProjects.filterNot { it.id == project.id }
+                        state.copy(
+                            savedStudioProjects = listOf(
+                                com.example.domain.model.StudioProjectSummary(
+                                    id = project.id,
+                                    projectName = project.projectName,
+                                    environment = project.environment,
+                                    primaryLanguage = project.primaryLanguage,
+                                    description = project.description,
+                                    fileCount = project.files.size
+                                )
+                            ) + withoutCurrent,
+                            statusBannerMessage = if (state.activeStudioProject?.id == project.id) {
+                                "تم حفظ المشروع وملفاته في حساب AI I.Z السحابي."
+                            } else {
+                                state.statusBannerMessage
+                            }
+                        )
+                    }
+                    true
+                },
+                onFailure = { error ->
+                    if (!studioProjectSaveRevisions.isCurrent(project.id, revision)) return@fold false
+                    Log.w(TAG, "Studio project cloud save failed", error)
+                    _workspace.update { state ->
+                        if (state.activeStudioProject?.id == project.id) {
+                            state.copy(statusBannerMessage = "التعديلات ما زالت في مساحة العمل الحالية فقط ولم تُحفظ سحابياً: ${error.localizedMessage ?: "خطأ اتصال"}")
+                        } else {
+                            state
+                        }
+                    }
+                    false
+                }
+            )
         }
     }
 
     fun selectStudioFile(path: String) {
         val proj = _workspace.value.activeStudioProject ?: return
         val file = proj.files.find { it.path == path } ?: return
+        studioProjectOpenRequests.invalidate()
         _workspace.update {
             it.copy(
+                isGeneratingStudioProject = false,
                 studioSelectedFilePath = path,
-                studioEditedContent = file.content
+                studioEditedContent = file.content,
+                statusBannerMessage = null
             )
         }
     }
 
     fun updateStudioFileContent(newContent: String) {
-        _workspace.update { it.copy(studioEditedContent = newContent) }
-    }
-
-    fun saveStudioFileChanges() {
-        val proj = _workspace.value.activeStudioProject ?: return
-        val currentPath = _workspace.value.studioSelectedFilePath
-        val newContent = _workspace.value.studioEditedContent
-        val updatedFiles = proj.files.map {
-            if (it.path == currentPath) it.copy(content = newContent) else it
-        }
-        val updatedProj = proj.copy(files = updatedFiles)
+        studioProjectOpenRequests.invalidate()
         _workspace.update {
             it.copy(
-                activeStudioProject = updatedProj,
-                statusBannerMessage = "تم حفظ التعديلات على " + currentPath
+                isGeneratingStudioProject = false,
+                studioEditedContent = newContent,
+                statusBannerMessage = "توجد تعديلات غير محفوظة في مساحة العمل."
             )
         }
     }
 
-    fun runStudioAudit() {
+    fun saveStudioFileChanges() {
         val proj = _workspace.value.activeStudioProject ?: return
+        studioProjectOpenRequests.invalidate()
+        val currentPath = _workspace.value.studioSelectedFilePath
+        val newContent = _workspace.value.studioEditedContent
+        val updatedFiles = StudioProjectFileEditGuard.updateSelectedFileContent(
+            files = proj.files,
+            selectedPath = currentPath,
+            newContent = newContent
+        )
+        if (updatedFiles == null) {
+            _workspace.update {
+                it.copy(statusBannerMessage = "تعذر حفظ التعديلات: الملف المحدد لم يعد موجوداً في المشروع. اختر ملفاً صالحاً ثم أعد المحاولة.")
+            }
+            return
+        }
+        val updatedProj = proj.copy(files = updatedFiles)
         _workspace.update {
             it.copy(
-                studioAuditStatus = "تم تدقيق بنية المشروع: خالي من الأخطاء وثغرات الأمان. درجة الأمان: " + proj.securityAuditScore + "/100",
-                statusBannerMessage = "تم التحقق الكامل من بيئة " + proj.environment.title + " وكافة ملفات المشروع."
+                isGeneratingStudioProject = false,
+                activeStudioProject = updatedProj,
+                statusBannerMessage = "تم تحديث الملف في مساحة العمل؛ جارٍ حفظه ومزامنته سحابياً: " + currentPath
+            )
+        }
+        val revision = studioProjectSaveRevisions.next(updatedProj.id)
+        viewModelScope.launch {
+            persistStudioProject(updatedProj, revision)
+        }
+    }
+
+    fun runStudioAudit() {
+        val project = _workspace.value.activeStudioProject ?: return
+        viewModelScope.launch {
+            _workspace.update {
+                it.copy(
+                    studioAuditStatus = "جارٍ إعداد مراجعة هندسية مساعدة بالذكاء الاصطناعي…",
+                    statusBannerMessage = "بدأت مراجعة ملفات المشروع؛ لن تُعرض درجة أمان دون فحص آلي موثّق."
+                )
+            }
+
+            val filesForReview = project.files.take(20).joinToString("\n\n") { file ->
+                "===== ${file.path} =====\n${file.content.take(3500)}"
+            }.take(28_000)
+            val prompt = """
+                أنت مراجع هندسي مساعد لمشروع برمجي. راجع الملفات المرفقة فقط ولا تدّعِ تشغيل اختبارات أو أدوات فحص ساكن أو فحص ثغرات.
+                اكتب تقريراً عربياً منظماً يتضمن:
+                1) ملخصاً لما يمكن استنتاجه من الملفات فعلاً.
+                2) عيوباً أو مخاطر محتملة مع ذكر الملف والدليل النصي المختصر.
+                3) نواقص الاختبار والبناء والتشغيل التي لا يمكن التحقق منها من الشفرة وحدها.
+                4) إصلاحات مقترحة مرتبة حسب الأولوية.
+                5) قسم "حدود المراجعة" يوضح أن هذه مراجعة AI وليست شهادة أمان أو نتيجة تنفيذ أدوات.
+                لا تمنح درجة رقمية، ولا تصف المشروع بأنه خالٍ من الأخطاء أو الثغرات.
+                
+                اسم المشروع: ${project.projectName}
+                البيئة: ${project.environment.title}
+                اللغة: ${project.primaryLanguage.displayName}
+                وصف المستخدم: ${project.description.take(2000)}
+                
+                الملفات:
+                $filesForReview
+            """.trimIndent()
+
+            val result = aiRepo.analyzeOnceWithFailover(prompt) { alert ->
+                _workspace.update {
+                    it.copy(
+                        statusBannerMessage = "تعذر النموذج ${alert.exhaustedLabel}؛ يجري التحويل إلى نموذج متاح."
+                    )
+                }
+            }
+            result.fold(
+                onSuccess = { review ->
+                    _workspace.update {
+                        it.copy(
+                            studioAuditStatus = "مراجعة AI مساعدة (ليست فحصاً ساكناً أو اختباراً منفذاً)\nالنموذج: ${review.usedEndpoint.modelName}\n\n${review.text.take(12_000)}",
+                            statusBannerMessage = "اكتملت المراجعة المساعدة. لم تُمنح درجة أمان ولم تُدّعَ اختبارات غير منفذة."
+                        )
+                    }
+                },
+                onFailure = { error ->
+                    _workspace.update {
+                        it.copy(
+                            studioAuditStatus = "تعذرت المراجعة: ${error.localizedMessage ?: "خطأ غير معروف"}. تحقق من إعدادات مزود AI ثم أعد المحاولة.",
+                            statusBannerMessage = "لم تُنفذ المراجعة؛ لم يتم تغيير حالة الأمان."
+                        )
+                    }
+                }
             )
         }
     }

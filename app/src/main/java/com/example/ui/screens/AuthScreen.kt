@@ -25,6 +25,8 @@ import androidx.compose.material.icons.rounded.Lock
 import androidx.compose.material.icons.rounded.Security
 import androidx.compose.material.icons.rounded.Terminal
 import androidx.compose.material3.Button
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -52,6 +54,10 @@ import androidx.credentials.CustomCredential
 import androidx.credentials.GetCredentialRequest
 import androidx.credentials.exceptions.GetCredentialCancellationException
 import com.example.R
+import com.example.ui.i18n.AppUiStrings
+import java.util.Locale
+import com.example.BuildConfig
+import com.example.core.config.AiIzRuntimeConfig
 import com.example.ui.components.CommandCard
 import com.example.ui.components.StatusPill
 import com.example.ui.theme.ElectricCyan
@@ -60,24 +66,30 @@ import com.google.android.libraries.identity.googleid.GetGoogleIdOption
 import com.google.android.libraries.identity.googleid.GetSignInWithGoogleOption
 import com.google.android.libraries.identity.googleid.GoogleIdTokenCredential
 import com.google.android.libraries.identity.googleid.GoogleIdTokenCredential.Companion.TYPE_GOOGLE_ID_TOKEN_CREDENTIAL
-import com.google.firebase.Firebase
-import com.google.firebase.auth.GoogleAuthProvider
-import com.google.firebase.auth.auth
+import com.example.core.security.SecretVault
+import com.example.data.repository.AuthSessionRepository
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.tasks.await
 
 private const val AUTH_TAG = "MetraAuth"
 
 @Composable
 fun AuthScreen(
-    onAuthSuccess: () -> Unit
+    onAuthSuccess: (String) -> Unit
 ) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     val credentialManager = remember(context) { CredentialManager.create(context) }
 
     var isLoading by remember { mutableStateOf(false) }
+    val uiLang = Locale.getDefault().language.let { if (it.equals("en", true)) "en" else "ar" }
+    val apiConfigured = AiIzRuntimeConfig.isAcceptableApiBaseUrl(BuildConfig.AI_IZ_API_BASE_URL, BuildConfig.DEBUG)
+    val oauthConfigured = AiIzRuntimeConfig.isConfiguredGoogleWebClientId(BuildConfig.GOOGLE_WEB_CLIENT_ID)
+    val configReady = AiIzRuntimeConfig.isCloudSignInReady(
+        BuildConfig.AI_IZ_API_BASE_URL,
+        BuildConfig.GOOGLE_WEB_CLIENT_ID,
+        BuildConfig.DEBUG
+    )
     var errorMessage by remember { mutableStateOf<String?>(null) }
 
     LaunchedEffect(Unit) {
@@ -116,7 +128,7 @@ fun AuthScreen(
         ) {
             Image(
                 painter = painterResource(id = R.drawable.metra_agent_icon_1794595300432),
-                contentDescription = "شعار وكيل METRA",
+                contentDescription = AppUiStrings.contentDescAppLogo(uiLang),
                 contentScale = ContentScale.Crop,
                 modifier = Modifier
                     .size(96.dp)
@@ -141,7 +153,7 @@ fun AuthScreen(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 StatusPill("حماية 3 مستويات", EmeraldSuccess, Icons.Rounded.Security)
-                StatusPill("مزامنة Firestore", ElectricCyan, Icons.Rounded.Terminal)
+                StatusPill("هوية AI I.Z", ElectricCyan, Icons.Rounded.Terminal)
             }
 
             CommandCard {
@@ -182,6 +194,36 @@ fun AuthScreen(
 
                 Spacer(modifier = Modifier.height(4.dp))
 
+                if (!configReady) {
+                    Card(
+                        modifier = Modifier.fillMaxWidth(),
+                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.errorContainer),
+                        shape = RoundedCornerShape(12.dp)
+                    ) {
+                        Column(
+                            modifier = Modifier.padding(12.dp),
+                            verticalArrangement = Arrangement.spacedBy(6.dp)
+                        ) {
+                            Text(
+                                text = AppUiStrings.configSetupBanner(uiLang),
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.onErrorContainer
+                            )
+                            Text(
+                                text = if (apiConfigured) AppUiStrings.configApiOk(uiLang) else AppUiStrings.configApiMissing(uiLang),
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onErrorContainer
+                            )
+                            Text(
+                                text = if (oauthConfigured) AppUiStrings.configOauthOk(uiLang) else AppUiStrings.configOauthMissing(uiLang),
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onErrorContainer
+                            )
+                        }
+                    }
+                    Spacer(modifier = Modifier.height(8.dp))
+                }
+
                 Button(
                     onClick = {
                         isLoading = true
@@ -189,9 +231,9 @@ fun AuthScreen(
                         onGoogleSignInClicked(
                             context = context,
                             credentialManager = credentialManager,
-                            onAuthSuccess = {
+                            onAuthSuccess = { userId ->
                                 isLoading = false
-                                onAuthSuccess()
+                                onAuthSuccess(userId)
                             },
                             onAuthError = { msg ->
                                 isLoading = false
@@ -200,7 +242,7 @@ fun AuthScreen(
                             scope = scope,
                             onAuthCancelled = {
                                 isLoading = false
-                                errorMessage = "تم إلغاء تسجيل الدخول. اختر حساب Google للمتابعة."
+                                errorMessage = AppUiStrings.signInCancelled(uiLang)
                             }
                         )
                     },
@@ -217,7 +259,7 @@ fun AuthScreen(
                             strokeWidth = 2.dp
                         )
                     } else {
-                        Text("تسجيل الدخول باستخدام Google")
+                        Text(AppUiStrings.googleSignIn(uiLang))
                     }
                 }
             }
@@ -228,39 +270,38 @@ fun AuthScreen(
 fun attemptAutoSignIn(
     context: Context,
     credentialManager: CredentialManager,
-    onAuthSuccess: () -> Unit,
+    onAuthSuccess: (String) -> Unit,
     onUnauthenticated: () -> Unit,
     scope: CoroutineScope
 ) {
-    if (Firebase.auth.currentUser != null) {
-        onAuthSuccess()
-        return
-    }
-    val clientId = try {
-        context.getString(context.resources.getIdentifier("default_web_client_id", "string", context.packageName).takeIf { it != 0 } ?: throw IllegalStateException("default_web_client_id is not configured"))
-    } catch (_: Exception) {
-        onUnauthenticated()
-        return
-    }
-    val googleIdOption = GetGoogleIdOption.Builder()
-        .setFilterByAuthorizedAccounts(true)
-        .setServerClientId(clientId)
-        .setAutoSelectEnabled(true)
-        .build()
-
-    val request = GetCredentialRequest.Builder()
-        .addCredentialOption(googleIdOption)
-        .build()
-
     scope.launch {
+        val repository = AuthSessionRepository(SecretVault(context))
+        val restored = repository.restoreSession()
+        if (restored.isSuccess) {
+            onAuthSuccess(restored.getOrThrow())
+            return@launch
+        }
+
+        val clientId = BuildConfig.GOOGLE_WEB_CLIENT_ID.takeIf { it.isNotBlank() }
+        if (clientId.isNullOrBlank()) {
+            onUnauthenticated()
+            return@launch
+        }
+
         try {
+            val option = GetGoogleIdOption.Builder()
+                .setFilterByAuthorizedAccounts(true)
+                .setServerClientId(clientId)
+                .setAutoSelectEnabled(true)
+                .build()
+            val request = GetCredentialRequest.Builder().addCredentialOption(option).build()
             val result = credentialManager.getCredential(context, request)
             val credential = result.credential
             if (credential is CustomCredential && credential.type == TYPE_GOOGLE_ID_TOKEN_CREDENTIAL) {
                 val idToken = GoogleIdTokenCredential.createFrom(credential.data).idToken
-                val authCredential = GoogleAuthProvider.getCredential(idToken, null)
-                Firebase.auth.signInWithCredential(authCredential).await()
-                onAuthSuccess()
+                repository.signInWithGoogleIdToken(idToken)
+                    .onSuccess(onAuthSuccess)
+                    .onFailure { onUnauthenticated() }
             } else {
                 onUnauthenticated()
             }
@@ -273,15 +314,13 @@ fun attemptAutoSignIn(
 fun onGoogleSignInClicked(
     context: Context,
     credentialManager: CredentialManager,
-    onAuthSuccess: () -> Unit,
+    onAuthSuccess: (String) -> Unit,
     onAuthError: (String) -> Unit,
     scope: CoroutineScope,
     onAuthCancelled: () -> Unit = {}
 ) {
-    val clientId = try {
-        context.getString(context.resources.getIdentifier("default_web_client_id", "string", context.packageName).takeIf { it != 0 } ?: throw IllegalStateException("default_web_client_id is not configured"))
-    } catch (_: Exception) {
-        onAuthError("إعدادات Google Sign-In غير مكتملة (default_web_client_id مفقود).")
+    val clientId = BuildConfig.GOOGLE_WEB_CLIENT_ID.takeIf { it.isNotBlank() } ?: run {
+        onAuthError(AppUiStrings.googleOauthMissing(Locale.getDefault().language.let { if (it.equals("en", true)) "en" else "ar" }))
         return
     }
 
@@ -295,18 +334,21 @@ fun onGoogleSignInClicked(
             val credential = result.credential
             if (credential is CustomCredential && credential.type == TYPE_GOOGLE_ID_TOKEN_CREDENTIAL) {
                 val idToken = GoogleIdTokenCredential.createFrom(credential.data).idToken
-                val authCredential = GoogleAuthProvider.getCredential(idToken, null)
-                Firebase.auth.signInWithCredential(authCredential).await()
-                onAuthSuccess()
+                AuthSessionRepository(SecretVault(context)).signInWithGoogleIdToken(idToken)
+                    .onSuccess(onAuthSuccess)
+                    .onFailure { error ->
+                        Log.e(AUTH_TAG, "AI I.Z session exchange failed", error)
+                        onAuthError(AppUiStrings.signInLinkServerFailed(Locale.getDefault().language.let { if (it.equals("en", true)) "en" else "ar" }, error.localizedMessage))
+                    }
             } else {
-                onAuthError("نوع بيانات اعتماد غير متوقع.")
+                onAuthError(AppUiStrings.signInUnexpectedCredential(Locale.getDefault().language.let { if (it.equals("en", true)) "en" else "ar" }))
             }
         } catch (e: GetCredentialCancellationException) {
             Log.w(AUTH_TAG, "Google Sign-In cancelled or dismissed: ${e.message}", e)
             onAuthCancelled()
         } catch (e: Exception) {
             Log.e(AUTH_TAG, "Google Sign-In failed", e)
-            onAuthError(e.localizedMessage ?: "فشل تسجيل الدخول باستخدام Google.")
+            onAuthError(AppUiStrings.signInGoogleFailed(Locale.getDefault().language.let { if (it.equals("en", true)) "en" else "ar" }, e.localizedMessage))
         }
     }
 }

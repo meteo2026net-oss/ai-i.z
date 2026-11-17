@@ -20,6 +20,16 @@ import retrofit2.converter.moshi.MoshiConverterFactory
 import java.net.URI
 import java.util.concurrent.TimeUnit
 
+internal object BackendAuthPolicy {
+    fun authorizationHeader(accessToken: String): String {
+        val token = accessToken.trim()
+        require(Regex("^[A-Za-z0-9_-]+\\.[A-Za-z0-9_-]+\\.[A-Za-z0-9_-]+$").matches(token)) {
+            "سجّل الدخول إلى AI I.Z قبل الاتصال بخادم التنفيذ."
+        }
+        return "Bearer $token"
+    }
+}
+
 internal object BackendUrlPolicy {
     private val localDevelopmentHosts = setOf("localhost", "127.0.0.1", "10.0.2.2")
 
@@ -60,11 +70,9 @@ class BackendRepository(private val vault: SecretVault) {
     }
 
     private fun authHeader(): String {
-        val token = vault.getSecret(SecretVault.KEY_BACKEND_TOKEN)
-        require(token.isNotBlank()) {
-            "أدخل رمز الوصول إلى Backend Runner قبل الاتصال."
-        }
-        return "Bearer $token"
+        return BackendAuthPolicy.authorizationHeader(
+            vault.getSecret(SecretVault.KEY_AUTH_ACCESS_TOKEN)
+        )
     }
 
     suspend fun checkHealth(

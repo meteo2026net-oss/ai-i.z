@@ -1,5 +1,7 @@
 package com.example.ui.screens
 
+import com.example.ui.i18n.AppUiStrings
+
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
@@ -79,6 +81,7 @@ fun DatabaseScreen(
     onGoToBackendSetup: () -> Unit,
     onGoToSqlReview: () -> Unit
 ) {
+    val uiLang = settings.appLanguage
     val dbConnections = workspace.platformConfig.databaseConnections
     val activeProject = workspace.platformConfig.activeProject
 
@@ -111,7 +114,7 @@ fun DatabaseScreen(
                     horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
                     Icon(Icons.Rounded.Lock, contentDescription = null, tint = CrimsonError)
-                    Text("العزل الأمني وإدارة أسرار قواعد البيانات", style = MaterialTheme.typography.titleMedium)
+                    Text(AppUiStrings.dbSecurityIsolationTitle(uiLang), style = MaterialTheme.typography.titleMedium)
                 }
                 val protectedDisplay = (listOf("metra_old", "metra_legacy") +
                     activeProject?.protectedDbTargets.orEmpty()).distinct().joinToString("، ")
@@ -158,7 +161,7 @@ fun DatabaseScreen(
                             )
                         }
                         if (conn.isActive) {
-                            StatusPill(label = "نشط", color = EmeraldSuccess, icon = Icons.Rounded.CheckCircle)
+                            StatusPill(label = AppUiStrings.statusActive(uiLang), color = EmeraldSuccess, icon = Icons.Rounded.CheckCircle)
                         }
                     }
                     Row(
@@ -171,17 +174,17 @@ fun DatabaseScreen(
                                 onClick = { onActivateDatabaseConnection(conn.id) },
                                 modifier = Modifier.weight(1f)
                             ) {
-                                Text("تفعيل")
+                                Text(AppUiStrings.actionActivate(uiLang))
                             }
                         }
                         OutlinedButton(
                             onClick = onGoToSqlReview,
                             modifier = Modifier.weight(1f)
                         ) {
-                            Text("فحص SQL")
+                            Text(AppUiStrings.dbSqlCheck(uiLang))
                         }
                         IconButton(onClick = { onRemoveDatabaseConnection(conn.id) }) {
-                            Icon(Icons.Rounded.DeleteOutline, contentDescription = "حذف القاعدة", tint = CrimsonError)
+                            Icon(Icons.Rounded.DeleteOutline, contentDescription = AppUiStrings.dbDeleteCd(uiLang), tint = CrimsonError)
                         }
                     }
                 }
@@ -196,7 +199,7 @@ fun DatabaseScreen(
                     horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
                     Icon(Icons.Rounded.Key, contentDescription = null, tint = ElectricCyan)
-                    Text("ربط قاعدة بيانات جديدة وإدخال Secret الخاص بها", style = MaterialTheme.typography.titleMedium)
+                    Text(AppUiStrings.dbLinkNew(uiLang), style = MaterialTheme.typography.titleMedium)
                 }
                 FlowRow(
                     horizontalArrangement = Arrangement.spacedBy(8.dp),
@@ -213,7 +216,7 @@ fun DatabaseScreen(
                 OutlinedTextField(
                     value = labelInput,
                     onValueChange = { labelInput = it },
-                    label = { Text("الاسم التعريفي (مثلاً: Supabase Staging)") },
+                    label = { Text(AppUiStrings.dbDisplayName(uiLang)) },
                     singleLine = true,
                     modifier = Modifier
                         .fillMaxWidth()
@@ -223,14 +226,14 @@ fun DatabaseScreen(
                     value = hostInput,
                     onValueChange = { hostInput = it },
                     label = { Text("Host / Supabase Project URL") },
-                    placeholder = { Text("https://xyzcompany.supabase.co أو db.host:5432") },
+                    placeholder = { Text(AppUiStrings.dbHostPlaceholder(uiLang)) },
                     singleLine = true,
                     modifier = Modifier.fillMaxWidth()
                 )
                 OutlinedTextField(
                     value = dbNameInput,
                     onValueChange = { dbNameInput = it },
-                    label = { Text("اسم قاعدة البيانات") },
+                    label = { Text(AppUiStrings.dbNameLabel(uiLang)) },
                     placeholder = { Text("app_staging_db") },
                     singleLine = true,
                     modifier = Modifier
@@ -240,7 +243,7 @@ fun DatabaseScreen(
                 OutlinedTextField(
                     value = connSecretInput,
                     onValueChange = { connSecretInput = it },
-                    label = { Text("Connection String / DB Secret (يُشفر محلياً)") },
+                    label = { Text(AppUiStrings.dbConnectionSecret(uiLang)) },
                     placeholder = { Text("postgresql://readonly_user:secret@host:5432/db") },
                     visualTransformation = PasswordVisualTransformation(),
                     singleLine = true,
@@ -251,7 +254,7 @@ fun DatabaseScreen(
                 OutlinedTextField(
                     value = apiSecretInput,
                     onValueChange = { apiSecretInput = it },
-                    label = { Text("Supabase Key / DB Token Secret (اختياري)") },
+                    label = { Text(AppUiStrings.dbOptionalToken(uiLang)) },
                     visualTransformation = PasswordVisualTransformation(),
                     singleLine = true,
                     modifier = Modifier
@@ -261,7 +264,7 @@ fun DatabaseScreen(
                 OutlinedTextField(
                     value = protectedCsv,
                     onValueChange = { protectedCsv = it },
-                    label = { Text("قواعد بيانات محظورة ومحمية (مفصولة بفاصلة)") },
+                    label = { Text(AppUiStrings.dbBlockedList(uiLang)) },
                     singleLine = true,
                     modifier = Modifier.fillMaxWidth()
                 )
@@ -271,7 +274,7 @@ fun DatabaseScreen(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Text(
-                        text = "عزل صلاحيات القراءة فقط (Read-Only)",
+                        text = AppUiStrings.dbReadOnlyToggle(uiLang),
                         style = MaterialTheme.typography.bodyMedium
                     )
                     Switch(checked = readOnlyMode, onCheckedChange = { readOnlyMode = it })
@@ -300,7 +303,7 @@ fun DatabaseScreen(
                         .testTag("save_db_connection_button")
                 ) {
                     Icon(Icons.Rounded.Add, contentDescription = null)
-                    Text("حفظ اتصال قاعدة البيانات والـ Secret")
+                    Text(AppUiStrings.dbSaveConnection(uiLang))
                 }
             }
         }
@@ -308,7 +311,7 @@ fun DatabaseScreen(
         if (settings.backendUrl.isBlank()) {
             item {
                 SetupRequiredBanner(
-                    title = "Backend Schema Runner اختياري للجداول الحية",
+                    title = AppUiStrings.dbSchemaRunnerOptional(uiLang),
                     description = "يمكنك استخدام مراجعة SQL بالذكاء الاصطناعي مباشرة الآن، أو ربط Backend Runner لجلب مخططات الجداول الحية وتنفيذ استعلامات SELECT.",
                     actionLabel = "إعداد خادم Backend",
                     onAction = onGoToBackendSetup,
@@ -326,13 +329,13 @@ fun DatabaseScreen(
                             .testTag("load_db_schema_button")
                     ) {
                         Icon(Icons.Rounded.Storage, contentDescription = null)
-                        Text("جلب بنية الجداول")
+                        Text(AppUiStrings.dbFetchSchema(uiLang))
                     }
                     OutlinedButton(
                         onClick = onGoToSqlReview,
                         modifier = Modifier.weight(1f)
                     ) {
-                        Text("مراجعة SQL والأمان")
+                        Text(AppUiStrings.dbSqlReview(uiLang))
                     }
                 }
             }
@@ -349,7 +352,7 @@ fun DatabaseScreen(
         workspace.dbSchema?.let { schema ->
             item {
                 CommandCard(borderColor = EmeraldSuccess.copy(alpha = 0.5f)) {
-                    Text("القاعدة: ${schema.databaseName}", style = MaterialTheme.typography.titleMedium)
+                    Text(AppUiStrings.dbDatabaseLabel(uiLang, schema.databaseName), style = MaterialTheme.typography.titleMedium)
                     Text(
                         "الإصدار: ${schema.engineVersion} • بيئة معزولة: ${schema.isIsolatedTarget}",
                         style = MaterialTheme.typography.bodySmall,
@@ -366,7 +369,7 @@ fun DatabaseScreen(
                     ) {
                         Text("${table.schema}.${table.name}", style = MaterialTheme.typography.titleMedium)
                         StatusPill(
-                            label = if (table.rlsEnabled) "RLS مفعّل" else "بدون RLS",
+                            label = if (table.rlsEnabled) AppUiStrings.dbRlsOn(uiLang) else AppUiStrings.dbRlsOff(uiLang),
                             color = if (table.rlsEnabled) EmeraldSuccess else AmberWarning
                         )
                     }
@@ -395,8 +398,10 @@ fun DatabaseScreen(
 @Composable
 fun SqlReviewScreen(
     workspace: WorkspaceUiState,
-    onReviewOrExecuteSql: (sql: String, targetDatabase: String) -> Unit
+    onReviewOrExecuteSql: (sql: String, targetDatabase: String) -> Unit,
+    appLanguage: String = "ar"
 ) {
+    val uiLang = appLanguage
     val activeDbName = workspace.platformConfig.activeDatabase?.databaseName?.ifBlank {
         workspace.platformConfig.activeDatabase?.label
     } ?: "project_staging_db"
@@ -419,7 +424,7 @@ fun SqlReviewScreen(
                     horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
                     Icon(Icons.Rounded.Security, contentDescription = null, tint = AmberWarning)
-                    Text("مراجعة SQL وملفات Migrations والأمان", style = MaterialTheme.typography.titleMedium)
+                    Text(AppUiStrings.sqlReviewTitle(uiLang), style = MaterialTheme.typography.titleMedium)
                 }
                 Text(
                     text = "تُنفّذ استعلامات القراءة SELECT فقط بصلاحيات قراءة منفصلة. أي DDL أو RLS أو Grants أو Migration يُحتجز تلقائياً لبوابة الموافقة الصريحة (المستوى 3).",
@@ -429,7 +434,7 @@ fun SqlReviewScreen(
                 OutlinedTextField(
                     value = targetDb,
                     onValueChange = { targetDb = it },
-                    label = { Text("قاعدة البيانات المستهدفة") },
+                    label = { Text(AppUiStrings.sqlTargetDb(uiLang)) },
                     singleLine = true,
                     modifier = Modifier
                         .fillMaxWidth()
@@ -453,7 +458,7 @@ fun SqlReviewScreen(
                         .fillMaxWidth()
                         .testTag("sql_review_execute_button")
                 ) {
-                    Text("فحص الأثر الأمني / تنفيذ آمن")
+                    Text(AppUiStrings.sqlSecurityCheck(uiLang))
                 }
             }
         }
@@ -469,7 +474,7 @@ fun SqlReviewScreen(
         if (workspace.sqlReviewAnalysis.isNotBlank()) {
             item {
                 CommandCard(borderColor = ElectricCyan) {
-                    Text("تحليل الأمان والأثر المتوقع (AI)", style = MaterialTheme.typography.titleMedium)
+                    Text(AppUiStrings.sqlAiAnalysis(uiLang), style = MaterialTheme.typography.titleMedium)
                     Text(workspace.sqlReviewAnalysis, style = MaterialTheme.typography.bodySmall)
                 }
             }
@@ -478,7 +483,7 @@ fun SqlReviewScreen(
         workspace.sqlResult?.let { res ->
             item {
                 CommandCard(borderColor = EmeraldSuccess) {
-                    Text("نتيجة التنفيذ (${res.rowsAffected} صف)", style = MaterialTheme.typography.titleMedium)
+                    Text(AppUiStrings.sqlResultRows(uiLang, res.rowsAffected), style = MaterialTheme.typography.titleMedium)
                     if (res.impactSummary.isNotBlank()) {
                         Text(res.impactSummary, style = MaterialTheme.typography.bodySmall)
                     }
@@ -505,8 +510,10 @@ fun TestsScreen(
     workspace: WorkspaceUiState,
     onRunTests: (String) -> Unit,
     onSendFailuresToAgent: (String) -> Unit,
-    onGoToBackendSetup: () -> Unit
+    onGoToBackendSetup: () -> Unit,
+    appLanguage: String = "ar"
 ) {
+    val uiLang = appLanguage
     var selectedTarget by remember { mutableStateOf("all") }
 
     LazyColumn(
@@ -517,7 +524,7 @@ fun TestsScreen(
         if (settings.backendUrl.isBlank()) {
             item {
                 SetupRequiredBanner(
-                    title = "تشغيل الاختبارات يتطلب Backend Runner",
+                    title = AppUiStrings.testsNeedBackend(uiLang),
                     description = "اربط خادم Backend على جهاز التطوير أو السحابة لتشغيل اختبارات المشروع الفعلية.",
                     actionLabel = "إعداد خادم Backend",
                     onAction = onGoToBackendSetup,
@@ -533,7 +540,7 @@ fun TestsScreen(
                     horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
                     Icon(Icons.Rounded.BugReport, contentDescription = null, tint = ElectricCyan)
-                    Text("تشغيل اختبارات المشروع: ${settings.activeRepo}", style = MaterialTheme.typography.titleMedium)
+                    Text(AppUiStrings.testsRunProject(uiLang, settings.activeRepo), style = MaterialTheme.typography.titleMedium)
                 }
                 FlowRow(
                     horizontalArrangement = Arrangement.spacedBy(8.dp),
@@ -562,7 +569,7 @@ fun TestsScreen(
                         .testTag("run_tests_button")
                 ) {
                     Icon(Icons.Rounded.PlayArrow, contentDescription = null)
-                    Text("بدء الاختبارات الفعلية")
+                    Text(AppUiStrings.testsStartReal(uiLang))
                 }
             }
         }
@@ -572,7 +579,7 @@ fun TestsScreen(
                 CommandCard(
                     borderColor = if (run.failedCount == 0) EmeraldSuccess else CrimsonError
                 ) {
-                    Text("ملخص النتائج (${run.durationMs} مللي ثانية)", style = MaterialTheme.typography.titleMedium)
+                    Text(AppUiStrings.testsSummaryMs(uiLang, run.durationMs), style = MaterialTheme.typography.titleMedium)
                     Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                         StatusPill("ناجح: ${run.passedCount}", EmeraldSuccess)
                         StatusPill("فاشل: ${run.failedCount}", CrimsonError)
@@ -590,7 +597,7 @@ fun TestsScreen(
                             },
                             modifier = Modifier.fillMaxWidth()
                         ) {
-                            Text("إرسال الأخطاء للوكيل لإصلاحها")
+                            Text(AppUiStrings.testsSendFailuresToAgent(uiLang))
                         }
                     }
                 }
@@ -606,7 +613,7 @@ fun TestsScreen(
                     ) {
                         Text(testCase.name, style = MaterialTheme.typography.titleMedium, modifier = Modifier.weight(1f))
                         StatusPill(
-                            label = if (testCase.passed) "نجح" else "فشل",
+                            label = if (testCase.passed) AppUiStrings.testsPassed(uiLang) else AppUiStrings.testsFailed(uiLang),
                             color = if (testCase.passed) EmeraldSuccess else CrimsonError
                         )
                     }

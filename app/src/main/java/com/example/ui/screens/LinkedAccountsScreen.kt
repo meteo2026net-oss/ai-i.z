@@ -1,5 +1,7 @@
 package com.example.ui.screens
 
+import com.example.ui.i18n.AppUiStrings
+
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
@@ -53,8 +55,6 @@ import com.example.ui.theme.CrimsonError
 import com.example.ui.theme.ElectricCyan
 import com.example.ui.theme.EmeraldSuccess
 import com.example.ui.viewmodel.WorkspaceUiState
-import com.google.firebase.Firebase
-import com.google.firebase.auth.auth
 import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -99,6 +99,7 @@ fun LinkedAccountsScreen(
     onGoToAiSetup: () -> Unit,
     onGoogleAccountSwitched: () -> Unit
 ) {
+    val uiLang = settings.appLanguage
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     val credentialManager = remember(context) { CredentialManager.create(context) }
@@ -189,11 +190,11 @@ fun LinkedAccountsScreen(
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Text("إدارة المشاريع البرمجية", style = MaterialTheme.typography.titleLarge)
-                    StatusPill(label = "${pConfig.projects.size} مشاريع", color = ElectricCyan)
+                    Text(AppUiStrings.projectsManageTitle(uiLang), style = MaterialTheme.typography.titleLarge)
+                    StatusPill(label = AppUiStrings.projectsCount(uiLang, pConfig.projects.size), color = ElectricCyan)
                 }
                 Text(
-                    text = "أنشئ ملفاً لأي مشروع، واربطه بحساب GitHub وقاعدة بيانات وأولوية وكلاء AI الخاصة به.",
+                    text = AppUiStrings.projectsIntro(uiLang),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
@@ -218,7 +219,7 @@ fun LinkedAccountsScreen(
                                 )
                             }
                             if (isActive) {
-                                StatusPill(label = "نشط", color = EmeraldSuccess, icon = Icons.Rounded.CheckCircle)
+                                StatusPill(label = AppUiStrings.statusActive(uiLang), color = EmeraldSuccess, icon = Icons.Rounded.CheckCircle)
                             }
                         }
                         Row(
@@ -231,25 +232,25 @@ fun LinkedAccountsScreen(
                                     onClick = { onActivateProject(prj.id) },
                                     modifier = Modifier.weight(1f)
                                 ) {
-                                    Text("تفعيل المشروع")
+                                    Text(AppUiStrings.projectActivate(uiLang))
                                 }
                             } else {
                                 Button(
                                     onClick = onOpenSharedWorkspace,
                                     modifier = Modifier.weight(1f)
                                 ) {
-                                    Text("ملف الخطة والتعاون")
+                                    Text(AppUiStrings.projectWorkplanFile(uiLang))
                                 }
                             }
                             OutlinedButton(
                                 onClick = onGoToAiSetup,
                                 modifier = Modifier.weight(1f)
                             ) {
-                                Text("أولوية AI")
+                                Text(AppUiStrings.projectAiPriority(uiLang))
                             }
                             if (pConfig.projects.size > 1) {
                                 IconButton(onClick = { onRemoveProject(prj.id) }) {
-                                    Icon(Icons.Rounded.DeleteOutline, contentDescription = "حذف المشروع", tint = CrimsonError)
+                                    Icon(Icons.Rounded.DeleteOutline, contentDescription = AppUiStrings.projectDeleteCd(uiLang), tint = CrimsonError)
                                 }
                             }
                         }
@@ -259,7 +260,7 @@ fun LinkedAccountsScreen(
                 OutlinedTextField(
                     value = prjName,
                     onValueChange = { prjName = it },
-                    label = { Text("اسم المشروع الجديد") },
+                    label = { Text(AppUiStrings.projectNewName(uiLang)) },
                     singleLine = true,
                     modifier = Modifier
                         .fillMaxWidth()
@@ -268,7 +269,7 @@ fun LinkedAccountsScreen(
                 OutlinedTextField(
                     value = prjRepo,
                     onValueChange = { prjRepo = it },
-                    label = { Text("مستودع GitHub (owner/repo)") },
+                    label = { Text(AppUiStrings.projectGithubRepo(uiLang)) },
                     singleLine = true,
                     modifier = Modifier
                         .fillMaxWidth()
@@ -277,7 +278,7 @@ fun LinkedAccountsScreen(
                 OutlinedTextField(
                     value = prjBranch,
                     onValueChange = { prjBranch = it },
-                    label = { Text("الفرع الافتراضي") },
+                    label = { Text(AppUiStrings.projectDefaultBranch(uiLang)) },
                     singleLine = true,
                     modifier = Modifier.fillMaxWidth()
                 )
@@ -294,7 +295,7 @@ fun LinkedAccountsScreen(
                     }
                 }
                 if (snapshot.gitHubAccounts.isNotEmpty()) {
-                    Text("ربط بحساب GitHub:", style = MaterialTheme.typography.labelMedium)
+                    Text(AppUiStrings.projectLinkGithub(uiLang), style = MaterialTheme.typography.labelMedium)
                     FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         snapshot.gitHubAccounts.forEach { gh ->
                             FilterChip(
@@ -306,7 +307,7 @@ fun LinkedAccountsScreen(
                     }
                 }
                 if (pConfig.databaseConnections.isNotEmpty()) {
-                    Text("ربط بقاعدة بيانات:", style = MaterialTheme.typography.labelMedium)
+                    Text(AppUiStrings.projectLinkDatabase(uiLang), style = MaterialTheme.typography.labelMedium)
                     FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         pConfig.databaseConnections.forEach { db ->
                             FilterChip(
@@ -320,14 +321,14 @@ fun LinkedAccountsScreen(
                 OutlinedTextField(
                     value = prjProtectedCsv,
                     onValueChange = { prjProtectedCsv = it },
-                    label = { Text("قواعد بيانات محمية خاصة بهذا المشروع (CSV)") },
+                    label = { Text(AppUiStrings.projectProtectedDbs(uiLang)) },
                     singleLine = true,
                     modifier = Modifier.fillMaxWidth()
                 )
                 OutlinedTextField(
                     value = prjSharedFile,
                     onValueChange = { prjSharedFile = it },
-                    label = { Text("ملف العمل الواحد داخل مجلد المستودع") },
+                    label = { Text(AppUiStrings.projectWorkFileInRepo(uiLang)) },
                     placeholder = { Text("docs/AGENT_WORKPLAN.md") },
                     singleLine = true,
                     modifier = Modifier
@@ -337,8 +338,8 @@ fun LinkedAccountsScreen(
                 OutlinedTextField(
                     value = prjRequirements,
                     onValueChange = { prjRequirements = it },
-                    label = { Text("متطلبات العمل اللازمة للمشروع الجديد") },
-                    placeholder = { Text("اذكر المزايا، الشاشات، الـ APIs، وشروط النجاح لهذا المشروع...") },
+                    label = { Text(AppUiStrings.projectRequirements(uiLang)) },
+                    placeholder = { Text(AppUiStrings.projectRequirementsPh(uiLang)) },
                     minLines = 3,
                     maxLines = 6,
                     modifier = Modifier
@@ -348,7 +349,7 @@ fun LinkedAccountsScreen(
                 OutlinedTextField(
                     value = prjInstructions,
                     onValueChange = { prjInstructions = it },
-                    label = { Text("تعليمات خاصة للوكيل والنماذج في هذا المشروع") },
+                    label = { Text(AppUiStrings.projectAgentInstructions(uiLang)) },
                     minLines = 2,
                     maxLines = 4,
                     modifier = Modifier.fillMaxWidth()
@@ -358,7 +359,7 @@ fun LinkedAccountsScreen(
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Text("العمل التعاوني لعدة نماذج معاً على الملف المشترك", style = MaterialTheme.typography.bodySmall, modifier = Modifier.weight(1f))
+                    Text(AppUiStrings.projectMultiModelCollab(uiLang), style = MaterialTheme.typography.bodySmall, modifier = Modifier.weight(1f))
                     Switch(checked = prjCollabEnabled, onCheckedChange = { prjCollabEnabled = it })
                 }
                 Row(
@@ -366,7 +367,7 @@ fun LinkedAccountsScreen(
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Text("متابعة المهام للنهاية مع التحويل التلقائي للبدائل", style = MaterialTheme.typography.bodySmall, modifier = Modifier.weight(1f))
+                    Text(AppUiStrings.projectContinuousTasks(uiLang), style = MaterialTheme.typography.bodySmall, modifier = Modifier.weight(1f))
                     Switch(checked = prjContinuousEnabled, onCheckedChange = { prjContinuousEnabled = it })
                 }
                 Button(
@@ -396,7 +397,7 @@ fun LinkedAccountsScreen(
                         .fillMaxWidth()
                         .testTag("create_project_button")
                 ) {
-                    Text("حفظ وتفعيل المشروع بمتطلباته")
+                    Text(AppUiStrings.projectSaveActivate(uiLang))
                 }
             }
         }
@@ -414,16 +415,16 @@ fun LinkedAccountsScreen(
                         horizontalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
                         Icon(Icons.Rounded.AccountCircle, contentDescription = null, tint = ElectricCyan)
-                        Text("حسابات Google المرتبطة", style = MaterialTheme.typography.titleLarge)
+                        Text(AppUiStrings.googleLinkedAccounts(uiLang), style = MaterialTheme.typography.titleLarge)
                     }
-                    StatusPill(label = "${snapshot.googleAccounts.size.coerceAtLeast(1)} مسجل", color = ElectricCyan)
+                    StatusPill(label = AppUiStrings.linkedRegisteredCount(uiLang, snapshot.googleAccounts.size.coerceAtLeast(1)), color = ElectricCyan)
                 }
 
                 val activeEmail = workspace.currentGoogleEmail.ifBlank {
-                    Firebase.auth.currentUser?.email ?: currentUserId
+                    currentUserId
                 }
                 val activeName = workspace.currentGoogleName.ifBlank {
-                    Firebase.auth.currentUser?.displayName ?: "الحساب النشط"
+                    "حساب AI I.Z"
                 }
 
                 Text(
@@ -457,13 +458,13 @@ fun LinkedAccountsScreen(
                             )
                         }
                         if (isCurrent) {
-                            StatusPill(label = "نشط", color = EmeraldSuccess, icon = Icons.Rounded.CheckCircle)
+                            StatusPill(label = AppUiStrings.statusActive(uiLang), color = EmeraldSuccess, icon = Icons.Rounded.CheckCircle)
                         } else {
                             OutlinedButton(
                                 onClick = { launchGoogleSwitch() },
                                 enabled = !isSwitchingGoogle
                             ) {
-                                Text("تبديل")
+                                Text(AppUiStrings.actionSwitch(uiLang))
                             }
                         }
                     }
@@ -488,7 +489,7 @@ fun LinkedAccountsScreen(
                         CircularProgressIndicator(modifier = Modifier.size(18.dp), strokeWidth = 2.dp)
                     } else {
                         Icon(Icons.Rounded.SwapHoriz, contentDescription = null)
-                        Text("تبديل أو ربط حساب Google آخر")
+                        Text(AppUiStrings.googleSwitchOrLink(uiLang))
                     }
                 }
             }
@@ -507,10 +508,10 @@ fun LinkedAccountsScreen(
                         horizontalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
                         Icon(Icons.Rounded.Source, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
-                        Text("حسابات GitHub المتعددة", style = MaterialTheme.typography.titleLarge)
+                        Text(AppUiStrings.githubMultiAccounts(uiLang), style = MaterialTheme.typography.titleLarge)
                     }
                     StatusPill(
-                        label = "${snapshot.gitHubAccounts.size} مربوط",
+                        label = AppUiStrings.linkedGithubLinkedCount(uiLang, snapshot.gitHubAccounts.size),
                         color = if (snapshot.gitHubAccounts.isNotEmpty()) EmeraldSuccess else AmberWarning
                     )
                 }
@@ -522,7 +523,7 @@ fun LinkedAccountsScreen(
 
                 if (snapshot.gitHubAccounts.isEmpty()) {
                     Text(
-                        text = "لا توجد حسابات GitHub مضافة بعد.",
+                        text = AppUiStrings.githubNoneYet(uiLang),
                         style = MaterialTheme.typography.bodySmall,
                         color = AmberWarning
                     )
@@ -552,7 +553,7 @@ fun LinkedAccountsScreen(
                                     }
                                 }
                                 if (gh.isActive) {
-                                    StatusPill(label = "نشط", color = EmeraldSuccess, icon = Icons.Rounded.CheckCircle)
+                                    StatusPill(label = AppUiStrings.statusActive(uiLang), color = EmeraldSuccess, icon = Icons.Rounded.CheckCircle)
                                 }
                             }
                             Row(
@@ -567,14 +568,14 @@ fun LinkedAccountsScreen(
                                             .weight(1f)
                                             .testTag("switch_github_${gh.id}")
                                     ) {
-                                        Text("تفعيل الحساب")
+                                        Text(AppUiStrings.githubActivateAccount(uiLang))
                                     }
                                 }
                                 IconButton(
                                     onClick = { onRemoveGitHubAccount(gh.id) },
                                     modifier = Modifier.testTag("remove_github_${gh.id}")
                                 ) {
-                                    Icon(Icons.Rounded.DeleteOutline, contentDescription = "إزالة حساب GitHub", tint = CrimsonError)
+                                    Icon(Icons.Rounded.DeleteOutline, contentDescription = AppUiStrings.linkedGithubRemoveCd(uiLang), tint = CrimsonError)
                                 }
                             }
                         }
@@ -584,14 +585,14 @@ fun LinkedAccountsScreen(
                 OutlinedTextField(
                     value = ghLabel,
                     onValueChange = { ghLabel = it },
-                    label = { Text("اسم تعريفي للحساب (مثلاً: حساب METRA أو حساب العمل)") },
+                    label = { Text(AppUiStrings.githubAccountLabel(uiLang)) },
                     singleLine = true,
                     modifier = Modifier.fillMaxWidth()
                 )
                 OutlinedTextField(
                     value = ghRepo,
                     onValueChange = { ghRepo = it },
-                    label = { Text("ربط بمستودع تلقائياً (اختياري — owner/repo)") },
+                    label = { Text(AppUiStrings.linkedAutoRepo(uiLang)) },
                     singleLine = true,
                     modifier = Modifier.fillMaxWidth()
                 )
@@ -621,7 +622,7 @@ fun LinkedAccountsScreen(
                         CircularProgressIndicator(modifier = Modifier.size(18.dp), strokeWidth = 2.dp)
                     } else {
                         Icon(Icons.Rounded.AddLink, contentDescription = null)
-                        Text("إضافة وربط حساب GitHub")
+                        Text(AppUiStrings.linkedAddGithub(uiLang))
                     }
                 }
             }
@@ -640,9 +641,9 @@ fun LinkedAccountsScreen(
                         horizontalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
                         Icon(Icons.Rounded.Dns, contentDescription = null, tint = ElectricCyan)
-                        Text("بيئات الذكاء الاصطناعي وBackend", style = MaterialTheme.typography.titleLarge)
+                        Text(AppUiStrings.linkedAiBackendEnvs(uiLang), style = MaterialTheme.typography.titleLarge)
                     }
-                    StatusPill(label = "${snapshot.backendProfiles.size} محفوظة", color = ElectricCyan)
+                    StatusPill(label = AppUiStrings.linkedSavedCount(uiLang, snapshot.backendProfiles.size), color = ElectricCyan)
                 }
 
                 if (snapshot.backendProfiles.isEmpty()) {
@@ -671,7 +672,7 @@ fun LinkedAccountsScreen(
                                     )
                                 }
                                 if (profile.isActive) {
-                                    StatusPill(label = "نشط", color = EmeraldSuccess)
+                                    StatusPill(label = AppUiStrings.statusActive(uiLang), color = EmeraldSuccess)
                                 }
                             }
                             Row(
@@ -684,11 +685,11 @@ fun LinkedAccountsScreen(
                                         onClick = { onSwitchBackendProfile(profile.id) },
                                         modifier = Modifier.weight(1f)
                                     ) {
-                                        Text("تفعيل البيئة")
+                                        Text(AppUiStrings.linkedActivateEnv(uiLang))
                                     }
                                 }
                                 IconButton(onClick = { onRemoveBackendProfile(profile.id) }) {
-                                    Icon(Icons.Rounded.DeleteOutline, contentDescription = "حذف البيئة", tint = CrimsonError)
+                                    Icon(Icons.Rounded.DeleteOutline, contentDescription = AppUiStrings.linkedDeleteEnvCd(uiLang), tint = CrimsonError)
                                 }
                             }
                         }
@@ -699,7 +700,7 @@ fun LinkedAccountsScreen(
                     onClick = onGoToAiSetup,
                     modifier = Modifier.fillMaxWidth()
                 ) {
-                    Text("إضافة أو تعديل بيئة AI / Backend جديدة")
+                    Text(AppUiStrings.linkedAddOrEditEnv(uiLang))
                 }
             }
         }
@@ -712,7 +713,7 @@ fun LinkedAccountsScreen(
                     horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
                     Icon(Icons.Rounded.Hub, contentDescription = null, tint = EmeraldSuccess)
-                    Text("حزم الربط الموحدة (ربط الحسابات معاً)", style = MaterialTheme.typography.titleLarge)
+                    Text(AppUiStrings.linkedBundlesTitle(uiLang), style = MaterialTheme.typography.titleLarge)
                 }
                 Text(
                     text = "اربط حساب Google الحالي + حساب GitHub + بيئة AI/Backend + المستودع في حزمة واحدة لتبديل كامل بيئة العمل بضغطة واحدة.",
@@ -733,7 +734,7 @@ fun LinkedAccountsScreen(
                         ) {
                             Text(bundle.name, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
                             if (bundle.isActive) {
-                                StatusPill(label = "حزمة نشطة", color = EmeraldSuccess, icon = Icons.Rounded.CheckCircle)
+                                StatusPill(label = AppUiStrings.linkedActiveBundle(uiLang), color = EmeraldSuccess, icon = Icons.Rounded.CheckCircle)
                             }
                         }
                         Text(
@@ -763,15 +764,15 @@ fun LinkedAccountsScreen(
                                     .weight(1f)
                                     .testTag("activate_bundle_${bundle.id}")
                             ) {
-                                Text("تفعيل الحزمة")
+                                Text(AppUiStrings.linkedActivateBundle(uiLang))
                             }
                             if (needsGoogleSwitch) {
                                 OutlinedButton(onClick = { launchGoogleSwitch() }) {
-                                    Text("تبديل Google")
+                                    Text(AppUiStrings.linkedSwitchGoogle(uiLang))
                                 }
                             }
                             IconButton(onClick = { onRemoveBundle(bundle.id) }) {
-                                Icon(Icons.Rounded.DeleteOutline, contentDescription = "حذف الحزمة", tint = CrimsonError)
+                                Icon(Icons.Rounded.DeleteOutline, contentDescription = AppUiStrings.linkedDeleteBundleCd(uiLang), tint = CrimsonError)
                             }
                         }
                     }
@@ -780,7 +781,7 @@ fun LinkedAccountsScreen(
                 OutlinedTextField(
                     value = bundleName,
                     onValueChange = { bundleName = it },
-                    label = { Text("اسم الحزمة الموحدة (مثلاً: حزمة METRA الأساسية)") },
+                    label = { Text(AppUiStrings.linkedBundleName(uiLang)) },
                     singleLine = true,
                     modifier = Modifier
                         .fillMaxWidth()
@@ -788,7 +789,7 @@ fun LinkedAccountsScreen(
                 )
 
                 if (snapshot.gitHubAccounts.isNotEmpty()) {
-                    Text("اختر حساب GitHub للحزمة:", style = MaterialTheme.typography.labelMedium)
+                    Text(AppUiStrings.linkedPickGithubForBundle(uiLang), style = MaterialTheme.typography.labelMedium)
                     FlowRow(
                         horizontalArrangement = Arrangement.spacedBy(8.dp),
                         verticalArrangement = Arrangement.spacedBy(8.dp)
@@ -807,7 +808,7 @@ fun LinkedAccountsScreen(
                 }
 
                 if (snapshot.backendProfiles.isNotEmpty()) {
-                    Text("اختر بيئة AI / Backend للحزمة:", style = MaterialTheme.typography.labelMedium)
+                    Text(AppUiStrings.linkedPickAiForBundle(uiLang), style = MaterialTheme.typography.labelMedium)
                     FlowRow(
                         horizontalArrangement = Arrangement.spacedBy(8.dp),
                         verticalArrangement = Arrangement.spacedBy(8.dp)
@@ -825,14 +826,14 @@ fun LinkedAccountsScreen(
                 OutlinedTextField(
                     value = bundleRepo,
                     onValueChange = { bundleRepo = it },
-                    label = { Text("المستودع المرتبط (owner/repo)") },
+                    label = { Text(AppUiStrings.linkedBundleRepo(uiLang)) },
                     singleLine = true,
                     modifier = Modifier.fillMaxWidth()
                 )
                 OutlinedTextField(
                     value = bundleBranch,
                     onValueChange = { bundleBranch = it },
-                    label = { Text("الفرع الافتراضي") },
+                    label = { Text(AppUiStrings.projectDefaultBranch(uiLang)) },
                     singleLine = true,
                     modifier = Modifier.fillMaxWidth()
                 )
@@ -853,7 +854,7 @@ fun LinkedAccountsScreen(
                         .testTag("create_bundle_button")
                 ) {
                     Icon(Icons.Rounded.Hub, contentDescription = null)
-                    Text("حفظ وتفعيل حزمة الربط الموحدة")
+                    Text(AppUiStrings.linkedSaveBundle(uiLang))
                 }
             }
         }

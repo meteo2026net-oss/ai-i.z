@@ -1,5 +1,7 @@
 package com.example.ui.screens
 
+import com.example.ui.i18n.AppUiStrings
+
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -77,6 +79,7 @@ fun DashboardScreen(
     onReject: (ApprovalRequest) -> Unit,
     onNavigateRoute: (String) -> Unit
 ) {
+    val uiLang = settings.appLanguage
     val activeTask = tasks.firstOrNull { it.status in listOf("running", "awaiting_approval", "queued", "paused") }
         ?: tasks.firstOrNull()
     val completedCount = tasks.count { it.status == "completed" }
@@ -124,7 +127,7 @@ fun DashboardScreen(
                     color = ElectricCyan
                 )
                 Text(
-                    text = "مساحة عملك الذكية لبناء التطبيقات وإدارتها",
+                    text = AppUiStrings.workspaceSmartSpace(uiLang),
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
@@ -133,11 +136,11 @@ fun DashboardScreen(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     StatusPill(
-                        label = if (workspace.isGitHubConnected) "GitHub متصل" else "GitHub غير متصل",
+                        label = if (workspace.isGitHubConnected) AppUiStrings.githubConnected(uiLang) else AppUiStrings.githubDisconnected(uiLang),
                         color = if (workspace.isGitHubConnected) EmeraldSuccess else AmberWarning
                     )
                     StatusPill(
-                        label = if (activeTask?.status == "running") "الوكيل يعمل" else "لوحة التحكم",
+                        label = if (activeTask?.status == "running") AppUiStrings.agentRunning(uiLang) else AppUiStrings.controlPanel(uiLang),
                         color = if (activeTask?.status == "running") ElectricCyan else AzureAccent
                     )
                 }
@@ -148,7 +151,7 @@ fun DashboardScreen(
         item {
             CommandCard(borderColor = AzureAccent.copy(alpha = 0.5f)) {
                 Text(
-                    text = "نظرة عامة",
+                    text = AppUiStrings.overviewTitle(uiLang),
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.Bold
                 )
@@ -200,7 +203,7 @@ fun DashboardScreen(
                     )
                     AssistChip(
                         onClick = { onNavigateRoute("linked_accounts") },
-                        label = { Text("+ إدارة المشاريع") },
+                        label = { Text(AppUiStrings.dashboardManageProjects(uiLang)) },
                         modifier = Modifier.testTag("dashboard_manage_projects_chip")
                     )
                 }
@@ -240,7 +243,7 @@ fun DashboardScreen(
                             fontWeight = FontWeight.Bold
                         )
                     }
-                    StatusPill(label = "كافة البيئات واللغات", color = ElectricCyan)
+                    StatusPill(label = AppUiStrings.allEnvsAndLanguages(uiLang), color = ElectricCyan)
                 }
                 Text(
                     text = "إنشاء مشاريع متكاملة في كافة البيئات (أندرويد، Flutter، Next.js، FastAPI، Go، Rust) واقتراح النموذج الأقوى لكل مشروع.",
@@ -256,7 +259,7 @@ fun DashboardScreen(
                 ) {
                     Icon(Icons.Rounded.RocketLaunch, contentDescription = null)
                     Spacer(modifier = Modifier.width(8.dp))
-                    Text("فتح أستوديو التطوير وإنشاء مشروع جديد", fontWeight = FontWeight.Bold)
+                    Text(AppUiStrings.dashboardOpenStudio(uiLang), fontWeight = FontWeight.Bold)
                 }
             }
         }
@@ -264,7 +267,7 @@ fun DashboardScreen(
         if (!workspace.isGitHubConnected) {
             item {
                 SetupRequiredBanner(
-                    title = "ربط GitHub مطلوب للبيانات الحية",
+                    title = AppUiStrings.githubRequiredLiveData(uiLang),
                     description = "اربط حساب GitHub لعرض الفروع، الملفات، تنزيل الأكواد، الـ commits، وActions الحقيقية لمشروع ${activeProject?.name ?: settings.activeRepo}.",
                     actionLabel = "الانتقال إلى ربط GitHub",
                     onAction = { onNavigateRoute("github_setup") },
@@ -317,7 +320,7 @@ fun DashboardScreen(
                             "completed" -> EmeraldSuccess
                             else -> EmeraldSuccess
                         }
-                        StatusPill(label = "حالة الوكيل: $agentStatusLabel", color = statusColor)
+                        StatusPill(label = AppUiStrings.agentStatusLabel(uiLang, agentStatusLabel), color = statusColor)
                     }
                 }
 
@@ -341,7 +344,7 @@ fun DashboardScreen(
                                 .testTag("dashboard_resume_task_button")
                         ) {
                             Icon(Icons.Rounded.PlayArrow, contentDescription = null)
-                            Text("استئناف المهمة في الخلفية")
+                            Text(AppUiStrings.dashboardResumeBackgroundTask(uiLang))
                         }
                     }
                 }
@@ -351,17 +354,17 @@ fun DashboardScreen(
         // System Matrix + Metrics Charts
         item {
             CommandCard {
-                Text("حالة المنظومة والمقاييس", style = MaterialTheme.typography.titleMedium)
+                Text(AppUiStrings.dashboardSystemStatus(uiLang), style = MaterialTheme.typography.titleMedium)
                 FlowRow(
                     horizontalArrangement = Arrangement.spacedBy(8.dp),
                     verticalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
                     StatusPill(
-                        label = if (workspace.isGitHubConnected) "GitHub متصل" else "GitHub غير مربوط",
+                        label = if (workspace.isGitHubConnected) AppUiStrings.githubConnected(uiLang) else AppUiStrings.githubNotLinked(uiLang),
                         color = if (workspace.isGitHubConnected) EmeraldSuccess else AmberWarning
                     )
                     StatusPill(
-                        label = "AI: $readyAiCount متاح",
+                        label = AppUiStrings.aiAvailableCount(uiLang, readyAiCount),
                         color = if (readyAiCount > 0) EmeraldSuccess else CrimsonError
                     )
                     StatusPill(
@@ -370,7 +373,7 @@ fun DashboardScreen(
                         color = if (activeDb != null || workspace.backendHealth?.postgresConnected == true) EmeraldSuccess else AmberWarning
                     )
                     StatusPill(
-                        label = if (workspace.backendHealth != null) "Backend متصل" else "Backend اختياري",
+                        label = if (workspace.backendHealth != null) AppUiStrings.backendConnected(uiLang) else AppUiStrings.backendOptional(uiLang),
                         color = if (workspace.backendHealth != null) EmeraldSuccess else ElectricCyan
                     )
                 }
@@ -417,7 +420,7 @@ fun DashboardScreen(
         // Latest Commit, Error & Activity
         item {
             CommandCard {
-                Text("آخر المستجدات الفعلية", style = MaterialTheme.typography.titleMedium)
+                Text(AppUiStrings.dashboardRecentUpdates(uiLang), style = MaterialTheme.typography.titleMedium)
                 Text(
                     text = "آخر Commit: ${latestCommit?.let { "${it.sha.take(7)} — ${it.commit.message.lines().firstOrNull().orEmpty()}" } ?: "لا توجد commits محملة بعد"}",
                     style = MaterialTheme.typography.bodySmall
@@ -438,7 +441,7 @@ fun DashboardScreen(
         // Quick Hub Grid for all 16 Screens
         item {
             CommandCard {
-                Text("الوصول السريع لجميع الشاشات", style = MaterialTheme.typography.titleMedium)
+                Text(AppUiStrings.dashboardQuickAccess(uiLang), style = MaterialTheme.typography.titleMedium)
                 val shortcuts = listOf(
                     Triple("محادثات وحسابات AI", "ai_conversations", Icons.Rounded.Forum),
                     Triple("ملف العمل والتعاون", "workspace_plan", Icons.Rounded.Groups),

@@ -44,8 +44,10 @@ import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
+import kotlinx.coroutines.launch
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
@@ -67,8 +69,9 @@ import com.example.core.notifications.QuotaNotificationHelper
 import com.example.core.security.SecretVault
 import com.example.data.local.MetraLocalDatabase
 import com.example.data.repository.AiOrchestratorRepository
+import com.example.data.repository.AuthSessionRepository
 import com.example.data.repository.BackendRepository
-import com.example.data.repository.FirestoreAgentRepository
+import com.example.data.repository.UserDataRepository
 import com.example.data.repository.GitHubRepository
 import com.example.domain.model.UserSettings
 import com.example.ui.screens.ActionsScreen
@@ -94,12 +97,10 @@ import com.example.ui.screens.TasksScreen
 import com.example.ui.screens.TestsScreen
 import com.example.ui.components.QuotaFailoverBanner
 import com.example.ui.theme.MetraAgentTheme
+import com.example.ui.i18n.AppUiStrings
+import androidx.compose.ui.unit.LayoutDirection
 import com.example.ui.viewmodel.MetraAgentViewModel
 import com.example.ui.viewmodel.StreamUiState
-import com.google.firebase.Firebase
-import com.google.firebase.auth.FirebaseAuth
-import com.google.firebase.auth.auth
-import com.google.firebase.firestore.FirebaseFirestore
 
 private data class TopNavTab(
     val route: String,
@@ -112,32 +113,30 @@ fun MetraRootApp(
     pendingNotificationRoute: String? = null,
     onNotificationRouteConsumed: () -> Unit = {}
 ) {
-    var currentUser by remember { mutableStateOf(Firebase.auth.currentUser) }
+    val context = LocalContext.current
+    val vault = remember(context) { SecretVault(context) }
+    val authScope = androidx.compose.runtime.rememberCoroutineScope()
+    // Never trust a locally cached user ID as an authenticated session.
+    // AuthScreen restores/rotates the server session before entering the app.
+    var currentUserId by remember(vault) { mutableStateOf<String?>(null) }
 
-    DisposableEffect(Unit) {
-        val listener = FirebaseAuth.AuthStateListener { auth ->
-            currentUser = auth.currentUser
-        }
-        Firebase.auth.addAuthStateListener(listener)
-        onDispose {
-            Firebase.auth.removeAuthStateListener(listener)
-        }
-    }
-
-    val user = currentUser
-    if (user == null) {
-        MetraAgentTheme(darkTheme = true) {
-            AuthScreen(
-                onAuthSuccess = { currentUser = Firebase.auth.currentUser }
-            )
+    val userId = currentUserId
+    if (userId == null) {
+        MetraAgentTheme(darkTheme = true, layoutDirection = LayoutDirection.Rtl) {
+            AuthScreen(onAuthSuccess = { authenticatedUserId -> currentUserId = authenticatedUserId })
         }
     } else {
-        key(user.uid) {
+        key(userId) {
             AuthenticatedMetraShell(
-                currentUserId = user.uid,
+                currentUserId = userId,
                 pendingNotificationRoute = pendingNotificationRoute,
                 onNotificationRouteConsumed = onNotificationRouteConsumed,
-                onSignedOut = { currentUser = null }
+                onSignedOut = {
+                    authScope.launch {
+                        AuthSessionRepository(vault).signOut()
+                        currentUserId = null
+                    }
+                }
             )
         }
     }
@@ -159,13 +158,11 @@ private fun AuthenticatedMetraShell(
         factory = viewModelFactory {
             initializer {
                 val app = checkNotNull(this[APPLICATION_KEY]) as Application
-                val dbId = app.getString(R.string.firestore_database_id)
-                val firestore = FirebaseFirestore.getInstance(dbId)
                 val localDb = MetraLocalDatabase.getInstance(app)
                 val appVault = SecretVault(app)
                 MetraAgentViewModel(
                     currentUserId = currentUserId,
-                    firestoreRepo = FirestoreAgentRepository(firestore),
+                    userDataRepository = UserDataRepository(app),
                     gitHubRepo = GitHubRepository(appVault),
                     aiRepo = AiOrchestratorRepository(appVault),
                     backendRepo = BackendRepository(appVault),
@@ -216,20 +213,20 @@ private fun AuthenticatedMetraShell(
                 viewModel.completeFileDownload(
                     filePath = pending.fullPath,
                     success = true,
-                    message = "تم تنزيل وحفظ الملف: ${pending.fileName}"
+                    message = AppUiStrings.fileDownloadSaved(settings.appLanguage, pending.fileName)
                 )
             } catch (e: Exception) {
                 viewModel.completeFileDownload(
                     filePath = pending.fullPath,
                     success = false,
-                    message = "تعذر حفظ الملف: ${e.localizedMessage}"
+                    message = AppUiStrings.fileDownloadFailed(settings.appLanguage, e.localizedMessage)
                 )
             }
         } else {
             viewModel.completeFileDownload(
                 filePath = pending?.fullPath.orEmpty(),
                 success = false,
-                message = "تم إلغاء تنزيل الملف."
+                message = AppUiStrings.fileDownloadCancelled(settings.appLanguage)
             )
         }
     }
@@ -241,51 +238,36 @@ private fun AuthenticatedMetraShell(
         }
     }
 
+    val uiLang = settings.appLanguage
     val activeProjectTitle = workspace.platformConfig.activeProject?.name?.ifBlank {
         settings.activeRepo.substringAfter("/")
-    } ?: settings.activeRepo.substringAfter("/").ifBlank { "منصة الوكيل" }
+    } ?: settings.activeRepo.substringAfter("/").ifBlank { AppUiStrings.defaultProjectTitle(uiLang) }
 
     val primaryTabs = listOf(
-        TopNavTab("dashboard", "الرئيسية", Icons.Rounded.Dashboard),
-        TopNavTab("universal_studio", "الاستوديو", Icons.Rounded.Code),
-        TopNavTab("chat", "الوكيل", Icons.Rounded.AutoAwesome),
-        TopNavTab("tasks", "المهام", Icons.Rounded.Checklist),
-        TopNavTab("files", "المستودع", Icons.Rounded.FolderOpen),
-        TopNavTab("database", "القاعدة", Icons.Rounded.Storage)
+        TopNavTab("dashboard", AppUiStrings.tabLabel("dashboard", uiLang), Icons.Rounded.Dashboard),
+        TopNavTab("universal_studio", AppUiStrings.tabLabel("universal_studio", uiLang), Icons.Rounded.Code),
+        TopNavTab("chat", AppUiStrings.tabLabel("chat", uiLang), Icons.Rounded.AutoAwesome),
+        TopNavTab("tasks", AppUiStrings.tabLabel("tasks", uiLang), Icons.Rounded.Checklist),
+        TopNavTab("files", AppUiStrings.tabLabel("files", uiLang), Icons.Rounded.FolderOpen),
+        TopNavTab("database", AppUiStrings.tabLabel("database", uiLang), Icons.Rounded.Storage)
     )
     // Five mobile destinations follow the approved Figma information architecture.
     // Advanced tools remain accessible from dashboard shortcuts and the desktop navigation rail.
     val mobileTabs = listOf(
-        TopNavTab("dashboard", "الرئيسية", Icons.Rounded.Dashboard),
-        TopNavTab("chat", "الوكيل", Icons.Rounded.AutoAwesome),
-        TopNavTab("tasks", "المهام", Icons.Rounded.Checklist),
-        TopNavTab("linked_accounts", "المشاريع", Icons.Rounded.FolderOpen),
-        TopNavTab("security", "الإعدادات", Icons.Rounded.Settings)
+        TopNavTab("dashboard", AppUiStrings.tabLabel("dashboard", uiLang), Icons.Rounded.Dashboard),
+        TopNavTab("chat", AppUiStrings.tabLabel("chat", uiLang), Icons.Rounded.AutoAwesome),
+        TopNavTab("tasks", AppUiStrings.tabLabel("tasks", uiLang), Icons.Rounded.Checklist),
+        TopNavTab("linked_accounts", AppUiStrings.tabLabel("linked_accounts", uiLang), Icons.Rounded.FolderOpen),
+        TopNavTab("security", AppUiStrings.tabLabel("security", uiLang), Icons.Rounded.Settings)
     )
     val isTopTab = primaryTabs.any { it.route == currentRoute } ||
         mobileTabs.any { it.route == currentRoute }
 
-    val screenTitles = mapOf(
-        "dashboard" to "لوحة: $activeProjectTitle",
-        "universal_studio" to "أستوديو التطوير ومرشح النماذج (AI Studio Pro)",
-        "chat" to "المحادثة مع الوكيل",
-        "tasks" to "المهام وخطة التنفيذ",
-        "files" to "مستكشف وتنزيل الملفات",
-        "code_editor" to "محرر ومراجع الأكواد",
-        "branches" to "الفروع والـ Commits",
-        "prs" to "Pull Requests",
-        "actions" to "GitHub Actions",
-        "database" to "قواعد البيانات والأسرار",
-        "sql_review" to "مراجعة SQL والأمان",
-        "tests" to "الاختبارات",
-        "logs" to "سجل العمليات والتصدير",
-        "github_setup" to "ربط GitHub",
-        "ai_setup" to "وكلاء AI والأولوية وBackend",
-        "ai_conversations" to "محادثات وحسابات ChatGPT وGemini",
-        "security" to "إعدادات الأمان والصلاحيات",
-        "linked_accounts" to "المشاريع والحسابات المتعددة",
-        "workspace_plan" to "غرفة التعاون وملف العمل الموحد"
-    )
+    val screenTitles = listOf(
+        "dashboard", "universal_studio", "chat", "tasks", "files", "code_editor", "branches", "prs",
+        "actions", "database", "sql_review", "tests", "logs", "github_setup", "ai_setup",
+        "ai_conversations", "security", "linked_accounts", "workspace_plan"
+    ).associateWith { route -> AppUiStrings.screenTitle(route, uiLang, activeProjectTitle) }
 
     var hasNotificationPermission by remember {
         mutableStateOf(QuotaNotificationHelper.hasNotificationPermission(context))
@@ -323,7 +305,8 @@ private fun AuthenticatedMetraShell(
         }
     }
 
-    MetraAgentTheme(darkTheme = settings.darkTheme) {
+    val layoutDirection = if (settings.appLanguage.equals("en", ignoreCase = true)) LayoutDirection.Ltr else LayoutDirection.Rtl
+    MetraAgentTheme(darkTheme = settings.darkTheme, layoutDirection = layoutDirection) {
         BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
             val useRail = maxWidth >= 600.dp
 
@@ -500,7 +483,8 @@ private fun AuthenticatedMetraShell(
                                         onApprove = { viewModel.approveAndExecute(it, context) },
                                         onReject = { viewModel.rejectApproval(it) },
                                         onOpenAiConversations = { navigateTo("ai_conversations") }
-                                    )
+                                    ,
+                                        appLanguage = settings.appLanguage)
                                 }
                                 composable("tasks") {
                                     TasksScreen(
@@ -510,7 +494,8 @@ private fun AuthenticatedMetraShell(
                                         onCreateTaskAndRun = { viewModel.sendChatCommand(it, context) },
                                         onResumeTask = { viewModel.resumeTaskInBackground(it, context) },
                                         onOpenSharedWorkspace = { navigateTo("workspace_plan") }
-                                    )
+                                    ,
+                                        appLanguage = settings.appLanguage)
                                 }
                                 composable("workspace_plan") {
                                     SharedWorkspaceScreen(
@@ -590,7 +575,8 @@ private fun AuthenticatedMetraShell(
                                     ActionsScreen(
                                         workspace = workspace,
                                         onRefresh = { viewModel.refreshGitHubWorkspace() }
-                                    )
+                                    ,
+                                        appLanguage = settings.appLanguage)
                                 }
                                 composable("database") {
                                     DatabaseScreen(
@@ -621,7 +607,8 @@ private fun AuthenticatedMetraShell(
                                         onReviewOrExecuteSql = { sql, targetDb ->
                                             viewModel.reviewOrExecuteSql(sql, targetDb, context)
                                         }
-                                    )
+                                    ,
+                                        appLanguage = settings.appLanguage)
                                 }
                                 composable("tests") {
                                     TestsScreen(
@@ -633,13 +620,15 @@ private fun AuthenticatedMetraShell(
                                             navigateTo("chat")
                                         },
                                         onGoToBackendSetup = { navigateTo("ai_setup") }
-                                    )
+                                    ,
+                                        appLanguage = settings.appLanguage)
                                 }
                                 composable("logs") {
                                     LogsScreen(
                                         logs = logs,
                                         flutterSpecText = viewModel.getExportableFlutterSpec()
-                                    )
+                                    ,
+                                        appLanguage = settings.appLanguage)
                                 }
                                 composable("github_setup") {
                                     GitHubSetupScreen(
@@ -745,6 +734,10 @@ private fun AuthenticatedMetraShell(
                                 composable("universal_studio") {
                                     UniversalStudioScreen(
                                         activeProject = workspace.activeStudioProject,
+                                        savedProjects = workspace.savedStudioProjects,
+                                        onOpenSavedProject = { viewModel.openSavedStudioProject(it) },
+                                        onDeleteSavedProject = { viewModel.deleteSavedStudioProject(it) },
+                                        onRefreshSavedProjects = { viewModel.refreshSavedStudioProjects() },
                                         isGenerating = workspace.isGeneratingStudioProject,
                                         selectedFilePath = workspace.studioSelectedFilePath,
                                         editedFileContent = workspace.studioEditedContent,
@@ -757,7 +750,8 @@ private fun AuthenticatedMetraShell(
                                         onSaveFileChanges = { viewModel.saveStudioFileChanges() },
                                         onRunAudit = { viewModel.runStudioAudit() },
                                         onApplyModel = { id, name -> viewModel.applyRecommendedModelToProject(id, name) },
-                                        onOpenChat = { navigateTo("chat") }
+                                        onOpenChat = { navigateTo("chat") },
+                                        appLanguage = settings.appLanguage
                                     )
                                 }
                                 composable("ai_conversations") {

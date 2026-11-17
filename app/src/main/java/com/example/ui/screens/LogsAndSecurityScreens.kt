@@ -1,5 +1,7 @@
 package com.example.ui.screens
 
+import com.example.ui.i18n.AppUiStrings
+
 import android.Manifest
 import android.content.ClipData
 import android.content.ClipboardManager
@@ -26,6 +28,7 @@ import androidx.compose.material.icons.rounded.History
 import androidx.compose.material.icons.rounded.IosShare
 import androidx.compose.material.icons.rounded.NotificationsActive
 import androidx.compose.material.icons.rounded.Security
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.FilterChip
@@ -47,6 +50,8 @@ import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.unit.dp
 import androidx.credentials.ClearCredentialStateRequest
 import androidx.credentials.CredentialManager
+import com.example.core.security.SecretVault
+import com.example.data.repository.AuthSessionRepository
 import com.example.core.notifications.AgentNotificationPrefs
 import com.example.core.notifications.QuotaNotificationHelper
 import com.example.domain.model.ApprovalRequest
@@ -60,8 +65,6 @@ import com.example.ui.theme.AmberWarning
 import com.example.ui.theme.CrimsonError
 import com.example.ui.theme.ElectricCyan
 import com.example.ui.theme.EmeraldSuccess
-import com.google.firebase.Firebase
-import com.google.firebase.auth.auth
 import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -72,9 +75,11 @@ import kotlinx.coroutines.withContext
 @Composable
 fun LogsScreen(
     logs: List<OperationLog>,
-    flutterSpecText: String
+    flutterSpecText: String,
+    appLanguage: String = "ar"
 ) {
     val context = LocalContext.current
+    val uiLang = appLanguage
     var categoryFilter by remember { mutableStateOf("all") }
     var copiedNotice by remember { mutableStateOf(false) }
 
@@ -94,7 +99,7 @@ fun LogsScreen(
                     horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
                     Icon(Icons.Rounded.IosShare, contentDescription = null, tint = ElectricCyan)
-                    Text("تصدير مواصفات Flutter وBackend والتقرير", style = MaterialTheme.typography.titleMedium)
+                    Text(AppUiStrings.logsExportSpecs(uiLang), style = MaterialTheme.typography.titleMedium)
                 }
                 Text(
                     text = "يمكنك مشاركة أو نسخ مواصفات Flutter الكاملة وعقد Backend Runner ومقترح PostgreSQL Migration.",
@@ -114,7 +119,7 @@ fun LogsScreen(
                             .weight(1f)
                             .testTag("export_flutter_spec_button")
                     ) {
-                        Text("مشاركة المواصفات")
+                        Text(AppUiStrings.logsShareSpecs(uiLang))
                     }
                     OutlinedButton(
                         onClick = {
@@ -124,7 +129,7 @@ fun LogsScreen(
                         },
                         modifier = Modifier.weight(1f)
                     ) {
-                        Text(if (copiedNotice) "تم النسخ ✓" else "نسخ للحافظة")
+                        Text(if (copiedNotice) AppUiStrings.logsCopied(uiLang) else AppUiStrings.logsCopyClipboard(uiLang))
                     }
                 }
             }
@@ -162,7 +167,7 @@ fun LogsScreen(
                         horizontalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
                         Icon(Icons.Rounded.History, contentDescription = null)
-                        Text("لا توجد عمليات مسجلة في هذا التصنيف بعد", style = MaterialTheme.typography.titleMedium)
+                        Text(AppUiStrings.logsEmptyCategory(uiLang), style = MaterialTheme.typography.titleMedium)
                     }
                 }
             }
@@ -222,6 +227,10 @@ fun SecuritySettingsScreen(
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     val credentialManager = remember(context) { CredentialManager.create(context) }
+    val uiLang = settings.appLanguage
+    var showDeleteAccountDialog by remember { mutableStateOf(false) }
+    var deleteAccountError by remember { mutableStateOf<String?>(null) }
+    var deleteAccountInProgress by remember { mutableStateOf(false) }
     var notifGranted by remember {
         mutableStateOf(QuotaNotificationHelper.hasNotificationPermission(context))
     }
@@ -243,7 +252,7 @@ fun SecuritySettingsScreen(
                     horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
                     Icon(Icons.Rounded.Security, contentDescription = null, tint = EmeraldSuccess)
-                    Text("إعدادات الأمان والصلاحيات ثلاثية المستويات", style = MaterialTheme.typography.titleLarge)
+                    Text(AppUiStrings.securityTitle(uiLang), style = MaterialTheme.typography.titleLarge)
                 }
                 Row(
                     modifier = Modifier.fillMaxWidth(),
@@ -251,7 +260,7 @@ fun SecuritySettingsScreen(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Column(modifier = Modifier.weight(1f)) {
-                        Text("التنفيذ التلقائي للمستوى الأول", style = MaterialTheme.typography.titleMedium)
+                        Text(AppUiStrings.securityTier1Auto(uiLang), style = MaterialTheme.typography.titleMedium)
                         Text(
                             "قراءة الملفات، التحليل، التعديل داخل فرع عمل، تشغيل الاختبارات، وإنشاء التقارير.",
                             style = MaterialTheme.typography.bodySmall,
@@ -293,10 +302,10 @@ fun SecuritySettingsScreen(
                         horizontalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
                         Icon(Icons.Rounded.NotificationsActive, contentDescription = null, tint = ElectricCyan)
-                        Text("إشعارات الانتباه والتنبيهات الفورية", style = MaterialTheme.typography.titleMedium)
+                        Text(AppUiStrings.securityNotificationsTitle(uiLang), style = MaterialTheme.typography.titleMedium)
                     }
                     StatusPill(
-                        label = if (notifGranted) "مفعّلة" else "غير مصرح",
+                        label = if (notifGranted) AppUiStrings.securityNotifEnabled(uiLang) else AppUiStrings.securityNotifDenied(uiLang),
                         color = if (notifGranted) EmeraldSuccess else AmberWarning
                     )
                 }
@@ -313,11 +322,11 @@ fun SecuritySettingsScreen(
                             .testTag("security_grant_notifications_button")
                     ) {
                         Icon(Icons.Rounded.NotificationsActive, contentDescription = null)
-                        Text("منح صلاحية الإشعارات على الهاتف")
+                        Text(AppUiStrings.securityGrantNotifPermission(uiLang))
                     }
                 }
                 NotificationToggleRow(
-                    title = "عند إنهاء أي أمر أو مهمة أو جولة تعاون",
+                    title = AppUiStrings.notifOnCommandDone(uiLang),
                     checked = notificationPrefs.notifyOnCompletion,
                     onCheckedChange = {
                         onUpdateNotificationPrefs(notificationPrefs.copy(notifyOnCompletion = it))
@@ -325,7 +334,7 @@ fun SecuritySettingsScreen(
                     testTag = "notif_completion_switch"
                 )
                 NotificationToggleRow(
-                    title = "عند التوقف المؤقت أو الخطأ أو الحظر الأمني",
+                    title = AppUiStrings.notifOnPauseError(uiLang),
                     checked = notificationPrefs.notifyOnStopOrError,
                     onCheckedChange = {
                         onUpdateNotificationPrefs(notificationPrefs.copy(notifyOnStopOrError = it))
@@ -333,7 +342,7 @@ fun SecuritySettingsScreen(
                     testTag = "notif_stop_switch"
                 )
                 NotificationToggleRow(
-                    title = "عند الحاجة لإجراء أو موافقة (المستوى 2 و3)",
+                    title = AppUiStrings.notifOnApprovalNeeded(uiLang),
                     checked = notificationPrefs.notifyOnActionRequired,
                     onCheckedChange = {
                         onUpdateNotificationPrefs(notificationPrefs.copy(notifyOnActionRequired = it))
@@ -341,7 +350,7 @@ fun SecuritySettingsScreen(
                     testTag = "notif_action_switch"
                 )
                 NotificationToggleRow(
-                    title = "عند انتهاء حصة API والتحويل للبديل",
+                    title = AppUiStrings.notifOnQuotaExhausted(uiLang),
                     checked = notificationPrefs.notifyOnQuotaFailover,
                     onCheckedChange = {
                         onUpdateNotificationPrefs(notificationPrefs.copy(notifyOnQuotaFailover = it))
@@ -354,7 +363,7 @@ fun SecuritySettingsScreen(
                         .fillMaxWidth()
                         .testTag("send_test_notification_button")
                 ) {
-                    Text("إرسال إشعار تجريبي للتأكد من الصوت والاهتزاز")
+                    Text(AppUiStrings.securitySendTestNotif(uiLang))
                 }
             }
         }
@@ -371,7 +380,7 @@ fun SecuritySettingsScreen(
                         horizontalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
                         Icon(Icons.Rounded.DarkMode, contentDescription = null)
-                        Text("الوضع الداكن الأنيق", style = MaterialTheme.typography.titleMedium)
+                        Text(AppUiStrings.darkThemeLabel(settings.appLanguage), style = MaterialTheme.typography.titleMedium)
                     }
                     Switch(
                         checked = settings.darkTheme,
@@ -379,12 +388,38 @@ fun SecuritySettingsScreen(
                         modifier = Modifier.testTag("dark_theme_switch")
                     )
                 }
+                Text(
+                    AppUiStrings.languageSectionTitle(settings.appLanguage),
+                    style = MaterialTheme.typography.titleMedium
+                )
+                Text(
+                    AppUiStrings.languageSectionHint(settings.appLanguage),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    FilterChip(
+                        selected = settings.appLanguage != "en",
+                        onClick = { onUpdateSettings(settings.copy(appLanguage = "ar")) },
+                        label = { Text(AppUiStrings.languageArabic(uiLang)) },
+                        modifier = Modifier.testTag("language_ar_chip")
+                    )
+                    FilterChip(
+                        selected = settings.appLanguage.equals("en", ignoreCase = true),
+                        onClick = { onUpdateSettings(settings.copy(appLanguage = "en")) },
+                        label = { Text(AppUiStrings.languageEnglish(uiLang)) },
+                        modifier = Modifier.testTag("language_en_chip")
+                    )
+                }
             }
         }
 
         if (approvals.isNotEmpty()) {
             item {
-                Text("سجل الموافقات (${approvals.size})", style = MaterialTheme.typography.titleMedium)
+                Text(AppUiStrings.securityApprovalsLog(uiLang, approvals.size), style = MaterialTheme.typography.titleMedium)
             }
             items(approvals, key = { it.id.ifBlank { it.hashCode().toString() } }) { approval ->
                 ApprovalGateCard(
@@ -397,7 +432,7 @@ fun SecuritySettingsScreen(
 
         item {
             CommandCard(borderColor = CrimsonError.copy(alpha = 0.5f)) {
-                Text("إدارة الأسرار والجلسة", style = MaterialTheme.typography.titleMedium)
+                Text(AppUiStrings.securitySecretsSession(uiLang), style = MaterialTheme.typography.titleMedium)
                 OutlinedButton(
                     onClick = onClearSecrets,
                     modifier = Modifier
@@ -405,7 +440,7 @@ fun SecuritySettingsScreen(
                         .testTag("clear_vault_button")
                 ) {
                     Icon(Icons.Rounded.DeleteForever, contentDescription = null, tint = CrimsonError)
-                    Text("مسح GitHub PAT ومفاتيح API المشفرة محلياً")
+                    Text(AppUiStrings.securityClearSecrets(uiLang))
                 }
                 Button(
                     onClick = {
@@ -415,7 +450,7 @@ fun SecuritySettingsScreen(
                                     credentialManager.clearCredentialState(ClearCredentialStateRequest())
                                 } catch (_: Exception) {
                                 } finally {
-                                    Firebase.auth.signOut()
+                                    AuthSessionRepository(SecretVault(context)).signOut()
                                     onSignedOut()
                                 }
                             }
@@ -427,7 +462,23 @@ fun SecuritySettingsScreen(
                         .testTag("sign_out_button")
                 ) {
                     Icon(Icons.AutoMirrored.Rounded.Logout, contentDescription = null)
-                    Text("تسجيل الخروج من الحساب")
+                    Text(AppUiStrings.signOut(settings.appLanguage))
+                }
+                OutlinedButton(
+                    onClick = {
+                        deleteAccountError = null
+                        showDeleteAccountDialog = true
+                    },
+                    enabled = !deleteAccountInProgress,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .testTag("delete_account_button")
+                ) {
+                    Icon(Icons.Rounded.DeleteForever, contentDescription = null, tint = CrimsonError)
+                    Text(AppUiStrings.deleteAccount(settings.appLanguage))
+                }
+                deleteAccountError?.let { err ->
+                    Text(err, color = CrimsonError, style = MaterialTheme.typography.bodySmall)
                 }
             }
         }
@@ -439,14 +490,66 @@ fun SecuritySettingsScreen(
                     horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
                     Icon(Icons.Rounded.Security, contentDescription = null, tint = EmeraldSuccess)
-                    Text("حقوق الملكية الفكرية وحماية التطبيق", style = MaterialTheme.typography.titleMedium)
+                    Text(AppUiStrings.securityIpTitle(uiLang), style = MaterialTheme.typography.titleMedium)
                 }
-                Text("اسم التطبيق: ai i.z", style = MaterialTheme.typography.bodyMedium)
-                Text("المطور والمالك: إبراهيم زينب (Ibrahim Zeinab)", style = MaterialTheme.typography.bodyMedium)
-                Text("جميع الحقوق محفوظة © 2026", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                Text("الأمان والتشفير: التطبيق محمي بالكامل عبر خوارزميات التشفير المتقدمة وضغط وإخفاء الأكواد (ProGuard/R8) لمنع تفكيكه أو سرقة أكواده.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Text(AppUiStrings.aboutAppName(uiLang), style = MaterialTheme.typography.bodyMedium)
+                Text(AppUiStrings.aboutDeveloper(uiLang), style = MaterialTheme.typography.bodyMedium)
+                Text(AppUiStrings.aboutCopyright(uiLang), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Text(AppUiStrings.aboutSecurity(uiLang), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
         }
+    }
+
+    if (showDeleteAccountDialog) {
+            AlertDialog(
+                onDismissRequest = {
+                    if (!deleteAccountInProgress) showDeleteAccountDialog = false
+                },
+                title = { Text(AppUiStrings.deleteAccountTitle(settings.appLanguage)) },
+                text = {
+                    Text(AppUiStrings.deleteAccountBody(settings.appLanguage))
+                },
+                confirmButton = {
+                    Button(
+                        onClick = {
+                            scope.launch {
+                                deleteAccountInProgress = true
+                                deleteAccountError = null
+                                val result = withContext(NonCancellable) {
+                                    AuthSessionRepository(SecretVault(context)).deleteAccount()
+                                }
+                                deleteAccountInProgress = false
+                                result.fold(
+                                    onSuccess = {
+                                        showDeleteAccountDialog = false
+                                        runCatching {
+                                            credentialManager.clearCredentialState(ClearCredentialStateRequest())
+                                        }
+                                        onSignedOut()
+                                    },
+                                    onFailure = { error ->
+                                        deleteAccountError = error.message
+                                            ?: "تعذر حذف الحساب. تحقق من الاتصال وحاول مجدداً."
+                                        showDeleteAccountDialog = false
+                                    }
+                                )
+                            }
+                        },
+                        enabled = !deleteAccountInProgress,
+                        colors = ButtonDefaults.buttonColors(containerColor = CrimsonError)
+                    ) {
+                        Text(if (deleteAccountInProgress) AppUiStrings.deleteAccountInProgress(settings.appLanguage) else AppUiStrings.deleteAccountConfirm(settings.appLanguage))
+                    }
+                },
+                dismissButton = {
+                    OutlinedButton(
+                        onClick = { showDeleteAccountDialog = false },
+                        enabled = !deleteAccountInProgress
+                    ) {
+                        Text(AppUiStrings.cancel(settings.appLanguage))
+                    }
+                }
+            )
     }
 }
 

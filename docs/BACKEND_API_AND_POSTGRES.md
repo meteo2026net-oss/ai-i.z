@@ -2,11 +2,13 @@
 
 ## 1. Current implementation status
 
-The Android application contains a Retrofit client contract for Backend Runner. This repository does **not** currently contain a deployable Backend Runner server implementation. The endpoints below describe the required server contract; they must not be treated as live services until a server is implemented, deployed over HTTPS, and tested end to end.
+The separate AI I.Z identity API in `backend/` issues app-owned Google OIDC sessions and PostgreSQL-backed user records. This is not the Backend Runner implementation. The Android client now sends its current AI I.Z access token as the Bearer credential and no longer asks the user for a separate static Backend Runner token. The Runner server must validate that token against the AI I.Z identity service (or share the same trusted session-validation module and PostgreSQL session store); it must not accept static shared tokens.
+
+The Android application contains a Retrofit client and this repository now contains an initial deployable Runner service in `runner/`. It verifies every caller by forwarding the Bearer token to the identity API's authenticated `GET /api/me`; it never trusts decoded claims or static tokens. `GET /api/health` and administrator-restricted `GET /api/db/schema` are implemented. The identity API now also stores immutable, user-bound Runner approval requests with an exact canonical operation hash, target, ten-minute expiry, explicit approve/reject decision, and transactional one-time consumption. Test execution and both SQL endpoints intentionally return HTTP 501 until their worker/query security gates are implemented. Approval records alone do not authorize execution; the Runner must independently consume and validate one for the exact operation.
 
 ## 2. Required API
 
-All endpoints require an authenticated caller. The server must validate the Firebase ID token (or an explicitly approved equivalent identity provider) and derive the user identity from the verified token. A static shared bearer token alone is not sufficient user authentication.
+All endpoints require an authenticated caller. The server must validate the short-lived AI I.Z access token issued by `backend/` (signature, algorithm, issuer, audience, expiry, subject, and session ID), then confirm that the session remains active and unrevoked in PostgreSQL. A separately deployed Runner should do this by calling the authenticated `GET /api/me` endpoint on the AI I.Z API with the supplied Bearer token and treating any non-success response as unauthenticated; the identity API performs the signature, audience, expiry, session, and revocation checks. The Runner must not independently trust decoded JWT claims or accept static shared bearer tokens. It must derive the user identity from the verified session. A Firebase ID token is not accepted as a substitute.
 
 ### Health
 
@@ -32,7 +34,7 @@ Capability flags must reflect actual server-side checks, not hard-coded success 
 
 `POST /api/tests/run`
 
-Accepts an allowlisted repository identifier, branch, and test target. The server must reject arbitrary shell commands, arbitrary URLs, unapproved repositories, and untrusted branch input. Run jobs in isolated, resource-limited workers with timeouts and no ambient production credentials.
+`POST /api/tests/run` currently returns HTTP 501 (`TEST_EXECUTION_DISABLED`). Keep it disabled until allowlisted repository/branch validation and isolated, resource-limited workers with timeouts and no ambient production credentials are implemented.
 
 ### Database schema
 
@@ -44,13 +46,13 @@ Returns only the schema metadata the authenticated user is authorized to inspect
 
 `POST /api/db/query-readonly`
 
-Use a dedicated database role with read-only transaction permissions. Enforce query timeouts, row limits, statement-size limits, and tenant scoping. Reject multi-statement input and any operation that can mutate data or invoke privileged functions.
+`POST /api/db/query-readonly` currently returns HTTP 501 (`SQL_QUERY_DISABLED`). Keep it disabled until a parser-backed allowlist, dedicated read-only database role, query timeouts, row limits, statement-size limits, and tenant scoping are implemented. Do not rely on regular expressions alone.
 
 ### Approved database operation
 
 `POST /api/db/execute-approved`
 
-A client-provided approval identifier is not proof of approval. The server must retrieve and verify the approval record, bind it to the authenticated user, exact target, exact operation hash, expiry, and policy tier, then revalidate the proposed operation immediately before execution. Log the decision and result without logging credentials or sensitive row contents.
+`POST /api/db/execute-approved` currently returns HTTP 501 (`APPROVED_EXECUTION_DISABLED`). A client-provided approval identifier is not proof of approval. Keep this endpoint disabled until a trusted server-side approval store binds the authenticated user, exact target, exact operation hash, expiry, and policy tier, with one-time consumption, immediate revalidation, and an auditable rollback plan.
 
 ## 3. Database isolation requirements
 
@@ -64,6 +66,17 @@ A client-provided approval identifier is not proof of approval. The server must 
 - Restrict outbound network access from execution workers.
 
 ## 4. Approval and audit model
+
+The identity API implements these authenticated endpoints:
+
+- `POST /api/runner/approvals` — create a pending request with `actionType`, exact `targetResource`, JSON `operation`, and human-readable `preview`. The server canonicalizes the operation and stores its SHA-256 hash; requests expire after ten minutes.
+- `GET /api/runner/approvals` — list only the caller's own approval records.
+- `GET /api/runner/approvals/{approvalId}` — retrieve only the caller's own approval metadata.
+- `POST /api/runner/approvals/{approvalId}/decision` — explicitly approve or reject a pending request, with an optional bounded note.
+- `POST /api/runner/approvals/{approvalId}/consume` — atomically consume an approved request once, but only when action, target, caller, and operation hash match the stored record. It returns the stored operation to the authenticated caller.
+- `POST /api/runner/approvals/{approvalId}/report` — store a client-reported success/failure after consumption. The response explicitly sets `executionVerified: false`; this is an audit note, not proof that the remote operation actually succeeded.
+
+These endpoints provide the approval data layer, not an execution engine. The Runner's execution endpoints remain disabled until they call the consume endpoint and independently enforce the exact approved operation, target isolation, and action-specific policy.
 
 Every high-impact operation must have a server-side approval record containing at least:
 - authenticated user and tenant;
@@ -88,6 +101,21 @@ The server must reject expired, reused, altered, mismatched, or revoked approval
 9. Health responses accurately report dependency availability.
 10. Backup restoration and migration rollback are tested.
 
-## 6. Deployment gate
+
+## 6. Durable Universal Studio projects
+
+The authenticated user-record API also stores generated Studio projects in the `studio_projects` collection. The Android repository uses the signed-in AI I.Z session for both saving and restoring projects; the API derives ownership from that session and does not accept a client-selected owner.
+
+- `GET /api/data/studio_projects?limit=50` — list only the caller's saved projects, newest updated first.
+- `GET /api/data/studio_projects/{projectId}` — fetch one project owned by the caller.
+- `PUT /api/data/studio_projects/{projectId}` — create or replace a project owned by the caller.
+
+The API enforces a maximum of 24 files, 48 KB per file, 220 KB aggregate file content, one entrypoint, unique case-insensitive paths, relative paths, and rejection of key/certificate files and unsafe environment files. The JSON request limit is 512 KB to accommodate the bounded project manifest. The Android client restores the latest saved project on startup and writes generated or edited projects back to the account.
+
+For databases created before this feature, apply `backend/db/migrations/002_studio_projects.sql` once before enabling the new Android client. Fresh databases created from the current `backend/db/schema.sql` already include the collection. The migration only expands the permitted collection values; it does not alter existing records.
+
+This is durable project metadata and source-file storage, not a remote build system. Generated projects are not automatically compiled or executed, and successful persistence must not be represented as successful build/test validation.
+
+## 7. Deployment gate
 
 Do not enable remote execution or database operations in a production app until the server exists, its security tests pass, HTTPS and identity verification are configured, and the client/server contract is tested end to end. A successful Android build does not satisfy this gate.

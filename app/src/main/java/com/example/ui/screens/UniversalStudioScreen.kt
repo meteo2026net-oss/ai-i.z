@@ -1,5 +1,9 @@
 package com.example.ui.screens
 
+import com.example.ui.i18n.AppUiStrings
+
+import android.content.ClipData
+import android.content.Intent
 import android.widget.Toast
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -24,6 +28,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
+import androidx.core.content.FileProvider
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
@@ -33,9 +38,12 @@ import com.example.domain.model.DevelopmentEnvironment
 import com.example.domain.model.ModelAdvisorEngine
 import com.example.domain.model.ProgrammingLanguage
 import com.example.domain.model.StudioProjectSpec
+import com.example.data.repository.StudioProjectArchiveExporter
 import com.example.ui.components.CommandCard
 import com.example.ui.components.StatusPill
 import com.example.ui.theme.*
+import java.io.File
+import java.io.FileOutputStream
 
 /**
  * Universal AI Studio Screen (ai i.z)
@@ -47,6 +55,10 @@ import com.example.ui.theme.*
 @Composable
 fun UniversalStudioScreen(
     activeProject: StudioProjectSpec?,
+    savedProjects: List<com.example.domain.model.StudioProjectSummary>,
+    onOpenSavedProject: (projectId: String) -> Unit,
+    onDeleteSavedProject: (projectId: String) -> Unit,
+    onRefreshSavedProjects: () -> Unit,
     isGenerating: Boolean,
     selectedFilePath: String,
     editedFileContent: String,
@@ -57,13 +69,19 @@ fun UniversalStudioScreen(
     onSaveFileChanges: () -> Unit,
     onRunAudit: () -> Unit,
     onApplyModel: (modelId: String, modelName: String) -> Unit,
-    onOpenChat: () -> Unit
+    onOpenChat: () -> Unit,
+    appLanguage: String = "ar"
 ) {
     val context = LocalContext.current
     val clipboardManager = LocalClipboardManager.current
+    val uiLang = appLanguage
 
     var selectedTab by remember { mutableStateOf(0) }
-    val tabTitles = listOf("منشئ المشاريع", "مستشار النماذج", "مستكشف الأكواد", "التشغيل والتدقيق")
+    val tabTitles = if (AppUiStrings.isEnglish(uiLang)) {
+        listOf("Project builder", "Model advisor", "Code explorer", "Run & audit", "My projects")
+    } else {
+        listOf("منشئ المشاريع", "مستشار النماذج", "مستكشف الأكواد", "التشغيل والتدقيق", "مشاريعي")
+    }
 
     // Project creation state
     var projectNameInput by remember { mutableStateOf("") }
@@ -133,7 +151,7 @@ fun UniversalStudioScreen(
 
                     AssistChip(
                         onClick = onOpenChat,
-                        label = { Text("وكيل الذكاء") },
+                        label = { Text(AppUiStrings.aiAgentLabel(uiLang)) },
                         leadingIcon = {
                             Icon(Icons.Rounded.AutoAwesome, contentDescription = null, tint = EmeraldSuccess, modifier = Modifier.size(16.dp))
                         },
@@ -189,15 +207,15 @@ fun UniversalStudioScreen(
                     isGenerating = isGenerating,
                     onCreate = {
                         onCreateProject(projectNameInput, projectPromptInput, selectedEnv, selectedLang, selectedPriority)
-                    }
-                )
+                    },
+            uiLang = uiLang)
 
                 1 -> ModelAdvisorTab(
                     activeProject = activeProject,
                     models = if (activeProject != null) listOf(activeProject.recommendedModel) + activeProject.alternateModels else recommendedModels,
                     selectedEnv = activeProject?.environment ?: selectedEnv,
-                    onApplyModel = onApplyModel
-                )
+                    onApplyModel = onApplyModel,
+            uiLang = uiLang)
 
                 2 -> CodeExplorerTab(
                     project = activeProject,
@@ -208,15 +226,125 @@ fun UniversalStudioScreen(
                     onSave = onSaveFileChanges,
                     onCopy = {
                         clipboardManager.setText(AnnotatedString(editedFileContent))
-                        Toast.makeText(context, "تم نسخ الكود للحافظة", Toast.LENGTH_SHORT).show()
-                    }
-                )
+                        Toast.makeText(context, AppUiStrings.studioCopiedToast(uiLang), Toast.LENGTH_SHORT).show()
+                    },
+                    onExport = {
+                        activeProject?.let { shareStudioProjectArchive(context, it) }
+                    },
+            uiLang = uiLang)
 
                 3 -> ExecutionAndAuditTab(
                     project = activeProject,
                     auditStatus = auditStatus,
-                    onRunAudit = onRunAudit
-                )
+                    onRunAudit = onRunAudit,
+            uiLang = uiLang)
+
+                4 -> SavedStudioProjectsTab(
+                    projects = savedProjects,
+                    activeProjectId = activeProject?.id,
+                    onOpenProject = onOpenSavedProject,
+                    onDeleteProject = onDeleteSavedProject,
+                    onRefresh = onRefreshSavedProjects,
+            uiLang = uiLang)
+            }
+        }
+    }
+}
+
+@Composable
+private fun SavedStudioProjectsTab(
+    projects: List<com.example.domain.model.StudioProjectSummary>,
+    activeProjectId: String?,
+    onOpenProject: (String) -> Unit,
+    onDeleteProject: (String) -> Unit,
+    onRefresh: () -> Unit,
+    uiLang: String) {
+    var projectPendingDeletion by remember { mutableStateOf<com.example.domain.model.StudioProjectSummary?>(null) }
+
+    if (projectPendingDeletion != null) {
+        AlertDialog(
+            onDismissRequest = { projectPendingDeletion = null },
+            title = { Text(AppUiStrings.studioDeleteTitle(uiLang)) },
+            text = { Text(AppUiStrings.studioDeleteBody(uiLang, projectPendingDeletion?.projectName)) },
+            confirmButton = {
+                TextButton(onClick = {
+                    projectPendingDeletion?.id?.let(onDeleteProject)
+                    projectPendingDeletion = null
+                }) { Text(AppUiStrings.studioDeleteConfirm(uiLang), color = MaterialTheme.colorScheme.error) }
+            },
+            dismissButton = {
+                TextButton(onClick = { projectPendingDeletion = null }) { Text(AppUiStrings.cancel(uiLang)) }
+            }
+        )
+    }
+
+    LazyColumn(
+        modifier = Modifier.fillMaxSize(),
+        contentPadding = PaddingValues(16.dp),
+        verticalArrangement = Arrangement.spacedBy(12.dp)
+    ) {
+        item {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(AppUiStrings.studioLibraryTitle(uiLang), style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                    Text(
+                        "المشاريع محفوظة في حسابك السحابي ويمكن فتحها من جديد بعد تسجيل الدخول.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+                IconButton(onClick = onRefresh) {
+                    Icon(Icons.Rounded.Refresh, contentDescription = "تحديث قائمة المشاريع")
+                }
+            }
+        }
+        if (projects.isEmpty()) {
+            item {
+                CommandCard {
+                    Icon(Icons.Rounded.FolderOff, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Text(AppUiStrings.studioLibraryEmpty(uiLang), style = MaterialTheme.typography.bodyMedium)
+                    Text(
+                        "أنشئ مشروعاً من تبويب منشئ المشاريع، ثم احفظ ملفاته ليظهر هنا.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+            }
+        } else {
+            items(projects, key = { it.id }) { project ->
+                CommandCard(borderColor = if (project.id == activeProjectId) ElectricCyan.copy(alpha = 0.7f) else MaterialTheme.colorScheme.outline.copy(alpha = 0.45f)) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(project.projectName, style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold)
+                            Text(
+                                AppUiStrings.environmentTitle(project.environment.name, uiLang) + " • " + project.primaryLanguage.displayName,
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                            Text(
+                                "${project.fileCount} ملفاً • ${project.description.take(140)}",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                        Button(onClick = { onOpenProject(project.id) }) {
+                            Icon(Icons.Rounded.FolderOpen, contentDescription = null)
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Text(if (project.id == activeProjectId) AppUiStrings.studioOpened(uiLang) else AppUiStrings.studioOpen(uiLang))
+                        }
+                        IconButton(onClick = { projectPendingDeletion = project }) {
+                            Icon(Icons.Rounded.DeleteOutline, contentDescription = "حذف المشروع", tint = MaterialTheme.colorScheme.error)
+                        }
+                    }
+                }
             }
         }
     }
@@ -236,8 +364,8 @@ private fun ProjectCreatorTab(
     selectedPriority: String,
     onSelectPriority: (String) -> Unit,
     isGenerating: Boolean,
-    onCreate: () -> Unit
-) {
+    onCreate: () -> Unit,
+    uiLang: String) {
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
         contentPadding = PaddingValues(16.dp),
@@ -259,7 +387,7 @@ private fun ProjectCreatorTab(
                 OutlinedTextField(
                     value = projectName,
                     onValueChange = onProjectNameChange,
-                    label = { Text("اسم المشروع (مثال: my-fintech-app)") },
+                    label = { Text(AppUiStrings.studioProjectNameLabel(uiLang)) },
                     singleLine = true,
                     modifier = Modifier
                         .fillMaxWidth()
@@ -269,8 +397,8 @@ private fun ProjectCreatorTab(
                 OutlinedTextField(
                     value = prompt,
                     onValueChange = onPromptChange,
-                    label = { Text("المتطلبات والتعليمات (الميزات، القواعد، الـ APIs، التصميم...)") },
-                    placeholder = { Text("مثال: تطبيق متجر إلكتروني متكامل مع سلة مشتريات وتوثيق JWT وبوابة دفع...") },
+                    label = { Text(AppUiStrings.studioRequirementsLabel(uiLang)) },
+                    placeholder = { Text(AppUiStrings.studioRequirementsPlaceholder(uiLang)) },
                     minLines = 3,
                     maxLines = 6,
                     modifier = Modifier
@@ -304,7 +432,7 @@ private fun ProjectCreatorTab(
                         FilterChip(
                             selected = isSelected,
                             onClick = { onSelectEnv(env) },
-                            label = { Text(env.title, fontSize = 12.sp) },
+                            label = { Text(AppUiStrings.environmentTitle(env.name, uiLang), fontSize = 12.sp) },
                             leadingIcon = {
                                 if (isSelected) {
                                     Icon(Icons.Rounded.Check, contentDescription = null, modifier = Modifier.size(16.dp))
@@ -322,13 +450,13 @@ private fun ProjectCreatorTab(
                 ) {
                     Column(modifier = Modifier.padding(10.dp)) {
                         Text(
-                            text = "حزمة البيئة المختارة: ${selectedEnv.subtitle}",
+                            text = AppUiStrings.studioEnvPackageLabel(uiLang, selectedEnv.subtitle),
                             style = MaterialTheme.typography.bodySmall,
                             fontWeight = FontWeight.SemiBold,
                             color = ElectricCyan
                         )
                         Text(
-                            text = "أداة البناء الافتراضية: ${selectedEnv.buildTool} | التصنيف: ${selectedEnv.category}",
+                            text = AppUiStrings.studioBuildToolCategory(uiLang, selectedEnv.buildTool, AppUiStrings.environmentCategory(selectedEnv.name, uiLang)),
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
@@ -407,11 +535,11 @@ private fun ProjectCreatorTab(
                 if (isGenerating) {
                     CircularProgressIndicator(modifier = Modifier.size(24.dp), color = Color.Black, strokeWidth = 2.5.dp)
                     Spacer(modifier = Modifier.width(10.dp))
-                    Text("جاري بناء هيكل المشروع وتوليد الأكواد...", fontWeight = FontWeight.Bold)
+                    Text(AppUiStrings.studioBuilding(uiLang), fontWeight = FontWeight.Bold)
                 } else {
                     Icon(Icons.Rounded.RocketLaunch, contentDescription = null)
                     Spacer(modifier = Modifier.width(8.dp))
-                    Text("إنشاء المشروع وتحليله عبر مستشار النماذج", fontWeight = FontWeight.Bold, fontSize = 15.sp)
+                    Text(AppUiStrings.studioCreateAnalyze(uiLang), fontWeight = FontWeight.Bold, fontSize = 15.sp)
                 }
             }
         }
@@ -423,8 +551,8 @@ private fun ModelAdvisorTab(
     activeProject: StudioProjectSpec?,
     models: List<com.example.domain.model.AiModelRecommendation>,
     selectedEnv: DevelopmentEnvironment,
-    onApplyModel: (modelId: String, modelName: String) -> Unit
-) {
+    onApplyModel: (modelId: String, modelName: String) -> Unit,
+    uiLang: String) {
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
         contentPadding = PaddingValues(16.dp),
@@ -444,7 +572,7 @@ private fun ModelAdvisorTab(
                     )
                 }
                 Text(
-                    text = "يقوم النظام بدراسة طبيعة المشروع (${selectedEnv.title})، واختيار النموذج أو فريق النماذج الأكثر تفوقاً في العالم لكتابة وتنقيح الأكواد بأعلى دقة.",
+                    text = AppUiStrings.studioAnalyzingEnv(uiLang, AppUiStrings.environmentTitle(selectedEnv.name, uiLang)),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
@@ -454,8 +582,8 @@ private fun ModelAdvisorTab(
         items(models) { model ->
             ModelRecommendationCard(
                 recommendation = model,
-                onApply = { onApplyModel(model.modelId, model.modelName) }
-            )
+                onApply = { onApplyModel(model.modelId, model.modelName) },
+            uiLang = uiLang)
         }
 
         // Multi-Model Collaboration Team Architecture
@@ -492,11 +620,52 @@ private fun ModelAdvisorTab(
     }
 }
 
+
+private fun shareStudioProjectArchive(
+    context: android.content.Context,
+    project: StudioProjectSpec
+) {
+    try {
+        val exportDirectory = File(context.cacheDir, "studio-exports")
+        if (!exportDirectory.exists() && !exportDirectory.mkdirs()) {
+            throw IllegalStateException("تعذر إنشاء مجلد التصدير.")
+        }
+        val safeName = project.projectName
+            .replace(Regex("[^A-Za-z0-9._-]"), "_")
+            .trim('.')
+            .take(64)
+            .ifBlank { "ai-iz-project" }
+        val archive = File(exportDirectory, "$safeName.zip")
+        FileOutputStream(archive).use { output ->
+            StudioProjectArchiveExporter.writeZip(project, output)
+        }
+
+        val uri = FileProvider.getUriForFile(
+            context,
+            "${context.packageName}.fileprovider",
+            archive
+        )
+        val shareIntent = Intent(Intent.ACTION_SEND).apply {
+            type = "application/zip"
+            putExtra(Intent.EXTRA_STREAM, uri)
+            clipData = ClipData.newUri(context.contentResolver, archive.name, uri)
+            addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+        }
+        context.startActivity(Intent.createChooser(shareIntent, "تصدير مشروع ${project.projectName}"))
+    } catch (error: Exception) {
+        Toast.makeText(
+            context,
+            "تعذر تصدير المشروع: ${error.localizedMessage ?: "خطأ غير معروف"}",
+            Toast.LENGTH_LONG
+        ).show()
+    }
+}
+
 @Composable
 private fun ModelRecommendationCard(
     recommendation: com.example.domain.model.AiModelRecommendation,
-    onApply: () -> Unit
-) {
+    onApply: () -> Unit,
+    uiLang: String) {
     Card(
         modifier = Modifier
             .fillMaxWidth()
@@ -586,7 +755,7 @@ private fun ModelRecommendationCard(
             ) {
                 Icon(Icons.Rounded.CheckCircle, contentDescription = null, modifier = Modifier.size(18.dp))
                 Spacer(modifier = Modifier.width(6.dp))
-                Text("اعتماد هذا النموذج للمشروع في حوض AI")
+                Text(AppUiStrings.studioAdoptModel(uiLang))
             }
         }
     }
@@ -619,8 +788,9 @@ private fun CodeExplorerTab(
     onSelectFile: (path: String) -> Unit,
     onContentChange: (String) -> Unit,
     onSave: () -> Unit,
-    onCopy: () -> Unit
-) {
+    onCopy: () -> Unit,
+    onExport: () -> Unit,
+    uiLang: String) {
     if (project == null || project.files.isEmpty()) {
         Box(
             modifier = Modifier.fillMaxSize(),
@@ -629,8 +799,8 @@ private fun CodeExplorerTab(
             Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.padding(24.dp)) {
                 Icon(Icons.Rounded.FolderOff, contentDescription = null, modifier = Modifier.size(64.dp), tint = MaterialTheme.colorScheme.onSurfaceVariant)
                 Spacer(modifier = Modifier.height(12.dp))
-                Text("لا يوجد مشروع مفتوح حالياً", style = MaterialTheme.typography.titleMedium)
-                Text("توجه إلى تبويب 'منشئ المشاريع' لإنشاء أول تطبيق في البيئة التي تختارها.", color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.bodySmall)
+                Text(AppUiStrings.studioNoOpenProject(uiLang), style = MaterialTheme.typography.titleMedium)
+                Text(AppUiStrings.studioNoOpenProjectHint(uiLang), color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.bodySmall)
             }
         }
         return
@@ -692,11 +862,14 @@ private fun CodeExplorerTab(
             }
 
             Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                IconButton(onClick = onExport, modifier = Modifier.size(36.dp)) {
+                    Icon(Icons.Rounded.Share, contentDescription = AppUiStrings.contentDescExportZip(uiLang), modifier = Modifier.size(18.dp), tint = ElectricCyan)
+                }
                 IconButton(onClick = onCopy, modifier = Modifier.size(36.dp)) {
-                    Icon(Icons.Rounded.ContentCopy, contentDescription = "نسخ الكود", modifier = Modifier.size(18.dp))
+                    Icon(Icons.Rounded.ContentCopy, contentDescription = AppUiStrings.contentDescCopyCode(uiLang), modifier = Modifier.size(18.dp))
                 }
                 IconButton(onClick = onSave, modifier = Modifier.size(36.dp)) {
-                    Icon(Icons.Rounded.Save, contentDescription = "حفظ التعديلات", tint = EmeraldSuccess, modifier = Modifier.size(18.dp))
+                    Icon(Icons.Rounded.Save, contentDescription = AppUiStrings.contentDescSaveEdits(uiLang), tint = EmeraldSuccess, modifier = Modifier.size(18.dp))
                 }
             }
         }
@@ -739,14 +912,14 @@ private fun CodeExplorerTab(
 private fun ExecutionAndAuditTab(
     project: StudioProjectSpec?,
     auditStatus: String,
-    onRunAudit: () -> Unit
-) {
+    onRunAudit: () -> Unit,
+    uiLang: String) {
     if (project == null) {
         Box(
             modifier = Modifier.fillMaxSize(),
             contentAlignment = Alignment.Center
         ) {
-            Text("يرجى إنشاء أو فتح مشروع أولاً لعرض أوامر التشغيل والتدقيق.")
+            Text(AppUiStrings.studioNeedProjectForRun(uiLang))
         }
         return
     }
@@ -765,15 +938,16 @@ private fun ExecutionAndAuditTab(
                     fontWeight = FontWeight.Bold
                 )
                 Text(
-                    text = "البيئة: ${project.environment.title} | اللغة: ${project.primaryLanguage.displayName}",
+                    text = AppUiStrings.studioEnvLanguageLine(uiLang, AppUiStrings.environmentTitle(project.environment.name, uiLang), project.primaryLanguage.displayName),
                     style = MaterialTheme.typography.bodySmall,
                     color = ElectricCyan
                 )
                 Text(
-                    text = "درجة الأمان والامتثال الأمني: ${project.securityAuditScore}/100",
+                    text = project.securityAuditScore?.let { "نتيجة الفحص الأمني الموثق: $it/100" }
+                        ?: "لم يُجرَ فحص أمني آلي موثّق لهذا المشروع بعد",
                     style = MaterialTheme.typography.bodySmall,
                     fontWeight = FontWeight.SemiBold,
-                    color = EmeraldSuccess
+                    color = if (project.securityAuditScore != null) EmeraldSuccess else AmberWarning
                 )
             }
         }
@@ -781,7 +955,7 @@ private fun ExecutionAndAuditTab(
         // Instructions
         item {
             CommandCard {
-                Text(text = "أوامر البناء والتهيئة (Build):", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold)
+                Text(text = AppUiStrings.studioBuildCmds(uiLang), style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold)
                 Surface(
                     color = Color(0xFF0F172A),
                     shape = RoundedCornerShape(8.dp),
@@ -797,7 +971,7 @@ private fun ExecutionAndAuditTab(
                 }
 
                 Spacer(modifier = Modifier.height(8.dp))
-                Text(text = "أمر التشغيل المباشر (Run / Start):", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold)
+                Text(text = AppUiStrings.studioRunCmds(uiLang), style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold)
                 Surface(
                     color = Color(0xFF0F172A),
                     shape = RoundedCornerShape(8.dp),
@@ -813,7 +987,7 @@ private fun ExecutionAndAuditTab(
                 }
 
                 Spacer(modifier = Modifier.height(8.dp))
-                Text(text = "أمر تشغيل الاختبارات الآلية (Test):", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold)
+                Text(text = AppUiStrings.studioTestCmds(uiLang), style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold)
                 Surface(
                     color = Color(0xFF0F172A),
                     shape = RoundedCornerShape(8.dp),
@@ -859,7 +1033,7 @@ private fun ExecutionAndAuditTab(
                 ) {
                     Icon(Icons.Rounded.CheckCircle, contentDescription = null)
                     Spacer(modifier = Modifier.width(8.dp))
-                    Text("إجراء فحص فوري لكافة ملفات المشروع")
+                    Text(AppUiStrings.studioSecurityScan(uiLang))
                 }
             }
         }

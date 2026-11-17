@@ -1,0 +1,219 @@
+package com.example.data.repository
+
+import com.example.domain.model.ProgrammingLanguage
+import org.junit.Assert.assertEquals
+import org.junit.Assert.assertThrows
+import org.junit.Assert.assertTrue
+import org.junit.Test
+import java.util.Locale
+
+class StudioAiProjectResponseParserTest {
+
+    @Test
+    fun parsesFencedJsonAndPreservesEntrypoint() {
+        val response = """
+            ```json
+            {
+              "files": [
+                {
+                  "path": "src/main.py",
+                  "language": "PYTHON",
+                  "purpose": "Application entry point",
+                  "isEntrypoint": true,
+                  "content": "print(42)"
+                },
+                {
+                  "path": "README.md",
+                  "language": "PYTHON",
+                  "purpose": "Project guide",
+                  "isEntrypoint": false,
+                  "content": "# Sample"
+                }
+              ]
+            }
+            ```
+        """.trimIndent()
+
+        val files = StudioAiProjectResponseParser.parseFiles(response, ProgrammingLanguage.PYTHON)
+
+        assertEquals(2, files.size)
+        assertEquals("src/main.py", files.first { it.isEntrypoint }.path)
+        assertTrue(files.any { it.path == "README.md" })
+    }
+
+    @Test
+    fun rejectsParentDirectoryTraversal() {
+        val response = manifest("../outside.txt", "safe")
+        assertThrows(IllegalArgumentException::class.java) {
+            StudioAiProjectResponseParser.parseFiles(response, ProgrammingLanguage.KOTLIN)
+        }
+    }
+
+    @Test
+    fun rejectsDuplicatePathsIgnoringCase() {
+        val response = """
+            {"files":[
+              {"path":"src/Main.kt","content":"one","isEntrypoint":true},
+              {"path":"src/main.kt","content":"two","isEntrypoint":false}
+            ]}
+        """.trimIndent()
+        assertThrows(IllegalArgumentException::class.java) {
+            StudioAiProjectResponseParser.parseFiles(response, ProgrammingLanguage.KOTLIN)
+        }
+    }
+
+    @Test
+    fun requiresExactlyOneEntrypoint() {
+        val response = """
+            {"files":[
+              {"path":"README.md","content":"guide","isEntrypoint":false}
+            ]}
+        """.trimIndent()
+        assertThrows(IllegalArgumentException::class.java) {
+            StudioAiProjectResponseParser.parseFiles(response, ProgrammingLanguage.KOTLIN)
+        }
+    }
+
+    @Test
+    fun rejectsSecretKeyFiles() {
+        val response = manifest("keys/upload-key.jks", "private-key-material")
+        assertThrows(IllegalArgumentException::class.java) {
+            StudioAiProjectResponseParser.parseFiles(response, ProgrammingLanguage.KOTLIN)
+        }
+    }
+
+    @Test
+    fun rejectsMultipleEntrypoints() {
+        val response = """
+            {"files":[
+              {"path":"main.kt","content":"fun main() {}","isEntrypoint":true},
+              {"path":"Other.kt","content":"class Other","isEntrypoint":true}
+            ]}
+        """.trimIndent()
+        assertThrows(IllegalArgumentException::class.java) {
+            StudioAiProjectResponseParser.parseFiles(response, ProgrammingLanguage.KOTLIN)
+        }
+    }
+
+    @Test
+    fun rejectsRealEnvironmentSecretFilesButAllowsExamples() {
+        val secret = manifest("config/.env.local", "API_KEY=secret")
+        assertThrows(IllegalArgumentException::class.java) {
+            StudioAiProjectResponseParser.parseFiles(secret, ProgrammingLanguage.KOTLIN)
+        }
+
+        val example = manifest("config/.env.example", "API_KEY=replace-me")
+        assertEquals(
+            "config/.env.example",
+            StudioAiProjectResponseParser.parseFiles(example, ProgrammingLanguage.KOTLIN).single().path
+        )
+    }
+
+    @Test
+    fun rejectsCloudCredentialsAndPrivateMaterialAnywhereInThePath() {
+        listOf(
+            "service-account.json",
+            "config/Service_Account.JSON",
+            "cloud/firebase-adminsdk-ab12c@example.iam.gserviceaccount.com.json",
+            "keys/private.key",
+            "keys/signing.p12",
+            "keys/signing.pfx",
+            "keys/release.jks",
+            "config/credentials.json",
+            "config/secrets.yaml",
+            "home/.ssh/config",
+            "deploy/.aws/credentials",
+            "cluster/.kube/config",
+            "cloud/.azure/profile",
+            "config/.npmrc",
+            ".git-credentials",
+            "src/.env.production"
+        ).forEach { unsafePath ->
+            assertThrows(IllegalArgumentException::class.java) {
+                StudioAiProjectResponseParser.parseFiles(
+                    manifest(unsafePath, "sensitive"),
+                    ProgrammingLanguage.KOTLIN
+                )
+            }
+        }
+    }
+
+    @Test
+    fun rejectsWindowsReservedNamesAndNonPortablePathSegments() {
+        listOf(
+            "CON.txt",
+            "src/NUL",
+            "folder/trailing.",
+            "folder/name "
+        ).forEach { unsafePath ->
+            assertThrows(IllegalArgumentException::class.java) {
+                StudioAiProjectResponseParser.parseFiles(
+                    manifest(unsafePath, "content"),
+                    ProgrammingLanguage.KOTLIN
+                )
+            }
+        }
+    }
+
+    @Test
+    fun allowsOnlyDocumentedEnvironmentTemplateFiles() {
+        listOf(".env.example", ".env.template", ".env.sample").forEach { safePath ->
+            assertEquals(
+                safePath,
+                StudioAiProjectResponseParser.parseFiles(
+                    manifest(safePath, "KEY=replace-me"),
+                    ProgrammingLanguage.KOTLIN
+                ).single().path
+            )
+        }
+    }
+
+    @Test
+    fun rejectsOversizedModelResponsesBeforeParsing() {
+        val response = " ".repeat(260_001)
+        assertThrows(IllegalArgumentException::class.java) {
+            StudioAiProjectResponseParser.parseFiles(response, ProgrammingLanguage.KOTLIN)
+        }
+    }
+
+
+    @Test
+    fun rejectsCaseInsensitiveDuplicatePathsUnderTurkishDefaultLocale() {
+        val previousLocale = Locale.getDefault()
+        try {
+            Locale.setDefault(Locale.forLanguageTag("tr-TR"))
+            val response = """
+                {"files":[
+                  {"path":"src/IMAGE.kt","content":"one","isEntrypoint":true},
+                  {"path":"src/image.kt","content":"two","isEntrypoint":false}
+                ]}
+            """.trimIndent()
+
+            assertThrows(IllegalArgumentException::class.java) {
+                StudioAiProjectResponseParser.parseFiles(response, ProgrammingLanguage.KOTLIN)
+            }
+        } finally {
+            Locale.setDefault(previousLocale)
+        }
+    }
+
+
+    @Test
+    fun parsesLanguageNamesIndependentlyOfTurkishDefaultLocale() {
+        val previousLocale = Locale.getDefault()
+        try {
+            Locale.setDefault(Locale.forLanguageTag("tr-TR"))
+            val response = """{"files":[{"path":"Main.kt","language":"kotlin","content":"fun main() {}","isEntrypoint":true}]}"""
+            val files = StudioAiProjectResponseParser.parseFiles(response, ProgrammingLanguage.JAVA)
+            assertEquals(ProgrammingLanguage.KOTLIN, files.single().language)
+        } finally {
+            Locale.setDefault(previousLocale)
+        }
+    }
+
+    private fun manifest(path: String, source: String): String {
+        val escapedPath = path.replace("\\", "\\\\").replace("\"", "\\\"")
+        val escapedSource = source.replace("\\", "\\\\").replace("\"", "\\\"")
+        return """{"files":[{"path":"$escapedPath","content":"$escapedSource","isEntrypoint":true}]}"""
+    }
+}

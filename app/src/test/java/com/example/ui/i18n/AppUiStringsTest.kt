@@ -80,4 +80,21 @@ class AppUiStringsTest {
         assertTrue(AppUiStrings.dbLinkNew("ar").isNotBlank())
     }
 
+
+    @Test
+    fun repoWorkspaceAndAiConvEnglishHasNoArabic() {
+        val arabicLetter = Regex("\\p{IsArabic}")
+        listOf(
+            AppUiStrings.repoExplorerUnlinked("en"),
+            AppUiStrings.repoCreateBranch("en"),
+            AppUiStrings.repoActionsLog("en"),
+            AppUiStrings.workspaceTitle("en"),
+            AppUiStrings.workspaceStartCollab("en"),
+            AppUiStrings.aiConvTitle("en"),
+            AppUiStrings.aiConvEmpty("en")
+        ).forEach { text ->
+            assertFalse("English copy leaked Arabic: $text", arabicLetter.containsMatchIn(text))
+        }
+    }
+
 }

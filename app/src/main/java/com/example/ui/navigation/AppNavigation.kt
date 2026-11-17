@@ -575,7 +575,8 @@ private fun AuthenticatedMetraShell(
                                     ActionsScreen(
                                         workspace = workspace,
                                         onRefresh = { viewModel.refreshGitHubWorkspace() }
-                                    )
+                                    ,
+                                        appLanguage = settings.appLanguage)
                                 }
                                 composable("database") {
                                     DatabaseScreen(

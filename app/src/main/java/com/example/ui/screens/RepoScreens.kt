@@ -65,6 +65,7 @@ fun FileExplorerScreen(
     onDownloadFile: (String) -> Unit,
     onGoToGitHubSetup: () -> Unit
 ) {
+    val uiLang = settings.appLanguage
     var searchQuery by remember { mutableStateOf("") }
     val filtered = remember(workspace.treeItems, searchQuery) {
         workspace.treeItems.filter {
@@ -80,7 +81,7 @@ fun FileExplorerScreen(
         if (!workspace.isGitHubConnected) {
             item {
                 SetupRequiredBanner(
-                    title = "مستكشف الملفات غير مربوط",
+                    title = AppUiStrings.repoExplorerUnlinked(uiLang),
                     description = "اربط GitHub PAT لعرض وتنزيل ملفات مستودع ${settings.activeRepo}.",
                     actionLabel = "ربط GitHub الآن",
                     onAction = onGoToGitHubSetup,
@@ -93,7 +94,7 @@ fun FileExplorerScreen(
             OutlinedTextField(
                 value = searchQuery,
                 onValueChange = { searchQuery = it },
-                label = { Text("بحث في ملفات ${settings.activeRepo} (${settings.activeBranch})") },
+                label = { Text(AppUiStrings.repoSearchFiles(uiLang, settings.activeRepo, settings.activeBranch)) },
                 leadingIcon = { Icon(Icons.Rounded.Search, contentDescription = null) },
                 singleLine = true,
                 modifier = Modifier
@@ -133,7 +134,7 @@ fun FileExplorerScreen(
                         ) {
                             Icon(
                                 imageVector = Icons.Rounded.Download,
-                                contentDescription = "تنزيل الملف إلى الهاتف",
+                                contentDescription = AppUiStrings.repoDownloadFileCd(uiLang),
                                 tint = EmeraldSuccess
                             )
                         }
@@ -157,6 +158,7 @@ fun CodeEditorScreen(
     onRequestCommitApproval: (String) -> Unit,
     onGoToFiles: () -> Unit
 ) {
+    val uiLang = settings.appLanguage
     var commitMessage by remember { mutableStateOf("") }
     var showDiffOnly by remember { mutableStateOf(false) }
 
@@ -169,14 +171,14 @@ fun CodeEditorScreen(
             item {
                 CommandCard {
                     Icon(Icons.Rounded.Code, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
-                    Text("لم يتم اختيار ملف بعد", style = MaterialTheme.typography.titleMedium)
+                    Text(AppUiStrings.repoNoFileSelected(uiLang), style = MaterialTheme.typography.titleMedium)
                     Text(
                         "اختر ملفاً من مستكشف الملفات لعرض محتواه، تحريره، تنزيله على الهاتف، ومعاينة الفروقات قبل/بعد.",
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                     Button(onClick = onGoToFiles, modifier = Modifier.fillMaxWidth()) {
-                        Text("فتح مستكشف الملفات")
+                        Text(AppUiStrings.repoOpenExplorer(uiLang))
                     }
                 }
             }
@@ -200,13 +202,13 @@ fun CodeEditorScreen(
                                 .testTag("analyze_code_button")
                         ) {
                             Icon(Icons.Rounded.AutoAwesome, contentDescription = null)
-                            Text("مراجعة AI")
+                            Text(AppUiStrings.repoAiReview(uiLang))
                         }
                         OutlinedButton(
                             onClick = { showDiffOnly = !showDiffOnly },
                             modifier = Modifier.weight(1f)
                         ) {
-                            Text(if (showDiffOnly) "عرض المحرر" else "مقارنة قبل/بعد")
+                            Text(if (showDiffOnly) AppUiStrings.repoShowEditor(uiLang) else AppUiStrings.repoShowDiff(uiLang))
                         }
                     }
                     OutlinedButton(
@@ -217,7 +219,7 @@ fun CodeEditorScreen(
                             .testTag("download_current_file_button")
                     ) {
                         Icon(Icons.Rounded.Download, contentDescription = null)
-                        Text(if (workspace.isDownloadingFile) "جارٍ التحميل..." else "تنزيل الملف مباشرة إلى الهاتف")
+                        Text(if (workspace.isDownloadingFile) AppUiStrings.repoDownloading(uiLang) else AppUiStrings.repoDownloadToPhone(uiLang))
                     }
                 }
             }
@@ -225,7 +227,7 @@ fun CodeEditorScreen(
             if (workspace.codeReviewAnalysis.isNotBlank()) {
                 item {
                     CommandCard(borderColor = ElectricCyan.copy(alpha = 0.5f)) {
-                        Text("نتيجة مراجعة الذكاء الاصطناعي", style = MaterialTheme.typography.titleMedium)
+                        Text(AppUiStrings.repoAiReviewResult(uiLang), style = MaterialTheme.typography.titleMedium)
                         Text(workspace.codeReviewAnalysis, style = MaterialTheme.typography.bodySmall)
                     }
                 }
@@ -253,11 +255,11 @@ fun CodeEditorScreen(
 
             item {
                 CommandCard {
-                    Text("رفع التعديل (المستوى 2 — يتطلب موافقة)", style = MaterialTheme.typography.titleMedium)
+                    Text(AppUiStrings.repoPushRequiresApproval(uiLang), style = MaterialTheme.typography.titleMedium)
                     OutlinedTextField(
                         value = commitMessage,
                         onValueChange = { commitMessage = it },
-                        label = { Text("رسالة Commit") },
+                        label = { Text(AppUiStrings.repoCommitMessage(uiLang)) },
                         placeholder = { Text("fix: resolve issue in ${workspace.selectedFilePath}") },
                         singleLine = true,
                         modifier = Modifier.fillMaxWidth()
@@ -269,7 +271,7 @@ fun CodeEditorScreen(
                             .fillMaxWidth()
                             .testTag("request_commit_approval_button")
                     ) {
-                        Text("طلب موافقة Push إلى GitHub")
+                        Text(AppUiStrings.repoRequestPushApproval(uiLang))
                     }
                 }
             }
@@ -288,6 +290,7 @@ fun BranchesCommitsScreen(
     onCreateBranch: (String) -> Unit,
     onGoToGitHubSetup: () -> Unit
 ) {
+    val uiLang = settings.appLanguage
     var newBranchName by remember { mutableStateOf("") }
 
     LazyColumn(
@@ -298,7 +301,7 @@ fun BranchesCommitsScreen(
         if (!workspace.isGitHubConnected) {
             item {
                 SetupRequiredBanner(
-                    title = "ربط GitHub مطلوب",
+                    title = AppUiStrings.repoGithubRequired(uiLang),
                     description = "اربط حساب GitHub لعرض الفروع وسجل الـ Commits الحقيقي.",
                     actionLabel = "إعداد GitHub",
                     onAction = onGoToGitHubSetup,
@@ -314,12 +317,12 @@ fun BranchesCommitsScreen(
                     horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
                     Icon(Icons.Rounded.AccountTree, contentDescription = null, tint = ElectricCyan)
-                    Text("إنشاء فرع عمل جديد (المستوى 1)", style = MaterialTheme.typography.titleMedium)
+                    Text(AppUiStrings.repoNewBranchTier1(uiLang), style = MaterialTheme.typography.titleMedium)
                 }
                 OutlinedTextField(
                     value = newBranchName,
                     onValueChange = { newBranchName = it },
-                    label = { Text("اسم الفرع الجديد (تفرع من ${settings.activeBranch})") },
+                    label = { Text(AppUiStrings.repoNewBranchName(uiLang, settings.activeBranch)) },
                     placeholder = { Text("agent/fix-metra-tests") },
                     singleLine = true,
                     modifier = Modifier.fillMaxWidth()
@@ -336,13 +339,13 @@ fun BranchesCommitsScreen(
                         .fillMaxWidth()
                         .testTag("create_branch_button")
                 ) {
-                    Text("إنشاء الفرع")
+                    Text(AppUiStrings.repoCreateBranch(uiLang))
                 }
             }
         }
 
         item {
-            Text("الفروع (${workspace.branches.size})", style = MaterialTheme.typography.titleMedium)
+            Text(AppUiStrings.repoBranchesCount(uiLang, workspace.branches.size), style = MaterialTheme.typography.titleMedium)
         }
         items(workspace.branches, key = { it.name }) { branch ->
             val selected = branch.name == settings.activeBranch
@@ -357,7 +360,7 @@ fun BranchesCommitsScreen(
                 ) {
                     Text(branch.name, style = MaterialTheme.typography.titleMedium)
                     StatusPill(
-                        label = if (selected) "نشط" else branch.commit.sha.take(7),
+                        label = if (selected) AppUiStrings.statusActive(uiLang) else branch.commit.sha.take(7),
                         color = if (selected) EmeraldSuccess else ElectricCyan
                     )
                 }
@@ -365,7 +368,7 @@ fun BranchesCommitsScreen(
         }
 
         item {
-            Text("أحدث Commits (${workspace.commits.size})", style = MaterialTheme.typography.titleMedium)
+            Text(AppUiStrings.repoLatestCommits(uiLang, workspace.commits.size), style = MaterialTheme.typography.titleMedium)
         }
         items(workspace.commits, key = { it.sha }) { commit ->
             CommandCard {
@@ -394,6 +397,7 @@ fun PullRequestsScreen(
     onRequestCreateDraftPr: (title: String, head: String, base: String, body: String) -> Unit,
     onRequestMergePr: (GitHubPullRequest) -> Unit
 ) {
+    val uiLang = settings.appLanguage
     var prTitle by remember { mutableStateOf("") }
     var prHead by remember(settings.activeBranch) { mutableStateOf(settings.activeBranch) }
     var prBase by remember { mutableStateOf("main") }
@@ -411,12 +415,12 @@ fun PullRequestsScreen(
                     horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
                     Icon(Icons.Rounded.MergeType, contentDescription = null, tint = ElectricCyan)
-                    Text("إنشاء Draft Pull Request (المستوى 2)", style = MaterialTheme.typography.titleMedium)
+                    Text(AppUiStrings.repoCreateDraftPr(uiLang), style = MaterialTheme.typography.titleMedium)
                 }
                 OutlinedTextField(
                     value = prTitle,
                     onValueChange = { prTitle = it },
-                    label = { Text("عنوان PR") },
+                    label = { Text(AppUiStrings.repoPrTitle(uiLang)) },
                     singleLine = true,
                     modifier = Modifier.fillMaxWidth()
                 )
@@ -424,14 +428,14 @@ fun PullRequestsScreen(
                     OutlinedTextField(
                         value = prHead,
                         onValueChange = { prHead = it },
-                        label = { Text("من فرع") },
+                        label = { Text(AppUiStrings.repoPrFromBranch(uiLang)) },
                         singleLine = true,
                         modifier = Modifier.weight(1f)
                     )
                     OutlinedTextField(
                         value = prBase,
                         onValueChange = { prBase = it },
-                        label = { Text("إلى فرع") },
+                        label = { Text(AppUiStrings.repoPrToBranch(uiLang)) },
                         singleLine = true,
                         modifier = Modifier.weight(1f)
                     )
@@ -439,7 +443,7 @@ fun PullRequestsScreen(
                 OutlinedTextField(
                     value = prBody,
                     onValueChange = { prBody = it },
-                    label = { Text("ملخص التغييرات") },
+                    label = { Text(AppUiStrings.repoPrSummary(uiLang)) },
                     modifier = Modifier.fillMaxWidth()
                 )
                 Button(
@@ -451,7 +455,7 @@ fun PullRequestsScreen(
                     enabled = prTitle.isNotBlank() && workspace.isGitHubConnected,
                     modifier = Modifier.fillMaxWidth()
                 ) {
-                    Text("طلب موافقة إنشاء Draft PR")
+                    Text(AppUiStrings.repoRequestDraftPr(uiLang))
                 }
             }
         }
@@ -459,7 +463,7 @@ fun PullRequestsScreen(
         if (workspace.prReviewAnalysis.isNotBlank()) {
             item {
                 CommandCard(borderColor = ElectricCyan) {
-                    Text("مراجعة الذكاء الاصطناعي لـ Pull Request", style = MaterialTheme.typography.titleMedium)
+                    Text(AppUiStrings.repoPrAiReview(uiLang), style = MaterialTheme.typography.titleMedium)
                     Text(workspace.prReviewAnalysis, style = MaterialTheme.typography.bodySmall)
                 }
             }
@@ -467,7 +471,7 @@ fun PullRequestsScreen(
 
         if (workspace.selectedPrFiles.isNotEmpty()) {
             item {
-                Text("ملفات التغيير في PR المحدد", style = MaterialTheme.typography.titleMedium)
+                Text(AppUiStrings.repoPrChangedFiles(uiLang), style = MaterialTheme.typography.titleMedium)
             }
             items(workspace.selectedPrFiles, key = { it.filename }) { file ->
                 CommandCard {
@@ -502,14 +506,14 @@ fun PullRequestsScreen(
                         onClick = { onInspectPr(pr) },
                         modifier = Modifier.weight(1f)
                     ) {
-                        Text("مراجعة الملفات وAI")
+                        Text(AppUiStrings.repoReviewFilesAi(uiLang))
                     }
                     if (pr.state == "open") {
                         Button(
                             onClick = { onRequestMergePr(pr) },
                             modifier = Modifier.weight(1f)
                         ) {
-                            Text("طلب دمج (T3)")
+                            Text(AppUiStrings.repoRequestMergeT3(uiLang))
                         }
                     }
                 }
@@ -524,8 +528,10 @@ fun PullRequestsScreen(
 @Composable
 fun ActionsScreen(
     workspace: WorkspaceUiState,
-    onRefresh: () -> Unit
+    onRefresh: () -> Unit,
+    appLanguage: String = "ar"
 ) {
+    val uiLang = appLanguage
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
         contentPadding = PaddingValues(16.dp),
@@ -542,10 +548,10 @@ fun ActionsScreen(
                     horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
                     Icon(Icons.Rounded.PlayCircle, contentDescription = null, tint = ElectricCyan)
-                    Text("سجل GitHub Actions", style = MaterialTheme.typography.titleLarge)
+                    Text(AppUiStrings.repoActionsLog(uiLang), style = MaterialTheme.typography.titleLarge)
                 }
                 OutlinedButton(onClick = onRefresh) {
-                    Text("تحديث")
+                    Text(AppUiStrings.setupRefresh(uiLang))
                 }
             }
         }
@@ -553,7 +559,7 @@ fun ActionsScreen(
         if (workspace.workflowRuns.isEmpty()) {
             item {
                 CommandCard {
-                    Text("لا توجد تشغيلات Actions متاحة حالياً", style = MaterialTheme.typography.titleMedium)
+                    Text(AppUiStrings.repoNoActions(uiLang), style = MaterialTheme.typography.titleMedium)
                     Text(
                         "تأكد من ربط GitHub ووجود ملفات Workflow داخل المستودع.",
                         style = MaterialTheme.typography.bodySmall,

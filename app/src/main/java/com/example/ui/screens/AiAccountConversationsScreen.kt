@@ -1,5 +1,7 @@
 package com.example.ui.screens
 
+import com.example.ui.i18n.AppUiStrings
+
 import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.Context
@@ -64,6 +66,7 @@ fun AiAccountConversationsScreen(
     chatMessages: List<ChatMessage>,
     onGoToAiSetup: () -> Unit
 ) {
+    val uiLang = settings.appLanguage
     val context = LocalContext.current
     val endpoints = workspace.platformConfig.aiEndpoints
     var selectedEndpointId by remember(endpoints) {
@@ -97,10 +100,10 @@ fun AiAccountConversationsScreen(
                         horizontalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
                         Icon(Icons.Rounded.AutoAwesome, contentDescription = null, tint = ElectricCyan)
-                        Text("حسابات ChatGPT وGemini ومحادثات الوكلاء", style = MaterialTheme.typography.titleLarge)
+                        Text(AppUiStrings.aiConvTitle(uiLang), style = MaterialTheme.typography.titleLarge)
                     }
                     StatusPill(
-                        label = "${endpoints.size} حسابات مضافة",
+                        label = AppUiStrings.aiConvAccountsCount(uiLang, endpoints.size),
                         color = EmeraldSuccess
                     )
                 }
@@ -115,7 +118,7 @@ fun AiAccountConversationsScreen(
                         .fillMaxWidth()
                         .testTag("conversations_goto_ai_setup_btn")
                 ) {
-                    Text("+ إدارة وإضافة حسابات ChatGPT وGemini ومفاتيحهم")
+                    Text(AppUiStrings.aiConvManageAccounts(uiLang))
                 }
             }
         }
@@ -123,9 +126,9 @@ fun AiAccountConversationsScreen(
         // Account Selector Filter Chips
         item {
             CommandCard {
-                Text("اختر الحساب لعرض معلوماته ومحادثاته السابقة:", style = MaterialTheme.typography.titleMedium)
+                Text(AppUiStrings.aiConvPickAccount(uiLang), style = MaterialTheme.typography.titleMedium)
                 if (endpoints.isEmpty()) {
-                    Text("لا توجد حسابات AI مضافة حالياً.", style = MaterialTheme.typography.bodySmall, color = AmberWarning)
+                    Text(AppUiStrings.aiConvNoAccounts(uiLang), style = MaterialTheme.typography.bodySmall, color = AmberWarning)
                 } else {
                     Row(
                         modifier = Modifier
@@ -238,7 +241,7 @@ fun AiAccountConversationsScreen(
                         }
                     ) {
                         Icon(Icons.Rounded.IosShare, contentDescription = null)
-                        Text(if (copiedNotice) "تم النسخ ✓" else "نسخ المحادثات")
+                        Text(if (copiedNotice) AppUiStrings.aiConvCopied(uiLang) else AppUiStrings.aiConvCopy(uiLang))
                     }
                 }
             }
@@ -252,7 +255,7 @@ fun AiAccountConversationsScreen(
                         horizontalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
                         Icon(Icons.Rounded.History, contentDescription = null)
-                        Text("لا توجد محادثات سابقة مسجلة بعد", style = MaterialTheme.typography.titleMedium)
+                        Text(AppUiStrings.aiConvEmpty(uiLang), style = MaterialTheme.typography.titleMedium)
                     }
                     Text(
                         text = "ابدأ المحادثة مع الوكيل في شاشة «الوكيل» أو أطلق مهام برمجية لتظهر هنا سجلات وسياق المحادثات لجميع الحسابات.",

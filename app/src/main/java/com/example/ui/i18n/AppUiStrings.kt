@@ -442,4 +442,127 @@ object AppUiStrings {
     fun setupAiAccountName(language: String?): String =
         if (isEnglish(language)) "Account/key name (e.g. Gemini second account)" else "اسم الحساب/المفتاح (مثلاً: Gemini حسابي الثاني)"
 
+
+    // --- Repo screens ---
+    fun repoExplorerUnlinked(language: String?): String =
+        if (isEnglish(language)) "File explorer is not connected" else "مستكشف الملفات غير مربوط"
+    fun repoSearchFiles(language: String?, repo: String, branch: String): String =
+        if (isEnglish(language)) "Search files in $repo ($branch)" else "بحث في ملفات $repo ($branch)"
+    fun repoDownloadFileCd(language: String?): String =
+        if (isEnglish(language)) "Download file to device" else "تنزيل الملف إلى الهاتف"
+    fun repoNoFileSelected(language: String?): String =
+        if (isEnglish(language)) "No file selected yet" else "لم يتم اختيار ملف بعد"
+    fun repoOpenExplorer(language: String?): String =
+        if (isEnglish(language)) "Open file explorer" else "فتح مستكشف الملفات"
+    fun repoAiReview(language: String?): String =
+        if (isEnglish(language)) "AI review" else "مراجعة AI"
+    fun repoShowEditor(language: String?): String =
+        if (isEnglish(language)) "Show editor" else "عرض المحرر"
+    fun repoShowDiff(language: String?): String =
+        if (isEnglish(language)) "Compare before/after" else "مقارنة قبل/بعد"
+    fun repoDownloading(language: String?): String =
+        if (isEnglish(language)) "Downloading…" else "جارٍ التحميل..."
+    fun repoDownloadToPhone(language: String?): String =
+        if (isEnglish(language)) "Download file directly to device" else "تنزيل الملف مباشرة إلى الهاتف"
+    fun repoAiReviewResult(language: String?): String =
+        if (isEnglish(language)) "AI review result" else "نتيجة مراجعة الذكاء الاصطناعي"
+    fun repoPushRequiresApproval(language: String?): String =
+        if (isEnglish(language)) "Push change (tier 2 — requires approval)" else "رفع التعديل (المستوى 2 — يتطلب موافقة)"
+    fun repoCommitMessage(language: String?): String =
+        if (isEnglish(language)) "Commit message" else "رسالة Commit"
+    fun repoRequestPushApproval(language: String?): String =
+        if (isEnglish(language)) "Request approval to push to GitHub" else "طلب موافقة Push إلى GitHub"
+    fun repoGithubRequired(language: String?): String =
+        if (isEnglish(language)) "GitHub connection required" else "ربط GitHub مطلوب"
+    fun repoNewBranchTier1(language: String?): String =
+        if (isEnglish(language)) "Create a new work branch (tier 1)" else "إنشاء فرع عمل جديد (المستوى 1)"
+    fun repoNewBranchName(language: String?, from: String): String =
+        if (isEnglish(language)) "New branch name (from $from)" else "اسم الفرع الجديد (تفرع من $from)"
+    fun repoCreateBranch(language: String?): String =
+        if (isEnglish(language)) "Create branch" else "إنشاء الفرع"
+    fun repoBranchesCount(language: String?, n: Int): String =
+        if (isEnglish(language)) "Branches ($n)" else "الفروع ($n)"
+    fun repoLatestCommits(language: String?, n: Int): String =
+        if (isEnglish(language)) "Latest commits ($n)" else "أحدث Commits ($n)"
+    fun repoCreateDraftPr(language: String?): String =
+        if (isEnglish(language)) "Create draft pull request (tier 2)" else "إنشاء Draft Pull Request (المستوى 2)"
+    fun repoPrTitle(language: String?): String =
+        if (isEnglish(language)) "PR title" else "عنوان PR"
+    fun repoPrFromBranch(language: String?): String =
+        if (isEnglish(language)) "From branch" else "من فرع"
+    fun repoPrToBranch(language: String?): String =
+        if (isEnglish(language)) "To branch" else "إلى فرع"
+    fun repoPrSummary(language: String?): String =
+        if (isEnglish(language)) "Change summary" else "ملخص التغييرات"
+    fun repoRequestDraftPr(language: String?): String =
+        if (isEnglish(language)) "Request approval to create draft PR" else "طلب موافقة إنشاء Draft PR"
+    fun repoPrAiReview(language: String?): String =
+        if (isEnglish(language)) "AI review of pull request" else "مراجعة الذكاء الاصطناعي لـ Pull Request"
+    fun repoPrChangedFiles(language: String?): String =
+        if (isEnglish(language)) "Changed files in selected PR" else "ملفات التغيير في PR المحدد"
+    fun repoReviewFilesAi(language: String?): String =
+        if (isEnglish(language)) "Review files & AI" else "مراجعة الملفات وAI"
+    fun repoRequestMergeT3(language: String?): String =
+        if (isEnglish(language)) "Request merge (T3)" else "طلب دمج (T3)"
+    fun repoActionsLog(language: String?): String =
+        if (isEnglish(language)) "GitHub Actions log" else "سجل GitHub Actions"
+    fun repoNoActions(language: String?): String =
+        if (isEnglish(language)) "No Actions runs available right now" else "لا توجد تشغيلات Actions متاحة حالياً"
+
+    // --- Shared workspace ---
+    fun workspaceTitle(language: String?): String =
+        if (isEnglish(language)) "Collaboration room & unified work file" else "غرفة التعاون وملف العمل الموحد"
+    fun workspaceContinuousOn(language: String?): String =
+        if (isEnglish(language)) "Continuous follow-through" else "متابعة مستمرة"
+    fun workspaceContinuousOff(language: String?): String =
+        if (isEnglish(language)) "Manually stopped" else "متوقف يدوياً"
+    fun workspaceFilePath(language: String?): String =
+        if (isEnglish(language)) "Single work file path inside the repository" else "مسار الملف الواحد في المستودع (داخل مجلد)"
+    fun workspaceRequirements(language: String?): String =
+        if (isEnglish(language)) "Work requirements for the project" else "متطلبات العمل اللازمة للمشروع"
+    fun workspaceRequirementsPh(language: String?): String =
+        if (isEnglish(language))
+            "Write requirements for the current or new project: screens, APIs, rules, quality criteria…"
+        else
+            "اكتب متطلبات المشروع الجديد أو الحالي: الشاشات، الواجهات البرمجية، القواعد، شروط الجودة..."
+    fun workspaceAgentInstructions(language: String?): String =
+        if (isEnglish(language)) "Instructions for the agent and models" else "التعليمات التي سيعمل بها الوكيل والنماذج"
+    fun workspaceRoundGoal(language: String?): String =
+        if (isEnglish(language)) "Goal or guidance for this round (optional)" else "توجيه أو هدف هذه الجولة (اختياري)"
+    fun workspaceRoundGoalPh(language: String?): String =
+        if (isEnglish(language))
+            "Example: prepare the full work plan for the requirements and update coding instructions"
+        else
+            "مثال: جهّز خطة العمل الكاملة للمتطلبات وحدّث التعليمات البرمجية"
+    fun workspaceStartCollab(language: String?): String =
+        if (isEnglish(language)) "Start model collaboration and update shared file" else "بدء تعاون النماذج وتحديث الملف المشترك"
+    fun workspaceModelContributions(language: String?): String =
+        if (isEnglish(language)) "Model contributions in the last round" else "مساهمات النماذج في آخر جولة"
+    fun workspaceDirectEdit(language: String?): String =
+        if (isEnglish(language)) "Direct edit of the unified work file (Markdown)" else "تحرير مباشر لملف العمل الموحد (Markdown)"
+    fun workspacePreviewChanges(language: String?): String =
+        if (isEnglish(language)) "Preview file changes:" else "معاينة التغييرات على الملف:"
+    fun workspaceCommitMsg(language: String?, repo: String, branch: String): String =
+        if (isEnglish(language)) "Commit message to push the file to $repo ($branch)" else "رسالة Commit لرفع الملف إلى $repo ($branch)"
+    fun workspaceRequestPush(language: String?): String =
+        if (isEnglish(language)) "Request approval and push change to GitHub" else "طلب موافقة ورفع التعديل إلى GitHub"
+
+    // --- AI conversations ---
+    fun aiConvTitle(language: String?): String =
+        if (isEnglish(language)) "ChatGPT & Gemini accounts and agent conversations" else "حسابات ChatGPT وGemini ومحادثات الوكلاء"
+    fun aiConvAccountsCount(language: String?, n: Int): String =
+        if (isEnglish(language)) "$n accounts added" else "$n حسابات مضافة"
+    fun aiConvManageAccounts(language: String?): String =
+        if (isEnglish(language)) "+ Manage and add ChatGPT/Gemini accounts and keys" else "+ إدارة وإضافة حسابات ChatGPT وGemini ومفاتيحهم"
+    fun aiConvPickAccount(language: String?): String =
+        if (isEnglish(language)) "Choose an account to view its info and past conversations:" else "اختر الحساب لعرض معلوماته ومحادثاته السابقة:"
+    fun aiConvNoAccounts(language: String?): String =
+        if (isEnglish(language)) "No AI accounts added yet." else "لا توجد حسابات AI مضافة حالياً."
+    fun aiConvCopied(language: String?): String =
+        if (isEnglish(language)) "Copied ✓" else "تم النسخ ✓"
+    fun aiConvCopy(language: String?): String =
+        if (isEnglish(language)) "Copy conversations" else "نسخ المحادثات"
+    fun aiConvEmpty(language: String?): String =
+        if (isEnglish(language)) "No past conversations recorded yet" else "لا توجد محادثات سابقة مسجلة بعد"
+
 }

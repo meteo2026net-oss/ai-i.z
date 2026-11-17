@@ -402,4 +402,44 @@ object AppUiStrings {
     fun confirmAction(language: String?): String =
         if (isEnglish(language)) "Confirm" else "تأكيد"
 
+
+    fun setupGithubAccountsTitle(language: String?): String =
+        if (isEnglish(language)) "Link real GitHub accounts" else "ربط حسابات GitHub الحقيقية"
+    fun setupGithubQuickSwitch(language: String?): String =
+        if (isEnglish(language)) "Quick switch between linked GitHub accounts:" else "التبديل السريع بين حسابات GitHub المرتبطة:"
+    fun setupVerifyLink(language: String?): String =
+        if (isEnglish(language)) "Verify & link" else "تحقق وربط"
+    fun setupRefresh(language: String?): String =
+        if (isEnglish(language)) "Refresh" else "تحديث"
+    fun setupManageProjectsMulti(language: String?): String =
+        if (isEnglish(language)) "Manage projects and multi-account links" else "إدارة المشاريع وربط الحسابات المتعددة"
+    fun setupSavedProjectsActiveRepo(language: String?): String =
+        if (isEnglish(language)) "Saved projects and active repository" else "المشاريع المحفوظة والمستودع النشط"
+    fun setupAnyGithubRepo(language: String?): String =
+        if (isEnglish(language)) "Any GitHub repository (owner/repo)" else "أي مستودع GitHub (owner/repo)"
+    fun setupActiveBranch(language: String?): String =
+        if (isEnglish(language)) "Active branch" else "الفرع النشط"
+    fun setupAdoptRepoBranch(language: String?): String =
+        if (isEnglish(language)) "Adopt repository and branch" else "اعتماد المستودع والفرع"
+    fun setupAiPoolTitle(language: String?): String =
+        if (isEnglish(language)) "AI pool and automatic failover" else "مسبح الذكاء الاصطناعي والتحويل التلقائي"
+    fun setupEnableQuotaNotifs(language: String?): String =
+        if (isEnglish(language)) "Enable quota exhaustion notifications" else "تفعيل إشعارات انتهاء الحصة"
+    fun setupReenableAll(language: String?): String =
+        if (isEnglish(language)) "Re-enable all" else "إعادة تفعيل الكل"
+    fun setupViewAiConversations(language: String?): String =
+        if (isEnglish(language)) "View past ChatGPT and Gemini conversations and accounts" else "عرض محادثات ومعلومات حسابات ChatGPT وGemini السابقة"
+    fun setupConsumptionAlerts(language: String?): String =
+        if (isEnglish(language)) "Recent consumption and failover alerts" else "تنبيهات الاستهلاك والتحويل الأخيرة"
+    fun setupReenable(language: String?): String =
+        if (isEnglish(language)) "Re-enable" else "إعادة تفعيل"
+    fun setupCollabTeam(language: String?): String =
+        if (isEnglish(language)) "Models collaborating on the unified work file" else "فريق النماذج المتعاونة على الملف الموحد"
+    fun setupOpenCollabRoom(language: String?): String =
+        if (isEnglish(language)) "Open collaboration room and shared workplan" else "فتح غرفة التعاون وملف العمل الموحد"
+    fun setupAddAiAccount(language: String?): String =
+        if (isEnglish(language)) "Add an AI account or key to the pool" else "إضافة حساب أو مفتاح AI جديد للمسبح"
+    fun setupAiAccountName(language: String?): String =
+        if (isEnglish(language)) "Account/key name (e.g. Gemini second account)" else "اسم الحساب/المفتاح (مثلاً: Gemini حسابي الثاني)"
+
 }

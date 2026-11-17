@@ -84,6 +84,7 @@ fun GitHubSetupScreen(
     onSelectRepoAndBranch: (String, String) -> Unit,
     onRefresh: () -> Unit
 ) {
+    val uiLang = settings.appLanguage
     var patInput by remember { mutableStateOf("") }
     var customRepoInput by remember(settings.activeRepo) { mutableStateOf(settings.activeRepo) }
     var customBranchInput by remember(settings.activeBranch) { mutableStateOf(settings.activeBranch) }
@@ -107,7 +108,7 @@ fun GitHubSetupScreen(
                         horizontalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
                         Icon(Icons.Rounded.Link, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
-                        Text("ربط حسابات GitHub الحقيقية", style = MaterialTheme.typography.titleLarge)
+                        Text(AppUiStrings.setupGithubAccountsTitle(uiLang), style = MaterialTheme.typography.titleLarge)
                     }
                     StatusPill(
                         label = if (workspace.isGitHubConnected) {
@@ -123,7 +124,7 @@ fun GitHubSetupScreen(
                 )
 
                 if (workspace.linkedAccounts.gitHubAccounts.size > 1) {
-                    Text("التبديل السريع بين حسابات GitHub المرتبطة:", style = MaterialTheme.typography.labelMedium)
+                    Text(AppUiStrings.setupGithubQuickSwitch(uiLang), style = MaterialTheme.typography.labelMedium)
                     FlowRow(
                         horizontalArrangement = Arrangement.spacedBy(8.dp),
                         verticalArrangement = Arrangement.spacedBy(8.dp)
@@ -174,7 +175,7 @@ fun GitHubSetupScreen(
                         if (workspace.isBusyGitHub) {
                             CircularProgressIndicator(modifier = Modifier.size(18.dp), strokeWidth = 2.dp)
                         } else {
-                            Text("تحقق وربط")
+                            Text(AppUiStrings.setupVerifyLink(uiLang))
                         }
                     }
                     if (workspace.isGitHubConnected) {
@@ -182,7 +183,7 @@ fun GitHubSetupScreen(
                             onClick = onRefresh,
                             modifier = Modifier.testTag("github_refresh_button")
                         ) {
-                            Text("تحديث")
+                            Text(AppUiStrings.setupRefresh(uiLang))
                         }
                     }
                 }
@@ -192,14 +193,14 @@ fun GitHubSetupScreen(
                         .fillMaxWidth()
                         .testTag("open_linked_accounts_from_github")
                 ) {
-                    Text("إدارة المشاريع وربط الحسابات المتعددة")
+                    Text(AppUiStrings.setupManageProjectsMulti(uiLang))
                 }
             }
         }
 
         item {
             CommandCard {
-                Text("المشاريع المحفوظة والمستودع النشط", style = MaterialTheme.typography.titleMedium)
+                Text(AppUiStrings.setupSavedProjectsActiveRepo(uiLang), style = MaterialTheme.typography.titleMedium)
                 savedProjects.filter { it.repoSlug.isNotBlank() }.forEach { prj ->
                     val selected = settings.activeRepo.equals(prj.repoSlug, ignoreCase = true)
                     Row(
@@ -238,14 +239,14 @@ fun GitHubSetupScreen(
                 OutlinedTextField(
                     value = customRepoInput,
                     onValueChange = { customRepoInput = it },
-                    label = { Text("أي مستودع GitHub (owner/repo)") },
+                    label = { Text(AppUiStrings.setupAnyGithubRepo(uiLang)) },
                     singleLine = true,
                     modifier = Modifier.fillMaxWidth()
                 )
                 OutlinedTextField(
                     value = customBranchInput,
                     onValueChange = { customBranchInput = it },
-                    label = { Text("الفرع النشط") },
+                    label = { Text(AppUiStrings.setupActiveBranch(uiLang)) },
                     singleLine = true,
                     modifier = Modifier.fillMaxWidth()
                 )
@@ -260,7 +261,7 @@ fun GitHubSetupScreen(
                         .fillMaxWidth()
                         .testTag("save_active_repo_button")
                 ) {
-                    Text("اعتماد المستودع والفرع")
+                    Text(AppUiStrings.setupAdoptRepoBranch(uiLang))
                 }
             }
         }
@@ -329,6 +330,7 @@ fun AiProviderScreen(
     onSaveBackendConfig: (backendUrl: String, backendToken: String, aiProvider: String, aiModel: String) -> Unit,
     onTestBackend: (String) -> Unit
 ) {
+    val uiLang = settings.appLanguage
     val context = LocalContext.current
     var notifPermissionGranted by remember {
         mutableStateOf(QuotaNotificationHelper.hasNotificationPermission(context))
@@ -378,7 +380,7 @@ fun AiProviderScreen(
                         horizontalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
                         Icon(Icons.Rounded.AutoAwesome, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
-                        Text("مسبح الذكاء الاصطناعي والتحويل التلقائي", style = MaterialTheme.typography.titleLarge)
+                        Text(AppUiStrings.setupAiPoolTitle(uiLang), style = MaterialTheme.typography.titleLarge)
                     }
                     StatusPill(
                         label = "${orderedEndpoints.count { it.isEnabled && it.quotaStatus != AiEndpointConfig.QUOTA_EXHAUSTED }} متاح",
@@ -403,7 +405,7 @@ fun AiProviderScreen(
                             modifier = Modifier.weight(1f)
                         ) {
                             Icon(Icons.Rounded.NotificationsActive, contentDescription = null)
-                            Text("تفعيل إشعارات انتهاء الحصة")
+                            Text(AppUiStrings.setupEnableQuotaNotifs(uiLang))
                         }
                     }
                     if (orderedEndpoints.any { it.quotaStatus != AiEndpointConfig.QUOTA_READY }) {
@@ -414,7 +416,7 @@ fun AiProviderScreen(
                                 .testTag("reset_all_quotas_button")
                         ) {
                             Icon(Icons.Rounded.Refresh, contentDescription = null)
-                            Text("إعادة تفعيل الكل")
+                            Text(AppUiStrings.setupReenableAll(uiLang))
                         }
                     }
                 }
@@ -425,7 +427,7 @@ fun AiProviderScreen(
                         .testTag("open_ai_conversations_screen_btn")
                 ) {
                     Icon(Icons.Rounded.Forum, contentDescription = null)
-                    Text("عرض محادثات ومعلومات حسابات ChatGPT وGemini السابقة")
+                    Text(AppUiStrings.setupViewAiConversations(uiLang))
                 }
             }
         }
@@ -439,7 +441,7 @@ fun AiProviderScreen(
                         horizontalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
                         Icon(Icons.Rounded.WarningAmber, contentDescription = null, tint = AmberWarning)
-                        Text("تنبيهات الاستهلاك والتحويل الأخيرة", style = MaterialTheme.typography.titleMedium)
+                        Text(AppUiStrings.setupConsumptionAlerts(uiLang), style = MaterialTheme.typography.titleMedium)
                     }
                     workspace.quotaAlerts.take(5).forEach { alert ->
                         Text(
@@ -529,7 +531,7 @@ fun AiProviderScreen(
                                 onClick = { onResetEndpointQuota(ep.id) },
                                 modifier = Modifier.testTag("reset_quota_${ep.id}")
                             ) {
-                                Text("إعادة تفعيل")
+                                Text(AppUiStrings.setupReenable(uiLang))
                             }
                         }
                     }
@@ -558,7 +560,7 @@ fun AiProviderScreen(
                 if (ids.isNotEmpty()) ids.toSet() else orderedEndpoints.map { it.id }.toSet()
             }
             CommandCard(borderColor = ElectricCyan.copy(alpha = 0.45f)) {
-                Text("فريق النماذج المتعاونة على الملف الموحد", style = MaterialTheme.typography.titleMedium)
+                Text(AppUiStrings.setupCollabTeam(uiLang), style = MaterialTheme.typography.titleMedium)
                 Text(
                     text = "اختر أكثر من حساب أو نموذج ليتعاونوا معاً (المخطط ← المنفذ ← المدقق) داخل ملف العمل المشترك، مع استمرار التحويل التلقائي إذا انتهت الحصة أو توقف نموذج:",
                     style = MaterialTheme.typography.bodySmall,
@@ -583,7 +585,7 @@ fun AiProviderScreen(
                         .fillMaxWidth()
                         .testTag("ai_open_shared_workspace_button")
                 ) {
-                    Text("فتح غرفة التعاون وملف العمل الموحد")
+                    Text(AppUiStrings.setupOpenCollabRoom(uiLang))
                 }
             }
         }
@@ -591,7 +593,7 @@ fun AiProviderScreen(
         // Add New AI Key / Agent Account Card
         item {
             CommandCard(borderColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.5f)) {
-                Text("إضافة حساب أو مفتاح AI جديد للمسبح", style = MaterialTheme.typography.titleMedium)
+                Text(AppUiStrings.setupAddAiAccount(uiLang), style = MaterialTheme.typography.titleMedium)
                 FlowRow(
                     horizontalArrangement = Arrangement.spacedBy(8.dp),
                     verticalArrangement = Arrangement.spacedBy(8.dp)
@@ -626,7 +628,7 @@ fun AiProviderScreen(
                 OutlinedTextField(
                     value = endpointLabel,
                     onValueChange = { endpointLabel = it },
-                    label = { Text("اسم الحساب/المفتاح (مثلاً: Gemini حسابي الثاني)") },
+                    label = { Text(AppUiStrings.setupAiAccountName(uiLang)) },
                     singleLine = true,
                     modifier = Modifier
                         .fillMaxWidth()

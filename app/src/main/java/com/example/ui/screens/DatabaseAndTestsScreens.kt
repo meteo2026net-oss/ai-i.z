@@ -114,7 +114,7 @@ fun DatabaseScreen(
                     horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
                     Icon(Icons.Rounded.Lock, contentDescription = null, tint = CrimsonError)
-                    Text("العزل الأمني وإدارة أسرار قواعد البيانات", style = MaterialTheme.typography.titleMedium)
+                    Text(AppUiStrings.dbSecurityIsolationTitle(uiLang), style = MaterialTheme.typography.titleMedium)
                 }
                 val protectedDisplay = (listOf("metra_old", "metra_legacy") +
                     activeProject?.protectedDbTargets.orEmpty()).distinct().joinToString("، ")
@@ -161,7 +161,7 @@ fun DatabaseScreen(
                             )
                         }
                         if (conn.isActive) {
-                            StatusPill(label = "نشط", color = EmeraldSuccess, icon = Icons.Rounded.CheckCircle)
+                            StatusPill(label = AppUiStrings.statusActive(uiLang), color = EmeraldSuccess, icon = Icons.Rounded.CheckCircle)
                         }
                     }
                     Row(
@@ -226,7 +226,7 @@ fun DatabaseScreen(
                     value = hostInput,
                     onValueChange = { hostInput = it },
                     label = { Text("Host / Supabase Project URL") },
-                    placeholder = { Text("https://xyzcompany.supabase.co أو db.host:5432") },
+                    placeholder = { Text(AppUiStrings.dbHostPlaceholder(uiLang)) },
                     singleLine = true,
                     modifier = Modifier.fillMaxWidth()
                 )
@@ -311,7 +311,7 @@ fun DatabaseScreen(
         if (settings.backendUrl.isBlank()) {
             item {
                 SetupRequiredBanner(
-                    title = "Backend Schema Runner اختياري للجداول الحية",
+                    title = AppUiStrings.dbSchemaRunnerOptional(uiLang),
                     description = "يمكنك استخدام مراجعة SQL بالذكاء الاصطناعي مباشرة الآن، أو ربط Backend Runner لجلب مخططات الجداول الحية وتنفيذ استعلامات SELECT.",
                     actionLabel = "إعداد خادم Backend",
                     onAction = onGoToBackendSetup,
@@ -352,7 +352,7 @@ fun DatabaseScreen(
         workspace.dbSchema?.let { schema ->
             item {
                 CommandCard(borderColor = EmeraldSuccess.copy(alpha = 0.5f)) {
-                    Text("القاعدة: ${schema.databaseName}", style = MaterialTheme.typography.titleMedium)
+                    Text(AppUiStrings.dbDatabaseLabel(uiLang, schema.databaseName), style = MaterialTheme.typography.titleMedium)
                     Text(
                         "الإصدار: ${schema.engineVersion} • بيئة معزولة: ${schema.isIsolatedTarget}",
                         style = MaterialTheme.typography.bodySmall,
@@ -483,7 +483,7 @@ fun SqlReviewScreen(
         workspace.sqlResult?.let { res ->
             item {
                 CommandCard(borderColor = EmeraldSuccess) {
-                    Text("نتيجة التنفيذ (${res.rowsAffected} صف)", style = MaterialTheme.typography.titleMedium)
+                    Text(AppUiStrings.sqlResultRows(uiLang, res.rowsAffected), style = MaterialTheme.typography.titleMedium)
                     if (res.impactSummary.isNotBlank()) {
                         Text(res.impactSummary, style = MaterialTheme.typography.bodySmall)
                     }
@@ -524,7 +524,7 @@ fun TestsScreen(
         if (settings.backendUrl.isBlank()) {
             item {
                 SetupRequiredBanner(
-                    title = "تشغيل الاختبارات يتطلب Backend Runner",
+                    title = AppUiStrings.testsNeedBackend(uiLang),
                     description = "اربط خادم Backend على جهاز التطوير أو السحابة لتشغيل اختبارات المشروع الفعلية.",
                     actionLabel = "إعداد خادم Backend",
                     onAction = onGoToBackendSetup,
@@ -540,7 +540,7 @@ fun TestsScreen(
                     horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
                     Icon(Icons.Rounded.BugReport, contentDescription = null, tint = ElectricCyan)
-                    Text("تشغيل اختبارات المشروع: ${settings.activeRepo}", style = MaterialTheme.typography.titleMedium)
+                    Text(AppUiStrings.testsRunProject(uiLang, settings.activeRepo), style = MaterialTheme.typography.titleMedium)
                 }
                 FlowRow(
                     horizontalArrangement = Arrangement.spacedBy(8.dp),
@@ -569,7 +569,7 @@ fun TestsScreen(
                         .testTag("run_tests_button")
                 ) {
                     Icon(Icons.Rounded.PlayArrow, contentDescription = null)
-                    Text("بدء الاختبارات الفعلية")
+                    Text(AppUiStrings.testsStartReal(uiLang))
                 }
             }
         }
@@ -579,7 +579,7 @@ fun TestsScreen(
                 CommandCard(
                     borderColor = if (run.failedCount == 0) EmeraldSuccess else CrimsonError
                 ) {
-                    Text("ملخص النتائج (${run.durationMs} مللي ثانية)", style = MaterialTheme.typography.titleMedium)
+                    Text(AppUiStrings.testsSummaryMs(uiLang, run.durationMs), style = MaterialTheme.typography.titleMedium)
                     Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                         StatusPill("ناجح: ${run.passedCount}", EmeraldSuccess)
                         StatusPill("فاشل: ${run.failedCount}", CrimsonError)
@@ -597,7 +597,7 @@ fun TestsScreen(
                             },
                             modifier = Modifier.fillMaxWidth()
                         ) {
-                            Text("إرسال الأخطاء للوكيل لإصلاحها")
+                            Text(AppUiStrings.testsSendFailuresToAgent(uiLang))
                         }
                     }
                 }
@@ -613,7 +613,7 @@ fun TestsScreen(
                     ) {
                         Text(testCase.name, style = MaterialTheme.typography.titleMedium, modifier = Modifier.weight(1f))
                         StatusPill(
-                            label = if (testCase.passed) "نجح" else "فشل",
+                            label = if (testCase.passed) AppUiStrings.testsPassed(uiLang) else AppUiStrings.testsFailed(uiLang),
                             color = if (testCase.passed) EmeraldSuccess else CrimsonError
                         )
                     }

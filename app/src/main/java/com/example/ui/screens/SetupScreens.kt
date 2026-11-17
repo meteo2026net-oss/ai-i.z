@@ -143,7 +143,7 @@ fun GitHubSetupScreen(
                     value = patInput,
                     onValueChange = { patInput = it },
                     label = { Text("GitHub Personal Access Token (PAT)") },
-                    placeholder = { Text("ghp_... أو github_pat_...") },
+                    placeholder = { Text(AppUiStrings.setupPatPlaceholder(uiLang)) },
                     visualTransformation = PasswordVisualTransformation(),
                     leadingIcon = { Icon(Icons.Rounded.Key, contentDescription = null) },
                     singleLine = true,
@@ -383,7 +383,7 @@ fun AiProviderScreen(
                         Text(AppUiStrings.setupAiPoolTitle(uiLang), style = MaterialTheme.typography.titleLarge)
                     }
                     StatusPill(
-                        label = "${orderedEndpoints.count { it.isEnabled && it.quotaStatus != AiEndpointConfig.QUOTA_EXHAUSTED }} متاح",
+                        label = AppUiStrings.setupAiAvailableCount(uiLang, orderedEndpoints.count { it.isEnabled && it.quotaStatus != AiEndpointConfig.QUOTA_EXHAUSTED }),
                         color = EmeraldSuccess
                     )
                 }
@@ -517,14 +517,14 @@ fun AiProviderScreen(
                             enabled = rank > 1,
                             modifier = Modifier.testTag("ai_up_${ep.id}")
                         ) {
-                            Icon(Icons.Rounded.ArrowUpward, contentDescription = "رفع الأولوية")
+                            Icon(Icons.Rounded.ArrowUpward, contentDescription = AppUiStrings.setupPriorityUpCd(uiLang))
                         }
                         IconButton(
                             onClick = { onMovePriority(ep.id, false) },
                             enabled = rank < orderedEndpoints.size,
                             modifier = Modifier.testTag("ai_down_${ep.id}")
                         ) {
-                            Icon(Icons.Rounded.ArrowDownward, contentDescription = "خفض الأولوية")
+                            Icon(Icons.Rounded.ArrowDownward, contentDescription = AppUiStrings.setupPriorityDownCd(uiLang))
                         }
                         if (ep.quotaStatus != AiEndpointConfig.QUOTA_READY) {
                             OutlinedButton(
@@ -545,7 +545,7 @@ fun AiProviderScreen(
                                 onClick = { onRemoveAiEndpoint(ep.id) },
                                 modifier = Modifier.testTag("remove_ai_${ep.id}")
                             ) {
-                                Icon(Icons.Rounded.DeleteOutline, contentDescription = "حذف المزود", tint = CrimsonError)
+                                Icon(Icons.Rounded.DeleteOutline, contentDescription = AppUiStrings.setupDeleteProviderCd(uiLang), tint = CrimsonError)
                             }
                         }
                     }
@@ -637,7 +637,7 @@ fun AiProviderScreen(
                 OutlinedTextField(
                     value = accountHint,
                     onValueChange = { accountHint = it },
-                    label = { Text("ملاحظة الحساب أو البريد المالك للمفتاح (اختياري)") },
+                    label = { Text(AppUiStrings.setupAccountNote(uiLang)) },
                     placeholder = { Text("dev2@gmail.com") },
                     singleLine = true,
                     modifier = Modifier.fillMaxWidth()
@@ -645,7 +645,7 @@ fun AiProviderScreen(
                 OutlinedTextField(
                     value = modelName,
                     onValueChange = { modelName = it },
-                    label = { Text("اسم النموذج (Model ID)") },
+                    label = { Text(AppUiStrings.setupModelId(uiLang)) },
                     singleLine = true,
                     modifier = Modifier.fillMaxWidth()
                 )
@@ -678,7 +678,7 @@ fun AiProviderScreen(
                     OutlinedTextField(
                         value = baseUrlInput,
                         onValueChange = { baseUrlInput = it },
-                        label = { Text("Base URL (اختياري للتخصيص)") },
+                        label = { Text(AppUiStrings.setupBaseUrlOptional(uiLang)) },
                         singleLine = true,
                         modifier = Modifier.fillMaxWidth()
                     )
@@ -704,7 +704,7 @@ fun AiProviderScreen(
                         .testTag("add_ai_endpoint_button")
                 ) {
                     Icon(Icons.Rounded.Add, contentDescription = null)
-                    Text("إضافة إلى مسبح الذكاء الاصطناعي وأولوية المشروع")
+                    Text(AppUiStrings.setupAddToAiPool(uiLang))
                 }
             }
         }
@@ -722,10 +722,10 @@ fun AiProviderScreen(
                         horizontalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
                         Icon(Icons.Rounded.Dns, contentDescription = null, tint = ElectricCyan)
-                        Text("خادم التنفيذ (Backend Runner)", style = MaterialTheme.typography.titleMedium)
+                        Text(AppUiStrings.setupBackendRunnerTitle(uiLang), style = MaterialTheme.typography.titleMedium)
                     }
                     StatusPill(
-                        label = if (workspace.backendHealth != null) "متصل" else "اختياري",
+                        label = if (workspace.backendHealth != null) AppUiStrings.setupConnected(uiLang) else AppUiStrings.setupOptional(uiLang),
                         color = if (workspace.backendHealth != null) EmeraldSuccess else AmberWarning,
                         icon = if (workspace.backendHealth != null) Icons.Rounded.CloudDone else null
                     )
@@ -738,7 +738,7 @@ fun AiProviderScreen(
                 OutlinedTextField(
                     value = backendUrl,
                     onValueChange = { backendUrl = it },
-                    label = { Text("رابط خادم Backend (HTTPS)") },
+                    label = { Text(AppUiStrings.setupBackendUrl(uiLang)) },
                     placeholder = { Text("https://runner.example.com") },
                     singleLine = true,
                     modifier = Modifier
@@ -781,14 +781,14 @@ fun AiProviderScreen(
                             .weight(1f)
                             .testTag("save_ai_backend_button")
                     ) {
-                        Text("حفظ إعدادات Backend")
+                        Text(AppUiStrings.setupSaveBackend(uiLang))
                     }
                     OutlinedButton(
                         onClick = { onTestBackend(backendUrl) },
                         enabled = !workspace.isBusyBackend,
                         modifier = Modifier.testTag("test_backend_button")
                     ) {
-                        Text("فحص الاتصال")
+                        Text(AppUiStrings.setupCheckConnection(uiLang))
                     }
                 }
             }

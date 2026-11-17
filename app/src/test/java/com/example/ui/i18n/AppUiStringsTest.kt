@@ -97,4 +97,20 @@ class AppUiStringsTest {
         }
     }
 
+
+    @Test
+    fun remainingScreensEnglishHasNoArabic() {
+        val arabicLetter = Regex("\\p{IsArabic}")
+        listOf(
+            AppUiStrings.linkedSaveBundle("en"),
+            AppUiStrings.setupBackendRunnerTitle("en"),
+            AppUiStrings.dbSecurityIsolationTitle("en"),
+            AppUiStrings.testsStartReal("en"),
+            AppUiStrings.aboutCopyright("en"),
+            AppUiStrings.notifOnQuotaExhausted("en")
+        ).forEach { text ->
+            assertFalse("English copy leaked Arabic: $text", arabicLetter.containsMatchIn(text))
+        }
+    }
+
 }

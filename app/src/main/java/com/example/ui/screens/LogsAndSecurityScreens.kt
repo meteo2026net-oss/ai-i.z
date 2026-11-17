@@ -326,7 +326,7 @@ fun SecuritySettingsScreen(
                     }
                 }
                 NotificationToggleRow(
-                    title = "عند إنهاء أي أمر أو مهمة أو جولة تعاون",
+                    title = AppUiStrings.notifOnCommandDone(uiLang),
                     checked = notificationPrefs.notifyOnCompletion,
                     onCheckedChange = {
                         onUpdateNotificationPrefs(notificationPrefs.copy(notifyOnCompletion = it))
@@ -334,7 +334,7 @@ fun SecuritySettingsScreen(
                     testTag = "notif_completion_switch"
                 )
                 NotificationToggleRow(
-                    title = "عند التوقف المؤقت أو الخطأ أو الحظر الأمني",
+                    title = AppUiStrings.notifOnPauseError(uiLang),
                     checked = notificationPrefs.notifyOnStopOrError,
                     onCheckedChange = {
                         onUpdateNotificationPrefs(notificationPrefs.copy(notifyOnStopOrError = it))
@@ -342,7 +342,7 @@ fun SecuritySettingsScreen(
                     testTag = "notif_stop_switch"
                 )
                 NotificationToggleRow(
-                    title = "عند الحاجة لإجراء أو موافقة (المستوى 2 و3)",
+                    title = AppUiStrings.notifOnApprovalNeeded(uiLang),
                     checked = notificationPrefs.notifyOnActionRequired,
                     onCheckedChange = {
                         onUpdateNotificationPrefs(notificationPrefs.copy(notifyOnActionRequired = it))
@@ -350,7 +350,7 @@ fun SecuritySettingsScreen(
                     testTag = "notif_action_switch"
                 )
                 NotificationToggleRow(
-                    title = "عند انتهاء حصة API والتحويل للبديل",
+                    title = AppUiStrings.notifOnQuotaExhausted(uiLang),
                     checked = notificationPrefs.notifyOnQuotaFailover,
                     onCheckedChange = {
                         onUpdateNotificationPrefs(notificationPrefs.copy(notifyOnQuotaFailover = it))
@@ -404,13 +404,13 @@ fun SecuritySettingsScreen(
                     FilterChip(
                         selected = settings.appLanguage != "en",
                         onClick = { onUpdateSettings(settings.copy(appLanguage = "ar")) },
-                        label = { Text("العربية") },
+                        label = { Text(AppUiStrings.languageArabic(uiLang)) },
                         modifier = Modifier.testTag("language_ar_chip")
                     )
                     FilterChip(
                         selected = settings.appLanguage.equals("en", ignoreCase = true),
                         onClick = { onUpdateSettings(settings.copy(appLanguage = "en")) },
-                        label = { Text("English") },
+                        label = { Text(AppUiStrings.languageEnglish(uiLang)) },
                         modifier = Modifier.testTag("language_en_chip")
                     )
                 }
@@ -492,10 +492,10 @@ fun SecuritySettingsScreen(
                     Icon(Icons.Rounded.Security, contentDescription = null, tint = EmeraldSuccess)
                     Text(AppUiStrings.securityIpTitle(uiLang), style = MaterialTheme.typography.titleMedium)
                 }
-                Text("اسم التطبيق: ai i.z", style = MaterialTheme.typography.bodyMedium)
-                Text("المطور والمالك: إبراهيم زينب (Ibrahim Zeinab)", style = MaterialTheme.typography.bodyMedium)
-                Text("جميع الحقوق محفوظة © 2026", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                Text("الأمان والتشفير: التطبيق محمي بالكامل عبر خوارزميات التشفير المتقدمة وضغط وإخفاء الأكواد (ProGuard/R8) لمنع تفكيكه أو سرقة أكواده.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Text(AppUiStrings.aboutAppName(uiLang), style = MaterialTheme.typography.bodyMedium)
+                Text(AppUiStrings.aboutDeveloper(uiLang), style = MaterialTheme.typography.bodyMedium)
+                Text(AppUiStrings.aboutCopyright(uiLang), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Text(AppUiStrings.aboutSecurity(uiLang), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
         }
     }

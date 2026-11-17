@@ -57,6 +57,7 @@ import com.example.R
 import com.example.ui.i18n.AppUiStrings
 import java.util.Locale
 import com.example.BuildConfig
+import com.example.core.config.AiIzRuntimeConfig
 import com.example.ui.components.CommandCard
 import com.example.ui.components.StatusPill
 import com.example.ui.theme.ElectricCyan
@@ -82,9 +83,13 @@ fun AuthScreen(
 
     var isLoading by remember { mutableStateOf(false) }
     val uiLang = Locale.getDefault().language.let { if (it.equals("en", true)) "en" else "ar" }
-    val apiConfigured = BuildConfig.AI_IZ_API_BASE_URL.trim().isNotBlank()
-    val oauthConfigured = BuildConfig.GOOGLE_WEB_CLIENT_ID.trim().isNotBlank()
-    val configReady = apiConfigured && oauthConfigured
+    val apiConfigured = AiIzRuntimeConfig.isAcceptableApiBaseUrl(BuildConfig.AI_IZ_API_BASE_URL, BuildConfig.DEBUG)
+    val oauthConfigured = AiIzRuntimeConfig.isConfiguredGoogleWebClientId(BuildConfig.GOOGLE_WEB_CLIENT_ID)
+    val configReady = AiIzRuntimeConfig.isCloudSignInReady(
+        BuildConfig.AI_IZ_API_BASE_URL,
+        BuildConfig.GOOGLE_WEB_CLIENT_ID,
+        BuildConfig.DEBUG
+    )
     var errorMessage by remember { mutableStateOf<String?>(null) }
 
     LaunchedEffect(Unit) {

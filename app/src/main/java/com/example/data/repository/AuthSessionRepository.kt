@@ -1,6 +1,7 @@
 package com.example.data.repository
 
 import com.example.BuildConfig
+import com.example.core.config.AiIzRuntimeConfig
 import com.example.core.security.SecretVault
 import com.example.data.remote.AuthSessionService
 import com.example.data.remote.GoogleSessionRequest
@@ -18,7 +19,7 @@ import java.util.concurrent.TimeUnit
 class AuthSessionRepository(private val vault: SecretVault) {
     private val service: AuthSessionService by lazy {
         val baseUrl = BuildConfig.AI_IZ_API_BASE_URL.trim()
-        require(baseUrl.startsWith("https://") || (BuildConfig.DEBUG && baseUrl.startsWith("http://10.0.2.2"))) {
+        require(AiIzRuntimeConfig.isAcceptableApiBaseUrl(baseUrl, BuildConfig.DEBUG)) {
             "AI I.Z API base URL is missing or invalid. Set AI_IZ_API_BASE_URL to an https:// endpoint before sign-in. / عنوان API غير صالح أو فارغ."
         }
         val moshi = Moshi.Builder().addLast(KotlinJsonAdapterFactory()).build()

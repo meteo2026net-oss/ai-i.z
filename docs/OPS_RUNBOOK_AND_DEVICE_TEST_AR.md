@@ -116,3 +116,10 @@ curl -fsS "https://YOUR_RUNNER/api/health"
 - نطاق HTTPS وشهادات
 - مشروع Google Cloud OAuth
 - موافقة دمج PR #6 ونشر Production
+
+
+## 8) فحوص قبول تلقائية (CI)
+
+- `AiIzRuntimeConfigTest`: رفض API غير HTTPS (ما عدا محاكي Debug `10.0.2.2`)، وشكل `GOOGLE_WEB_CLIENT_ID`.
+- Runner: `runner/test/app.test.js` يثبت أن مسارات SQL/التنفيذ تُرجع **501** دون استعلام DB.
+- Vault مستبعد من النسخ الاحتياطي عبر `backup_rules.xml` و`data_extraction_rules.xml`.

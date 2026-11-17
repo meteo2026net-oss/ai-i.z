@@ -9,6 +9,14 @@
 > هذا السجل يفصل بين وجود الشفرة، ونجاح الاختبارات، والاختبار على جهاز فعلي، ونشر الخدمات. لا تعني نتيجة CI أن المنتج جاهز للإنتاج.
 
 
+## تحديث 2026-11-17 — توطين عناوين بيئات Studio
+
+- `b35ee22`: `AppUiStrings.environmentTitle/Category` حسب `enum.name` دون تغيير مفاتيح التخزين.
+- CI [44075694674](https://github.com/meteo2026net-oss/ai-i.z/actions/runs/44075694674) على `b35ee22`: **نجاح**.
+- اختبارات Backend السابقة: جلسات، refresh reuse، logout، حذف حساب، عزل tenant لـ Studio.
+- SQL/Runner execution ما زال معطلاً. لا إصدار إنتاج بدون أسرار توقيع.
+
+
 ## تحديث 2026-11-17 — Dashboard/notifications + Studio restore tests
 
 - `a7dae76`: حالة GitHub/الوكيل/Backend على اللوحة، أوصاف إمكانية الوصول، إشعارات المهام/الحصة، واختبار استعادة بعد فشل فتح شبكي.

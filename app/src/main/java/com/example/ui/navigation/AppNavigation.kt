@@ -606,7 +606,8 @@ private fun AuthenticatedMetraShell(
                                         onReviewOrExecuteSql = { sql, targetDb ->
                                             viewModel.reviewOrExecuteSql(sql, targetDb, context)
                                         }
-                                    )
+                                    ,
+                                        appLanguage = settings.appLanguage)
                                 }
                                 composable("tests") {
                                     TestsScreen(
@@ -618,7 +619,8 @@ private fun AuthenticatedMetraShell(
                                             navigateTo("chat")
                                         },
                                         onGoToBackendSetup = { navigateTo("ai_setup") }
-                                    )
+                                    ,
+                                        appLanguage = settings.appLanguage)
                                 }
                                 composable("logs") {
                                     LogsScreen(

@@ -57,4 +57,27 @@ class AppUiStringsTest {
         assertTrue(AppUiStrings.studioDeleteBody("ar", "Demo").contains("Demo"))
         assertTrue(AppUiStrings.studioBuilding("en").contains("Building"))
     }
+
+    @Test
+    fun projectsAndDatabaseChromeEnglishHasNoArabic() {
+        val arabicLetter = Regex("\p{IsArabic}")
+        val samples = listOf(
+            AppUiStrings.projectsManageTitle("en"),
+            AppUiStrings.projectSaveActivate("en"),
+            AppUiStrings.googleLinkedAccounts("en"),
+            AppUiStrings.githubMultiAccounts("en"),
+            AppUiStrings.dbLinkNew("en"),
+            AppUiStrings.dbSaveConnection("en"),
+            AppUiStrings.sqlReviewTitle("en"),
+            AppUiStrings.actionActivate("en"),
+            AppUiStrings.loadingGeneric("en"),
+            AppUiStrings.retryAction("en")
+        )
+        samples.forEach { text ->
+            assertFalse("English copy leaked Arabic: $text", arabicLetter.containsMatchIn(text))
+        }
+        assertTrue(AppUiStrings.projectsManageTitle("ar").isNotBlank())
+        assertTrue(AppUiStrings.dbLinkNew("ar").isNotBlank())
+    }
+
 }

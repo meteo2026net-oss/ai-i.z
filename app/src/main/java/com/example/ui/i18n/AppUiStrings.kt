@@ -243,4 +243,163 @@ object AppUiStrings {
     fun securitySendTestNotif(language: String?): String =
         if (isEnglish(language)) "Send a test notification to verify sound and vibration" else "إرسال إشعار تجريبي للتأكد من الصوت والاهتزاز"
 
+
+    // --- Linked accounts / projects ---
+    fun projectsManageTitle(language: String?): String =
+        if (isEnglish(language)) "Manage software projects" else "إدارة المشاريع البرمجية"
+    fun projectsCount(language: String?, n: Int): String =
+        if (isEnglish(language)) "$n projects" else "$n مشاريع"
+    fun projectsIntro(language: String?): String =
+        if (isEnglish(language))
+            "Create a profile for any project and link GitHub, a database, and AI agent priority."
+        else
+            "أنشئ ملفاً لأي مشروع، واربطه بحساب GitHub وقاعدة بيانات وأولوية وكلاء AI الخاصة به."
+    fun statusActive(language: String?): String =
+        if (isEnglish(language)) "Active" else "نشط"
+    fun projectActivate(language: String?): String =
+        if (isEnglish(language)) "Activate project" else "تفعيل المشروع"
+    fun projectWorkplanFile(language: String?): String =
+        if (isEnglish(language)) "Plan & collaboration file" else "ملف الخطة والتعاون"
+    fun projectAiPriority(language: String?): String =
+        if (isEnglish(language)) "AI priority" else "أولوية AI"
+    fun projectDeleteCd(language: String?): String =
+        if (isEnglish(language)) "Delete project" else "حذف المشروع"
+    fun projectNewName(language: String?): String =
+        if (isEnglish(language)) "New project name" else "اسم المشروع الجديد"
+    fun projectGithubRepo(language: String?): String =
+        if (isEnglish(language)) "GitHub repository (owner/repo)" else "مستودع GitHub (owner/repo)"
+    fun projectDefaultBranch(language: String?): String =
+        if (isEnglish(language)) "Default branch" else "الفرع الافتراضي"
+    fun projectLinkGithub(language: String?): String =
+        if (isEnglish(language)) "Link GitHub account:" else "ربط بحساب GitHub:"
+    fun projectLinkDatabase(language: String?): String =
+        if (isEnglish(language)) "Link database:" else "ربط بقاعدة بيانات:"
+    fun projectProtectedDbs(language: String?): String =
+        if (isEnglish(language)) "Protected databases for this project (CSV)" else "قواعد بيانات محمية خاصة بهذا المشروع (CSV)"
+    fun projectWorkFileInRepo(language: String?): String =
+        if (isEnglish(language)) "Single work file inside the repo folder" else "ملف العمل الواحد داخل مجلد المستودع"
+    fun projectRequirements(language: String?): String =
+        if (isEnglish(language)) "Work requirements for the new project" else "متطلبات العمل اللازمة للمشروع الجديد"
+    fun projectRequirementsPh(language: String?): String =
+        if (isEnglish(language))
+            "List features, screens, APIs, and success criteria for this project…"
+        else
+            "اذكر المزايا، الشاشات، الـ APIs، وشروط النجاح لهذا المشروع..."
+    fun projectAgentInstructions(language: String?): String =
+        if (isEnglish(language)) "Special instructions for the agent and models on this project" else "تعليمات خاصة للوكيل والنماذج في هذا المشروع"
+    fun projectMultiModelCollab(language: String?): String =
+        if (isEnglish(language)) "Multi-model collaboration on the shared file" else "العمل التعاوني لعدة نماذج معاً على الملف المشترك"
+    fun projectContinuousTasks(language: String?): String =
+        if (isEnglish(language)) "Follow tasks to completion with automatic failover" else "متابعة المهام للنهاية مع التحويل التلقائي للبدائل"
+    fun projectSaveActivate(language: String?): String =
+        if (isEnglish(language)) "Save and activate project with its requirements" else "حفظ وتفعيل المشروع بمتطلباته"
+    fun googleLinkedAccounts(language: String?): String =
+        if (isEnglish(language)) "Linked Google accounts" else "حسابات Google المرتبطة"
+    fun googleRegisteredCount(language: String?, n: Int): String =
+        if (isEnglish(language)) "$n registered" else "$n مسجل"
+    fun googleAiIzAccount(language: String?): String =
+        if (isEnglish(language)) "AI I.Z account" else "حساب AI I.Z"
+    fun googleActiveAccount(language: String?, name: String, email: String): String =
+        if (isEnglish(language)) "Currently active account: $name ($email)" else "الحساب النشط حالياً: $name ($email)"
+    fun googleUserFallback(language: String?): String =
+        if (isEnglish(language)) "Google user" else "مستخدم Google"
+    fun actionSwitch(language: String?): String =
+        if (isEnglish(language)) "Switch" else "تبديل"
+    fun googleSwitchOrLink(language: String?): String =
+        if (isEnglish(language)) "Switch or link another Google account" else "تبديل أو ربط حساب Google آخر"
+    fun githubMultiAccounts(language: String?): String =
+        if (isEnglish(language)) "Multiple GitHub accounts" else "حسابات GitHub المتعددة"
+    fun githubLinkedCount(language: String?, n: Int): String =
+        if (isEnglish(language)) "$n linked" else "$n مربوط"
+    fun githubMultiIntro(language: String?): String =
+        if (isEnglish(language))
+            "Link more than one GitHub account (personal, org, client) and attach a preferred repo for automatic switching."
+        else
+            "يمكنك ربط أكثر من حساب GitHub (شخصي، مؤسسة، عميل) وربط كل حساب بمستودع مفضل ليتم التبديل تلقائياً."
+    fun githubNoneYet(language: String?): String =
+        if (isEnglish(language)) "No GitHub accounts added yet." else "لا توجد حسابات GitHub مضافة بعد."
+    fun githubLinkedRepo(language: String?, repo: String): String =
+        if (isEnglish(language)) "Linked repository: $repo" else "المستودع المرتبط: $repo"
+    fun githubActivateAccount(language: String?): String =
+        if (isEnglish(language)) "Activate account" else "تفعيل الحساب"
+    fun githubAccountLabel(language: String?): String =
+        if (isEnglish(language)) "Account label (e.g. METRA or work)" else "اسم تعريفي للحساب (مثلاً: حساب METRA أو حساب العمل)"
+
+    // --- Database ---
+    fun dbIsolatedBlocked(language: String?, list: String): String =
+        if (isEnglish(language)) "Blocked isolated databases: $list. Connection strings and secrets stay encrypted via Android Keystore."
+        else "القواعد المعزولة المحظورة: $list. تُحفظ جميع سلاسل الاتصال والأسرار (Secrets) مشفرة عبر Android Keystore."
+    fun dbSavedConnections(language: String?, n: Int): String =
+        if (isEnglish(language)) "Saved database connections ($n)" else "اتصالات قواعد البيانات المحفوظة ($n)"
+    fun dbEncryptedChain(language: String?): String =
+        if (isEnglish(language)) "Encrypted connection string ✓ " else "سلسلة اتصال مشفرة ✓ "
+    fun dbReadOnlyMode(language: String?): String =
+        if (isEnglish(language)) "• Safe read-only mode" else "• وضع القراءة الآمن"
+    fun dbReadWriteT3(language: String?): String =
+        if (isEnglish(language)) "• Read/write with T3 approval" else "• قراءة/كتابة بموافقة T3"
+    fun actionActivate(language: String?): String =
+        if (isEnglish(language)) "Activate" else "تفعيل"
+    fun dbSqlCheck(language: String?): String =
+        if (isEnglish(language)) "SQL check" else "فحص SQL"
+    fun dbDeleteCd(language: String?): String =
+        if (isEnglish(language)) "Delete database" else "حذف القاعدة"
+    fun dbLinkNew(language: String?): String =
+        if (isEnglish(language)) "Link a new database and enter its secret" else "ربط قاعدة بيانات جديدة وإدخال Secret الخاص بها"
+    fun dbDisplayName(language: String?): String =
+        if (isEnglish(language)) "Display name (e.g. Supabase Staging)" else "الاسم التعريفي (مثلاً: Supabase Staging)"
+    fun dbNameLabel(language: String?): String =
+        if (isEnglish(language)) "Database name" else "اسم قاعدة البيانات"
+    fun dbConnectionSecret(language: String?): String =
+        if (isEnglish(language)) "Connection string / DB secret (encrypted locally)" else "Connection String / DB Secret (يُشفر محلياً)"
+    fun dbOptionalToken(language: String?): String =
+        if (isEnglish(language)) "Supabase key / DB token secret (optional)" else "Supabase Key / DB Token Secret (اختياري)"
+    fun dbBlockedList(language: String?): String =
+        if (isEnglish(language)) "Blocked protected databases (comma-separated)" else "قواعد بيانات محظورة ومحمية (مفصولة بفاصلة)"
+    fun dbReadOnlyToggle(language: String?): String =
+        if (isEnglish(language)) "Isolate as read-only permissions" else "عزل صلاحيات القراءة فقط (Read-Only)"
+    fun dbSaveConnection(language: String?): String =
+        if (isEnglish(language)) "Save database connection and secret" else "حفظ اتصال قاعدة البيانات والـ Secret"
+    fun dbFetchSchema(language: String?): String =
+        if (isEnglish(language)) "Fetch table structure" else "جلب بنية الجداول"
+    fun dbSqlReview(language: String?): String =
+        if (isEnglish(language)) "SQL review & security" else "مراجعة SQL والأمان"
+    fun dbDatabaseLabel(language: String?, name: String): String =
+        if (isEnglish(language)) "Database: $name" else "القاعدة: $name"
+    fun dbRlsOn(language: String?): String =
+        if (isEnglish(language)) "RLS on" else "RLS مفعّل"
+    fun dbRlsOff(language: String?): String =
+        if (isEnglish(language)) "No RLS" else "بدون RLS"
+    fun sqlReviewTitle(language: String?): String =
+        if (isEnglish(language)) "SQL review, migrations & security" else "مراجعة SQL وملفات Migrations والأمان"
+    fun sqlTargetDb(language: String?): String =
+        if (isEnglish(language)) "Target database" else "قاعدة البيانات المستهدفة"
+    fun sqlSecurityCheck(language: String?): String =
+        if (isEnglish(language)) "Security impact check / safe run" else "فحص الأثر الأمني / تنفيذ آمن"
+    fun sqlAiAnalysis(language: String?): String =
+        if (isEnglish(language)) "Security analysis & expected impact (AI)" else "تحليل الأمان والأثر المتوقع (AI)"
+    fun sqlResultRows(language: String?, n: Long): String =
+        if (isEnglish(language)) "Execution result ($n rows)" else "نتيجة التنفيذ ($n صف)"
+
+    // --- Setup / repo common ---
+    fun setupGithubTitle(language: String?): String =
+        if (isEnglish(language)) "Connect GitHub" else "ربط GitHub"
+    fun setupAiTitle(language: String?): String =
+        if (isEnglish(language)) "AI agents, priority & backend" else "وكلاء AI والأولوية وBackend"
+    fun repoBranchesTitle(language: String?): String =
+        if (isEnglish(language)) "Branches & commits" else "الفروع والـ Commits"
+    fun repoFilesTitle(language: String?): String =
+        if (isEnglish(language)) "File explorer" else "مستكشف الملفات"
+    fun loadingGeneric(language: String?): String =
+        if (isEnglish(language)) "Loading…" else "جاري التحميل…"
+    fun emptyGeneric(language: String?): String =
+        if (isEnglish(language)) "Nothing to show yet." else "لا يوجد محتوى للعرض بعد."
+    fun errorGeneric(language: String?): String =
+        if (isEnglish(language)) "Something went wrong. Try again." else "حدث خطأ. حاول مجدداً."
+    fun retryAction(language: String?): String =
+        if (isEnglish(language)) "Retry" else "إعادة المحاولة"
+    fun saveAction(language: String?): String =
+        if (isEnglish(language)) "Save" else "حفظ"
+    fun confirmAction(language: String?): String =
+        if (isEnglish(language)) "Confirm" else "تأكيد"
+
 }

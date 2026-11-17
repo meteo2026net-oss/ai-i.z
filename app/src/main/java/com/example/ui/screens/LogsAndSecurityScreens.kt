@@ -129,7 +129,7 @@ fun LogsScreen(
                         },
                         modifier = Modifier.weight(1f)
                     ) {
-                        Text(if (copiedNotice) "تم النسخ ✓" else "نسخ للحافظة")
+                        Text(if (copiedNotice) AppUiStrings.logsCopied(uiLang) else AppUiStrings.logsCopyClipboard(uiLang))
                     }
                 }
             }
@@ -322,7 +322,7 @@ fun SecuritySettingsScreen(
                             .testTag("security_grant_notifications_button")
                     ) {
                         Icon(Icons.Rounded.NotificationsActive, contentDescription = null)
-                        Text("منح صلاحية الإشعارات على الهاتف")
+                        Text(AppUiStrings.securityGrantNotifPermission(uiLang))
                     }
                 }
                 NotificationToggleRow(
@@ -419,7 +419,7 @@ fun SecuritySettingsScreen(
 
         if (approvals.isNotEmpty()) {
             item {
-                Text("سجل الموافقات (${approvals.size})", style = MaterialTheme.typography.titleMedium)
+                Text(AppUiStrings.securityApprovalsLog(uiLang, approvals.size), style = MaterialTheme.typography.titleMedium)
             }
             items(approvals, key = { it.id.ifBlank { it.hashCode().toString() } }) { approval ->
                 ApprovalGateCard(
@@ -432,7 +432,7 @@ fun SecuritySettingsScreen(
 
         item {
             CommandCard(borderColor = CrimsonError.copy(alpha = 0.5f)) {
-                Text("إدارة الأسرار والجلسة", style = MaterialTheme.typography.titleMedium)
+                Text(AppUiStrings.securitySecretsSession(uiLang), style = MaterialTheme.typography.titleMedium)
                 OutlinedButton(
                     onClick = onClearSecrets,
                     modifier = Modifier

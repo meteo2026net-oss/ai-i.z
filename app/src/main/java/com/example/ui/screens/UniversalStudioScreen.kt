@@ -226,7 +226,7 @@ fun UniversalStudioScreen(
                     onSave = onSaveFileChanges,
                     onCopy = {
                         clipboardManager.setText(AnnotatedString(editedFileContent))
-                        Toast.makeText(context, "تم نسخ الكود للحافظة", Toast.LENGTH_SHORT).show()
+                        Toast.makeText(context, AppUiStrings.studioCopiedToast(uiLang), Toast.LENGTH_SHORT).show()
                     },
                     onExport = {
                         activeProject?.let { shareStudioProjectArchive(context, it) }
@@ -338,7 +338,7 @@ private fun SavedStudioProjectsTab(
                         Button(onClick = { onOpenProject(project.id) }) {
                             Icon(Icons.Rounded.FolderOpen, contentDescription = null)
                             Spacer(modifier = Modifier.width(6.dp))
-                            Text(if (project.id == activeProjectId) "مفتوح" else "فتح")
+                            Text(if (project.id == activeProjectId) AppUiStrings.studioOpened(uiLang) else AppUiStrings.studioOpen(uiLang))
                         }
                         IconButton(onClick = { projectPendingDeletion = project }) {
                             Icon(Icons.Rounded.DeleteOutline, contentDescription = "حذف المشروع", tint = MaterialTheme.colorScheme.error)
@@ -955,7 +955,7 @@ private fun ExecutionAndAuditTab(
         // Instructions
         item {
             CommandCard {
-                Text(text = "أوامر البناء والتهيئة (Build):", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold)
+                Text(text = AppUiStrings.studioBuildCmds(uiLang), style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold)
                 Surface(
                     color = Color(0xFF0F172A),
                     shape = RoundedCornerShape(8.dp),
@@ -971,7 +971,7 @@ private fun ExecutionAndAuditTab(
                 }
 
                 Spacer(modifier = Modifier.height(8.dp))
-                Text(text = "أمر التشغيل المباشر (Run / Start):", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold)
+                Text(text = AppUiStrings.studioRunCmds(uiLang), style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold)
                 Surface(
                     color = Color(0xFF0F172A),
                     shape = RoundedCornerShape(8.dp),
@@ -987,7 +987,7 @@ private fun ExecutionAndAuditTab(
                 }
 
                 Spacer(modifier = Modifier.height(8.dp))
-                Text(text = "أمر تشغيل الاختبارات الآلية (Test):", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold)
+                Text(text = AppUiStrings.studioTestCmds(uiLang), style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold)
                 Surface(
                     color = Color(0xFF0F172A),
                     shape = RoundedCornerShape(8.dp),

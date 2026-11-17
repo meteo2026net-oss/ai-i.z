@@ -160,7 +160,7 @@ fun SharedWorkspaceScreen(
                     value = instructionsInput,
                     onValueChange = { instructionsInput = it },
                     label = { Text(AppUiStrings.workspaceAgentInstructions(uiLang)) },
-                    placeholder = { Text("مثال: اقرأ البنية أولاً، قسّم العمل، اختبر كل تعديل، واحفظ النتائج في الملف المشترك.") },
+                    placeholder = { Text(AppUiStrings.workspaceAgentPlaceholder(uiLang)) },
                     minLines = 2,
                     maxLines = 5,
                     modifier = Modifier
@@ -174,7 +174,7 @@ fun SharedWorkspaceScreen(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Column(modifier = Modifier.weight(1f)) {
-                        Text("العمل التعاوني لعدة نماذج معاً", style = MaterialTheme.typography.titleSmall)
+                        Text(AppUiStrings.workspaceCollabMulti(uiLang), style = MaterialTheme.typography.titleSmall)
                         Text(
                             "المخطط ← المنفذ ← المدقق على نفس الملف المشترك",
                             style = MaterialTheme.typography.labelSmall,
@@ -194,7 +194,7 @@ fun SharedWorkspaceScreen(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Column(modifier = Modifier.weight(1f)) {
-                        Text("المتابعة المستمرة للنهاية بدون توقف", style = MaterialTheme.typography.titleSmall)
+                        Text(AppUiStrings.workspaceContinuousFollow(uiLang), style = MaterialTheme.typography.titleSmall)
                         Text(
                             "تجاوز انتهاء الحصة/الحساب/النموذج واستئناف المهام بعد أي موافقة تلقائياً",
                             style = MaterialTheme.typography.labelSmall,
@@ -227,7 +227,7 @@ fun SharedWorkspaceScreen(
                             .testTag("save_workspace_spec_button")
                     ) {
                         Icon(Icons.Rounded.Save, contentDescription = null)
-                        Text("حفظ المواصفات")
+                        Text(AppUiStrings.workspaceSaveSpecs(uiLang))
                     }
                     OutlinedButton(
                         onClick = { onLoadOrInitSharedFile(filePathInput) },
@@ -237,7 +237,7 @@ fun SharedWorkspaceScreen(
                             .testTag("load_shared_file_button")
                     ) {
                         Icon(Icons.Rounded.CloudDownload, contentDescription = null)
-                        Text("جلب من GitHub")
+                        Text(AppUiStrings.workspaceFetchGithub(uiLang))
                     }
                 }
             }
@@ -251,9 +251,9 @@ fun SharedWorkspaceScreen(
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Text("النماذج المشاركة في التعاون (${selectedTeamIds.size})", style = MaterialTheme.typography.titleMedium)
+                    Text(AppUiStrings.workspaceTeamModels(uiLang, selectedTeamIds.size), style = MaterialTheme.typography.titleMedium)
                     OutlinedButton(onClick = onGoToAiSetup) {
-                        Text("إضافة نماذج/حسابات")
+                        Text(AppUiStrings.workspaceAddModels(uiLang))
                     }
                 }
                 Text(
@@ -287,7 +287,7 @@ fun SharedWorkspaceScreen(
         // Run Multi-Model Collaboration Card
         item {
             CommandCard(borderColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.55f)) {
-                Text("تشغيل جولة تعاون النماذج الآن", style = MaterialTheme.typography.titleMedium)
+                Text(AppUiStrings.workspaceRunRoundNow(uiLang), style = MaterialTheme.typography.titleMedium)
                 OutlinedTextField(
                     value = collaborationDirective,
                     onValueChange = { collaborationDirective = it },

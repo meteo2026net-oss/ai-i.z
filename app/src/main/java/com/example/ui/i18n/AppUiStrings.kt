@@ -565,4 +565,47 @@ object AppUiStrings {
     fun aiConvEmpty(language: String?): String =
         if (isEnglish(language)) "No past conversations recorded yet" else "لا توجد محادثات سابقة مسجلة بعد"
 
+
+    fun workspaceAgentPlaceholder(language: String?): String =
+        if (isEnglish(language))
+            "Example: read the structure first, split work, test each change, and save results in the shared file."
+        else
+            "مثال: اقرأ البنية أولاً، قسّم العمل، اختبر كل تعديل، واحفظ النتائج في الملف المشترك."
+    fun workspaceCollabMulti(language: String?): String =
+        if (isEnglish(language)) "Multi-model collaboration" else "العمل التعاوني لعدة نماذج معاً"
+    fun workspaceContinuousFollow(language: String?): String =
+        if (isEnglish(language)) "Continuous follow-through to completion" else "المتابعة المستمرة للنهاية بدون توقف"
+    fun workspaceSaveSpecs(language: String?): String =
+        if (isEnglish(language)) "Save specifications" else "حفظ المواصفات"
+    fun workspaceFetchGithub(language: String?): String =
+        if (isEnglish(language)) "Fetch from GitHub" else "جلب من GitHub"
+    fun workspaceTeamModels(language: String?, n: Int): String =
+        if (isEnglish(language)) "Models in collaboration ($n)" else "النماذج المشاركة في التعاون ($n)"
+    fun workspaceAddModels(language: String?): String =
+        if (isEnglish(language)) "Add models/accounts" else "إضافة نماذج/حسابات"
+    fun workspaceRunRoundNow(language: String?): String =
+        if (isEnglish(language)) "Run a model collaboration round now" else "تشغيل جولة تعاون النماذج الآن"
+    fun studioOpen(language: String?): String =
+        if (isEnglish(language)) "Open" else "فتح"
+    fun studioOpened(language: String?): String =
+        if (isEnglish(language)) "Open" else "مفتوح"
+    fun studioBuildCmds(language: String?): String =
+        if (isEnglish(language)) "Build & setup commands:" else "أوامر البناء والتهيئة (Build):"
+    fun studioRunCmds(language: String?): String =
+        if (isEnglish(language)) "Run / start command:" else "أمر التشغيل المباشر (Run / Start):"
+    fun studioTestCmds(language: String?): String =
+        if (isEnglish(language)) "Automated test command:" else "أمر تشغيل الاختبارات الآلية (Test):"
+    fun studioCopiedToast(language: String?): String =
+        if (isEnglish(language)) "Code copied to clipboard" else "تم نسخ الكود للحافظة"
+    fun logsCopyClipboard(language: String?): String =
+        if (isEnglish(language)) "Copy to clipboard" else "نسخ للحافظة"
+    fun logsCopied(language: String?): String =
+        if (isEnglish(language)) "Copied ✓" else "تم النسخ ✓"
+    fun securityGrantNotifPermission(language: String?): String =
+        if (isEnglish(language)) "Grant notification permission on device" else "منح صلاحية الإشعارات على الهاتف"
+    fun securityApprovalsLog(language: String?, n: Int): String =
+        if (isEnglish(language)) "Approvals log ($n)" else "سجل الموافقات ($n)"
+    fun securitySecretsSession(language: String?): String =
+        if (isEnglish(language)) "Secrets & session management" else "إدارة الأسرار والجلسة"
+
 }

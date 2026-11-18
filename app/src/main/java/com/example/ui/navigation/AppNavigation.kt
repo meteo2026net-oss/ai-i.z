@@ -73,6 +73,7 @@ import com.example.data.repository.AiOrchestratorRepository
 import com.example.data.repository.AuthSessionRepository
 import com.example.data.repository.BackendRepository
 import com.example.data.repository.UserDataRepository
+import com.example.data.storage.ProjectStorageEngine
 import com.example.data.repository.GitHubRepository
 import com.example.domain.model.UserSettings
 import com.example.ui.screens.ActionsScreen
@@ -170,7 +171,8 @@ private fun AuthenticatedMetraShell(
                     aiRepo = AiOrchestratorRepository(appVault),
                     backendRepo = BackendRepository(appVault),
                     vault = appVault,
-                    localDao = localDb.agentDao()
+                    localDao = localDb.agentDao(),
+                    projectStorage = ProjectStorageEngine(app, appVault)
                 )
             }
         }

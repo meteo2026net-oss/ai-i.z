@@ -23,6 +23,9 @@ import com.example.data.repository.AiOrchestratorRepository
 import com.example.data.repository.BackendRepository
 import com.example.data.repository.CollaborationContribution
 import com.example.data.repository.UserDataRepository
+import com.example.data.storage.ProjectStorageEngine
+import com.example.data.storage.StorageProviderId
+import com.example.data.storage.ConflictPolicy
 import com.example.data.repository.FlutterSpecExporter
 import com.example.data.repository.GitHubRepository
 import com.example.data.repository.SharedWorkplanCodec
@@ -135,6 +138,7 @@ class MetraAgentViewModel(
     private val backendRepo: BackendRepository,
     private val vault: SecretVault,
     private val localDao: AgentDao,
+    private val projectStorage: ProjectStorageEngine? = null,
     private val accountLinkStore: AccountLinkStore = AccountLinkStore(vault),
     private val platformConfigStore: PlatformConfigStore = PlatformConfigStore(vault)
 ) : ViewModel() {
@@ -2189,6 +2193,40 @@ class MetraAgentViewModel(
     fun refreshSavedStudioProjects() {
         val requestId = studioProjectListRequests.next()
         viewModelScope.launch {
+            val storage = projectStorage
+            if (storage != null) {
+                storage.listAll()
+                    .onSuccess { refs ->
+                        val visibleProjects = refs
+                            .filterNot { it.projectId in deletedStudioProjectIds }
+                            .map { ref ->
+                                com.example.domain.model.StudioProjectSummary(
+                                    id = ref.projectId,
+                                    projectName = ref.projectName,
+                                    environment = com.example.domain.model.DevelopmentEnvironment.MOBILE_ANDROID,
+                                    primaryLanguage = com.example.domain.model.ProgrammingLanguage.KOTLIN,
+                                    description = ref.description.ifBlank { "rev ${ref.revision}" },
+                                    fileCount = ref.fileCount
+                                )
+                            }
+                        _workspace.update { state ->
+                            if (studioProjectListRequests.isCurrent(requestId)) {
+                                state.copy(savedStudioProjects = visibleProjects)
+                            } else {
+                                state
+                            }
+                        }
+                    }
+                    .onFailure { error ->
+                        Log.w(TAG, "Local studio list failed", error)
+                        _workspace.update { state ->
+                            if (studioProjectListRequests.isCurrent(requestId)) {
+                                state.copy(statusBannerMessage = "تعذر تحديث قائمة المشاريع المحلية.")
+                            } else state
+                        }
+                    }
+                return@launch
+            }
             userDataRepository.listStudioProjects()
                 .onSuccess { projects ->
                     val visibleProjects = projects.filterNot { it.id in deletedStudioProjectIds }
@@ -2228,13 +2266,16 @@ class MetraAgentViewModel(
                     state
                 }
             }
-            userDataRepository.getStudioProject(projectId)
+            val result = projectStorage?.load(projectId)
+                ?: userDataRepository.getStudioProject(projectId)
+            val resolved = if (result.isSuccess) result else userDataRepository.getStudioProject(projectId)
+            resolved
                 .onSuccess { project ->
                     if (!studioProjectOpenRequests.isCurrent(requestId) || projectId in deletedStudioProjectIds) return@onSuccess
                     if (project == null) {
                         _workspace.update { state ->
                             if (studioProjectOpenRequests.isCurrent(requestId) && projectId !in deletedStudioProjectIds) {
-                                state.copy(statusBannerMessage = "لم يعد المشروع موجوداً في مكتبتك السحابية.")
+                                state.copy(statusBannerMessage = "لم يعد المشروع موجوداً في المكتبة المحلية أو السحابية.")
                             } else {
                                 state
                             }
@@ -2248,7 +2289,7 @@ class MetraAgentViewModel(
                                     activeStudioProject = project,
                                     studioSelectedFilePath = firstFile?.path.orEmpty(),
                                     studioEditedContent = firstFile?.content.orEmpty(),
-                                    statusBannerMessage = "تم فتح المشروع المحفوظ: ${project.projectName}"
+                                    statusBannerMessage = "تم فتح المشروع: ${project.projectName}"
                                 )
                             } else {
                                 state
@@ -2260,7 +2301,7 @@ class MetraAgentViewModel(
                     _workspace.update { state ->
                         if (studioProjectOpenRequests.isCurrent(requestId) && projectId !in deletedStudioProjectIds) {
                             Log.w(TAG, "Studio project detail load failed", error)
-                            state.copy(statusBannerMessage = "تعذر تحميل ملفات المشروع: ${error.localizedMessage ?: "خطأ اتصال"}")
+                            state.copy(statusBannerMessage = "تعذر تحميل ملفات المشروع: ${error.localizedMessage ?: "خطأ"}")
                         } else {
                             state
                         }
@@ -2278,7 +2319,17 @@ class MetraAgentViewModel(
         studioProjectSaveRevisions.next(projectId)
         viewModelScope.launch {
             studioProjectPersistenceMutex.withLock {
-                userDataRepository.deleteStudioProject(projectId)
+                run {
+                        val localResult = projectStorage?.delete(projectId)
+                        if (localResult != null && localResult.isSuccess) {
+                            Result.success(Unit)
+                        } else {
+                            // Optional backend mirror; offline delete still succeeds via local storage.
+                            userDataRepository.deleteStudioProject(projectId).recover {
+                                if (localResult?.isSuccess == true) Unit else throw it
+                            }
+                        }
+                    }
                     .onSuccess {
                         _workspace.update { state ->
                             val wasActive = state.activeStudioProject?.id == projectId
@@ -2317,73 +2368,53 @@ class MetraAgentViewModel(
     private suspend fun persistStudioProject(project: com.example.domain.model.StudioProjectSpec, revision: Long): Boolean {
         return studioProjectPersistenceMutex.withLock {
             if (project.id in deletedStudioProjectIds || !studioProjectSaveRevisions.isCurrent(project.id, revision)) return@withLock false
+            // Local-first offline library (no Backend/PostgreSQL required).
+            val storage = projectStorage
+            if (storage != null) {
+                val localOutcome = storage.save(project, providerId = StorageProviderId.LOCAL, expectedRevision = null)
+                if (localOutcome.isFailure) {
+                    Log.w(TAG, "Local studio save failed", localOutcome.exceptionOrNull())
+                    return@withLock false
+                }
+                // Optional backend mirror; ignore failures so offline users keep their projects.
+                runCatching { userDataRepository.saveStudioProject(project).getOrThrow() }
+                if (project.id in deletedStudioProjectIds || !studioProjectSaveRevisions.isCurrent(project.id, revision)) return@withLock false
+                studioProjectListRequests.invalidate()
+                _workspace.update { state ->
+                    val summaries = state.savedStudioProjects.filterNot { it.id == project.id }.toMutableList()
+                    summaries.add(
+                        0,
+                        com.example.domain.model.StudioProjectSummary(
+                            id = project.id,
+                            projectName = project.projectName,
+                            environment = project.environment,
+                            primaryLanguage = project.primaryLanguage,
+                            description = project.description,
+                            fileCount = project.files.size
+                        )
+                    )
+                    state.copy(
+                        savedStudioProjects = summaries,
+                        statusBannerMessage = "تم حفظ المشروع محلياً (متاح دون إنترنت)."
+                    )
+                }
+                return@withLock true
+            }
+            // Fallback when storage engine is not injected: previous backend-only path.
             userDataRepository.saveStudioProject(project).fold(
                 onSuccess = {
                     if (project.id in deletedStudioProjectIds || !studioProjectSaveRevisions.isCurrent(project.id, revision)) return@fold false
-                    // A list response started before this save may omit the newly saved revision.
                     studioProjectListRequests.invalidate()
-                    _workspace.update { state ->
-                        val withoutCurrent = state.savedStudioProjects.filterNot { it.id == project.id }
-                        state.copy(
-                            savedStudioProjects = listOf(
-                                com.example.domain.model.StudioProjectSummary(
-                                    id = project.id,
-                                    projectName = project.projectName,
-                                    environment = project.environment,
-                                    primaryLanguage = project.primaryLanguage,
-                                    description = project.description,
-                                    fileCount = project.files.size
-                                )
-                            ) + withoutCurrent,
-                            statusBannerMessage = if (state.activeStudioProject?.id == project.id) {
-                                "تم حفظ المشروع وملفاته في حساب AI I.Z السحابي."
-                            } else {
-                                state.statusBannerMessage
-                            }
-                        )
-                    }
                     true
                 },
                 onFailure = { error ->
-                    if (!studioProjectSaveRevisions.isCurrent(project.id, revision)) return@fold false
                     Log.w(TAG, "Studio project cloud save failed", error)
-                    _workspace.update { state ->
-                        if (state.activeStudioProject?.id == project.id) {
-                            state.copy(statusBannerMessage = "التعديلات ما زالت في مساحة العمل الحالية فقط ولم تُحفظ سحابياً: ${error.localizedMessage ?: "خطأ اتصال"}")
-                        } else {
-                            state
-                        }
-                    }
                     false
                 }
             )
         }
     }
 
-    fun selectStudioFile(path: String) {
-        val proj = _workspace.value.activeStudioProject ?: return
-        val file = proj.files.find { it.path == path } ?: return
-        studioProjectOpenRequests.invalidate()
-        _workspace.update {
-            it.copy(
-                isGeneratingStudioProject = false,
-                studioSelectedFilePath = path,
-                studioEditedContent = file.content,
-                statusBannerMessage = null
-            )
-        }
-    }
-
-    fun updateStudioFileContent(newContent: String) {
-        studioProjectOpenRequests.invalidate()
-        _workspace.update {
-            it.copy(
-                isGeneratingStudioProject = false,
-                studioEditedContent = newContent,
-                statusBannerMessage = "توجد تعديلات غير محفوظة في مساحة العمل."
-            )
-        }
-    }
 
     fun saveStudioFileChanges() {
         val proj = _workspace.value.activeStudioProject ?: return

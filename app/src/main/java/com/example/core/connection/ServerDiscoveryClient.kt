@@ -1,10 +1,7 @@
 package com.example.core.connection
 
-import com.squareup.moshi.Moshi
-import com.squareup.moshi.kotlin.reflect.KotlinJsonAdapterFactory
 import okhttp3.OkHttpClient
 import okhttp3.Request
-import org.json.JSONObject
 import java.util.concurrent.TimeUnit
 
 class ServerDiscoveryClient(
@@ -73,31 +70,31 @@ class ServerDiscoveryClient(
         }
     }
 
+    /** JVM-safe JSON field extraction (no android.org.json). */
     fun parseMeta(json: String): ServerDiscoveryInfo? = runCatching {
-        val root = JSONObject(json)
-        val oauth = root.optJSONObject("oauth") ?: JSONObject()
-        val caps = root.optJSONArray("capabilities")
-        val capList = buildList {
-            if (caps != null) {
-                for (i in 0 until caps.length()) add(caps.optString(i))
-            }
+        fun stringField(key: String): String {
+            val re = Regex("\"$key\"\\s*:\\s*\"([^\"]*)\"")
+            return re.find(json)?.groupValues?.getOrNull(1).orEmpty()
         }
-        val modes = root.optJSONArray("authModes")
-        val modeList = buildList {
-            if (modes != null) {
-                for (i in 0 until modes.length()) add(modes.optString(i))
-            }
+        fun intField(key: String, default: Int): Int {
+            val re = Regex("\"$key\"\\s*:\\s*(-?\\d+)")
+            return re.find(json)?.groupValues?.getOrNull(1)?.toIntOrNull() ?: default
+        }
+        fun stringArray(key: String): List<String> {
+            val re = Regex("\"$key\"\\s*:\\s*\\[(.*?)]", setOf(RegexOption.DOT_MATCHES_ALL))
+            val block = re.find(json)?.groupValues?.getOrNull(1) ?: return emptyList()
+            return Regex("\"([^\"]+)\"").findAll(block).map { it.groupValues[1] }.toList()
         }
         ServerDiscoveryInfo(
-            service = root.optString("service"),
-            apiVersion = root.optString("apiVersion"),
-            protocol = root.optString("protocol"),
-            minClientProtocol = root.optInt("minClientProtocol", 1),
-            capabilities = capList,
-            googleClientId = oauth.optString("googleClientId"),
-            accessTokenAudience = oauth.optString("accessTokenAudience"),
-            accessTokenIssuer = oauth.optString("accessTokenIssuer"),
-            authModes = modeList
-        )
+            service = stringField("service"),
+            apiVersion = stringField("apiVersion"),
+            protocol = stringField("protocol"),
+            minClientProtocol = intField("minClientProtocol", 1),
+            capabilities = stringArray("capabilities"),
+            googleClientId = stringField("googleClientId"),
+            accessTokenAudience = stringField("accessTokenAudience"),
+            accessTokenIssuer = stringField("accessTokenIssuer"),
+            authModes = stringArray("authModes")
+        ).takeIf { it.service.isNotBlank() && it.protocol.isNotBlank() }
     }.getOrNull()
 }

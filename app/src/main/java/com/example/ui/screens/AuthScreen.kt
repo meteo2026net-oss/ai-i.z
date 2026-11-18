@@ -25,6 +25,7 @@ import androidx.compose.material.icons.rounded.Lock
 import androidx.compose.material.icons.rounded.Security
 import androidx.compose.material.icons.rounded.Terminal
 import androidx.compose.material3.Button
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
@@ -76,7 +77,8 @@ private const val AUTH_TAG = "MetraAuth"
 
 @Composable
 fun AuthScreen(
-    onAuthSuccess: (String) -> Unit
+    onAuthSuccess: (String) -> Unit,
+    onOpenServerConnection: (() -> Unit)? = null
 ) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
@@ -223,6 +225,16 @@ fun AuthScreen(
                         }
                     }
                     Spacer(modifier = Modifier.height(8.dp))
+                }
+
+                OutlinedButton(
+                    onClick = { onOpenServerConnection?.invoke() },
+                    enabled = onOpenServerConnection != null && !isLoading,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .testTag("server_connection_button")
+                ) {
+                    Text(AppUiStrings.connectionSetupTitle(uiLang))
                 }
 
                 Button(

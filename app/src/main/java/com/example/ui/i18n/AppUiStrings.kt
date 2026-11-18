@@ -913,4 +913,7 @@ object AppUiStrings {
         if (isEnglish(language)) "HTTPS is required in release builds. Tokens stay in the encrypted vault. Sessions do not transfer between servers. The app never opens PostgreSQL directly."
         else "HTTPS إلزامي في إصدارات الإطلاق. الرموز تبقى في الخزنة المشفّرة. لا تنتقل الجلسات بين الخوادم. التطبيق لا يتصل بـ PostgreSQL مباشرة."
 
+
+    fun connectionBackToSignIn(language: String?): String =
+        if (isEnglish(language)) "Back to sign-in" else "العودة لتسجيل الدخول"
 }

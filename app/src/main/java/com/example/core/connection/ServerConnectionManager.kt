@@ -38,7 +38,8 @@ class ServerConnectionManager(
         val base = result.baseUrl
         val fp = ServerConnectionRules.serverFingerprint(base, discovery.googleClientId)
         val previous = store.getBoundFingerprint()
-        if (previous.isNotBlank() && previous != fp) {
+        if (ServerSessionIsolation.mustClearSessionOnBind(previous, fp)) {
+            // Never carry tokens or user ids from host A to host B.
             clearSessionSecrets()
         }
         store.setMode(mode)
@@ -47,12 +48,18 @@ class ServerConnectionManager(
         }
         store.setLastDiscoveryJson(serializeDiscovery(discovery))
         store.setBoundFingerprint(fp)
+        store.setBoundGoogleClientId(discovery.googleClientId)
     }
 
     fun disconnect() {
         clearSessionSecrets()
         store.clearConnectionState()
         store.setMode(ServerConnectionMode.CENTRAL)
+    }
+
+    fun isSessionBoundToActiveServer(googleClientId: String): Boolean {
+        val active = ServerSessionIsolation.activeFingerprint(store.getActiveBaseUrl(), googleClientId)
+        return ServerSessionIsolation.mayUseStoredSession(store.getBoundFingerprint(), active)
     }
 
     fun switchRequiresReauth(nextBaseUrl: String, nextClientId: String): Boolean {

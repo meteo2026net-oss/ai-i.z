@@ -3,6 +3,7 @@ package com.example.data.repository
 import com.example.BuildConfig
 import com.example.core.config.AiIzRuntimeConfig
 import com.example.core.connection.ServerConnectionStore
+import com.example.core.connection.ServerSessionIsolation
 import com.example.core.security.SecretVault
 import com.example.data.remote.AuthSessionService
 import com.example.data.remote.GoogleSessionRequest
@@ -41,6 +42,17 @@ class AuthSessionRepository(
     }.rethrowCancellation()
 
     suspend fun restoreSession(expectedAccessToken: String? = null): Result<String> = runCatching {
+        connectionStore?.let { store ->
+            val clientId = store.getBoundGoogleClientId()
+            if (clientId.isNotBlank()) {
+                val active = ServerSessionIsolation.activeFingerprint(store.getActiveBaseUrl(), clientId)
+                if (!ServerSessionIsolation.mayUseStoredSession(store.getBoundFingerprint(), active)) {
+                    vault.putSecret(com.example.core.security.SecretVault.KEY_AUTH_ACCESS_TOKEN, "")
+                    vault.putSecret(com.example.core.security.SecretVault.KEY_AUTH_REFRESH_TOKEN, "")
+                    error("Server connection changed. Sign in again.")
+                }
+            }
+        }
         refreshMutex.withLock {
             val currentAccessToken = vault.getSecret(SecretVault.KEY_AUTH_ACCESS_TOKEN)
             // Another request may already have rotated the refresh token while this request waited.

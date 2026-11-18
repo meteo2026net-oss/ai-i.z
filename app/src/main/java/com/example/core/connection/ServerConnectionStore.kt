@@ -49,6 +49,12 @@ class ServerConnectionStore(context: Context) {
 
     fun getBoundFingerprint(): String = prefs.getString(KEY_BOUND_FINGERPRINT, "")?.orEmpty() ?: ""
 
+    fun getBoundGoogleClientId(): String = prefs.getString(KEY_BOUND_CLIENT_ID, "")?.orEmpty() ?: ""
+
+    fun setBoundGoogleClientId(id: String) {
+        prefs.edit().putString(KEY_BOUND_CLIENT_ID, id.trim()).apply()
+    }
+
     fun setBoundFingerprint(fp: String) {
         prefs.edit().putString(KEY_BOUND_FINGERPRINT, fp).apply()
     }
@@ -57,6 +63,7 @@ class ServerConnectionStore(context: Context) {
         prefs.edit()
             .remove(KEY_LAST_META_JSON)
             .remove(KEY_BOUND_FINGERPRINT)
+            .remove(KEY_BOUND_CLIENT_ID)
             .apply()
     }
 
@@ -66,5 +73,6 @@ class ServerConnectionStore(context: Context) {
         private const val KEY_CUSTOM_BASE_URL = "custom_base_url"
         private const val KEY_LAST_META_JSON = "last_meta_json"
         private const val KEY_BOUND_FINGERPRINT = "bound_server_fingerprint"
+        private const val KEY_BOUND_CLIENT_ID = "bound_google_client_id"
     }
 }

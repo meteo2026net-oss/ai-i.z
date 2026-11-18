@@ -122,11 +122,25 @@ fun MetraRootApp(
     // Never trust a locally cached user ID as an authenticated session.
     // AuthScreen restores/rotates the server session before entering the app.
     var currentUserId by remember(vault) { mutableStateOf<String?>(null) }
+    var showConnectionSetup by remember { mutableStateOf(false) }
 
     val userId = currentUserId
     if (userId == null) {
         MetraAgentTheme(darkTheme = true, layoutDirection = LayoutDirection.Rtl) {
-            AuthScreen(onAuthSuccess = { authenticatedUserId -> currentUserId = authenticatedUserId })
+            if (showConnectionSetup) {
+                ConnectionSetupScreen(
+                    appLanguage = java.util.Locale.getDefault().language.let {
+                        if (it.equals("en", true)) "en" else "ar"
+                    },
+                    onDone = { showConnectionSetup = false }
+                )
+                // Back to auth after configuration via system back is not wired; offer inline return
+            } else {
+                AuthScreen(
+                    onAuthSuccess = { authenticatedUserId -> currentUserId = authenticatedUserId },
+                    onOpenServerConnection = { showConnectionSetup = true }
+                )
+            }
         }
     } else {
         key(userId) {

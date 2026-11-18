@@ -40,7 +40,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
 @Composable
-fun ConnectionSetupScreen(appLanguage: String? = null) {
+fun ConnectionSetupScreen(appLanguage: String? = null, onDone: (() -> Unit)? = null) {
     val uiLang = appLanguage
     val context = LocalContext.current
     val store = remember { ServerConnectionStore(context) }
@@ -200,5 +200,10 @@ fun ConnectionSetupScreen(appLanguage: String? = null) {
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant
         )
+        if (onDone != null) {
+            OutlinedButton(onClick = onDone, modifier = Modifier.fillMaxWidth()) {
+                Text(AppUiStrings.connectionBackToSignIn(uiLang))
+            }
+        }
     }
 }

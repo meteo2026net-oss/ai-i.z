@@ -69,6 +69,38 @@ async function requireSession(req, res, next) {
   }
 }
 
+
+app.get('/api/meta', async (_req, res) => {
+  // Public discovery document: no secrets, no database credentials.
+  res.set('Cache-Control', 'no-store');
+  res.json({
+    status: 'ok',
+    service: 'ai-iz-api',
+    apiVersion: '1.0.0',
+    protocol: 'ai-iz-identity/v1',
+    minClientProtocol: 1,
+    capabilities: [
+      'auth.google_oidc',
+      'sessions.refresh',
+      'user_records',
+      'studio_projects',
+      'runner_approvals',
+      'account.delete'
+    ],
+    oauth: {
+      provider: 'google',
+      googleClientId: process.env.GOOGLE_OIDC_CLIENT_ID || '',
+      accessTokenAudience: process.env.ACCESS_TOKEN_AUDIENCE || '',
+      accessTokenIssuer: process.env.ACCESS_TOKEN_ISSUER || ''
+    },
+    authModes: ['google_oidc'],
+    notes: {
+      runnerSqlExecution: 'disabled',
+      directPostgresFromClient: false
+    }
+  });
+});
+
 app.get('/api/health', async (_req, res) => {
   try { await pool.query('SELECT 1'); res.json({ status: 'ok', service: 'ai-iz-api', database: 'reachable' }); }
   catch { jsonError(res, 503, 'DATABASE_UNAVAILABLE', 'The service database is unavailable.'); }

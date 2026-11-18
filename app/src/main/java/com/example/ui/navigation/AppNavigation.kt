@@ -67,6 +67,7 @@ import androidx.navigation.compose.rememberNavController
 import com.example.R
 import com.example.core.notifications.QuotaNotificationHelper
 import com.example.core.security.SecretVault
+import com.example.core.connection.ServerConnectionStore
 import com.example.data.local.MetraLocalDatabase
 import com.example.data.repository.AiOrchestratorRepository
 import com.example.data.repository.AuthSessionRepository
@@ -91,6 +92,7 @@ import com.example.ui.screens.LinkedAccountsScreen
 import com.example.ui.screens.LogsScreen
 import com.example.ui.screens.PullRequestsScreen
 import com.example.ui.screens.SecuritySettingsScreen
+import com.example.ui.screens.ConnectionSetupScreen
 import com.example.ui.screens.SharedWorkspaceScreen
 import com.example.ui.screens.SqlReviewScreen
 import com.example.ui.screens.TasksScreen
@@ -133,7 +135,7 @@ fun MetraRootApp(
                 onNotificationRouteConsumed = onNotificationRouteConsumed,
                 onSignedOut = {
                     authScope.launch {
-                        AuthSessionRepository(vault).signOut()
+                        AuthSessionRepository(vault, connectionStore).signOut()
                         currentUserId = null
                     }
                 }
@@ -266,7 +268,7 @@ private fun AuthenticatedMetraShell(
     val screenTitles = listOf(
         "dashboard", "universal_studio", "chat", "tasks", "files", "code_editor", "branches", "prs",
         "actions", "database", "sql_review", "tests", "logs", "github_setup", "ai_setup",
-        "ai_conversations", "security", "linked_accounts", "workspace_plan"
+        "ai_conversations", "security", "server_connection", "linked_accounts", "workspace_plan"
     ).associateWith { route -> AppUiStrings.screenTitle(route, uiLang, activeProjectTitle) }
 
     var hasNotificationPermission by remember {
@@ -712,6 +714,9 @@ private fun AuthenticatedMetraShell(
                                         onTestBackend = { viewModel.testBackendHealth(it) },
                                          onOpenAiConversations = { navigateTo("ai_conversations") }
                                     )
+                                }
+                                composable("server_connection") {
+                                    ConnectionSetupScreen(appLanguage = uiLang)
                                 }
                                 composable("security") {
                                     SecuritySettingsScreen(

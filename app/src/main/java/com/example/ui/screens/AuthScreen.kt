@@ -67,6 +67,7 @@ import com.google.android.libraries.identity.googleid.GetSignInWithGoogleOption
 import com.google.android.libraries.identity.googleid.GoogleIdTokenCredential
 import com.google.android.libraries.identity.googleid.GoogleIdTokenCredential.Companion.TYPE_GOOGLE_ID_TOKEN_CREDENTIAL
 import com.example.core.security.SecretVault
+import com.example.core.connection.ServerConnectionStore
 import com.example.data.repository.AuthSessionRepository
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
@@ -275,7 +276,7 @@ fun attemptAutoSignIn(
     scope: CoroutineScope
 ) {
     scope.launch {
-        val repository = AuthSessionRepository(SecretVault(context))
+        val repository = AuthSessionRepository(SecretVault(context), ServerConnectionStore(context))
         val restored = repository.restoreSession()
         if (restored.isSuccess) {
             onAuthSuccess(restored.getOrThrow())
@@ -334,7 +335,7 @@ fun onGoogleSignInClicked(
             val credential = result.credential
             if (credential is CustomCredential && credential.type == TYPE_GOOGLE_ID_TOKEN_CREDENTIAL) {
                 val idToken = GoogleIdTokenCredential.createFrom(credential.data).idToken
-                AuthSessionRepository(SecretVault(context)).signInWithGoogleIdToken(idToken)
+                AuthSessionRepository(SecretVault(context), ServerConnectionStore(context)).signInWithGoogleIdToken(idToken)
                     .onSuccess(onAuthSuccess)
                     .onFailure { error ->
                         Log.e(AUTH_TAG, "AI I.Z session exchange failed", error)

@@ -2,6 +2,7 @@ package com.example.data.repository
 
 import com.example.BuildConfig
 import com.example.core.config.AiIzRuntimeConfig
+import com.example.core.connection.ServerConnectionStore
 import com.example.core.security.SecretVault
 import com.example.data.remote.AuthSessionService
 import com.example.data.remote.GoogleSessionRequest
@@ -16,9 +17,12 @@ import retrofit2.Retrofit
 import retrofit2.converter.moshi.MoshiConverterFactory
 import java.util.concurrent.TimeUnit
 
-class AuthSessionRepository(private val vault: SecretVault) {
+class AuthSessionRepository(
+    private val vault: SecretVault,
+    private val connectionStore: ServerConnectionStore? = null
+) {
     private val service: AuthSessionService by lazy {
-        val baseUrl = BuildConfig.AI_IZ_API_BASE_URL.trim()
+        val baseUrl = (connectionStore?.getActiveBaseUrl()?.takeIf { it.isNotBlank() } ?: BuildConfig.AI_IZ_API_BASE_URL).trim()
         require(AiIzRuntimeConfig.isAcceptableApiBaseUrl(baseUrl, BuildConfig.DEBUG)) {
             "AI I.Z API base URL is missing or invalid. Set AI_IZ_API_BASE_URL to an https:// endpoint before sign-in. / عنوان API غير صالح أو فارغ."
         }

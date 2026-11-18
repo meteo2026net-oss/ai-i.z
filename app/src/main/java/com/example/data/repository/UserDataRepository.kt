@@ -2,6 +2,7 @@ package com.example.data.repository
 
 import android.content.Context
 import com.example.BuildConfig
+import com.example.core.connection.ServerConnectionStore
 import com.example.core.security.SecretVault
 import com.example.data.remote.UserDataService
 import com.example.domain.model.AgentTask
@@ -38,14 +39,15 @@ import java.util.concurrent.TimeUnit
  * All persistence is performed by the AI I.Z API; ownership is derived from
  * the authenticated server session and never trusted from a client userId.
  */
-class UserDataRepository(context: Context) {
+class UserDataRepository(context: Context, connectionStore: ServerConnectionStore? = null) {
+    private val connectionStore = connectionStore ?: ServerConnectionStore(context.applicationContext)
     private val vault = SecretVault(context.applicationContext)
     private val moshi = Moshi.Builder()
         .add(Date::class.java, ServerDateJsonAdapter)
         .addLast(KotlinJsonAdapterFactory())
         .build()
     private val service: UserDataService by lazy {
-        val baseUrl = BuildConfig.AI_IZ_API_BASE_URL.trim()
+        val baseUrl = connectionStore.getActiveBaseUrl().ifBlank { BuildConfig.AI_IZ_API_BASE_URL }.trim()
         require(baseUrl.startsWith("https://") || (BuildConfig.DEBUG && baseUrl.startsWith("http://10.0.2.2"))) {
             "خدمة بيانات AI I.Z غير مهيأة. يلزم ضبط عنوان HTTPS للخادم."
         }
@@ -64,7 +66,7 @@ class UserDataRepository(context: Context) {
             block("Bearer $token")
         } catch (error: HttpException) {
             if (error.code() != 401) throw error
-            AuthSessionRepository(vault).restoreSession(expectedAccessToken = token).getOrThrow()
+            AuthSessionRepository(vault, connectionStore).restoreSession(expectedAccessToken = token).getOrThrow()
             token = vault.getSecret(SecretVault.KEY_AUTH_ACCESS_TOKEN)
             require(token.isNotBlank()) { "تعذر تجديد جلسة AI I.Z." }
             block("Bearer $token")

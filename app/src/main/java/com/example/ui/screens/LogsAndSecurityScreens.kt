@@ -51,6 +51,7 @@ import androidx.compose.ui.unit.dp
 import androidx.credentials.ClearCredentialStateRequest
 import androidx.credentials.CredentialManager
 import com.example.core.security.SecretVault
+import com.example.core.connection.ServerConnectionStore
 import com.example.data.repository.AuthSessionRepository
 import com.example.core.notifications.AgentNotificationPrefs
 import com.example.core.notifications.QuotaNotificationHelper
@@ -450,7 +451,7 @@ fun SecuritySettingsScreen(
                                     credentialManager.clearCredentialState(ClearCredentialStateRequest())
                                 } catch (_: Exception) {
                                 } finally {
-                                    AuthSessionRepository(SecretVault(context)).signOut()
+                                    AuthSessionRepository(SecretVault(context), ServerConnectionStore(context)).signOut()
                                     onSignedOut()
                                 }
                             }
@@ -516,7 +517,7 @@ fun SecuritySettingsScreen(
                                 deleteAccountInProgress = true
                                 deleteAccountError = null
                                 val result = withContext(NonCancellable) {
-                                    AuthSessionRepository(SecretVault(context)).deleteAccount()
+                                    AuthSessionRepository(SecretVault(context), ServerConnectionStore(context)).deleteAccount()
                                 }
                                 deleteAccountInProgress = false
                                 result.fold(

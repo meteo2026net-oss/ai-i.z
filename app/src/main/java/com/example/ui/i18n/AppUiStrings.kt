@@ -12,6 +12,7 @@ object AppUiStrings {
     fun tabLabel(route: String, language: String?): String {
         val en = isEnglish(language)
         return when (route) {
+            "server_connection" -> if (en) "Server connection" else "إعداد الاتصال"
             "dashboard" -> if (en) "Home" else "الرئيسية"
             "universal_studio" -> if (en) "Studio" else "الاستوديو"
             "chat" -> if (en) "Agent" else "الوكيل"
@@ -867,5 +868,49 @@ object AppUiStrings {
             "Cannot reach the AI I.Z API. Check network connectivity and that the API is online."
         else
             "تعذر الوصول إلى واجهة AI I.Z. تحقق من الشبكة وأن الخادم يعمل."
+
+
+    fun connectionSetupTitle(language: String?): String =
+        if (isEnglish(language)) "Server connection" else "إعداد الاتصال بالخادم"
+    fun connectionSetupSubtitle(language: String?): String =
+        if (isEnglish(language)) "Choose the central AI I.Z API or your private HTTPS server, test discovery, then sign in."
+        else "اختر خادم AI I.Z المركزي أو خادمك الخاص عبر HTTPS، اختبر الاكتشاف، ثم سجّل الدخول."
+    fun connectionModeCentral(language: String?): String =
+        if (isEnglish(language)) "Central AI I.Z" else "خادم مركزي"
+    fun connectionModeCustom(language: String?): String =
+        if (isEnglish(language)) "Private server" else "خادم خاص"
+    fun connectionCentralUrlHint(language: String?, url: String): String =
+        if (isEnglish(language)) "Central URL from build: $url" else "عنوان المركزي من البناء: $url"
+    fun connectionCustomUrlLabel(language: String?): String =
+        if (isEnglish(language)) "Private API base URL" else "عنوان API الخاص"
+    fun connectionTestButton(language: String?): String =
+        if (isEnglish(language)) "Test connection" else "اختبار الاتصال"
+    fun connectionSaveButton(language: String?): String =
+        if (isEnglish(language)) "Save & bind" else "حفظ وربط"
+    fun connectionDisconnectButton(language: String?): String =
+        if (isEnglish(language)) "Disconnect & reset" else "قطع الاتصال وإعادة التعيين"
+    fun connectionTestOk(language: String?): String =
+        if (isEnglish(language)) "Discovery succeeded. Server is compatible." else "نجح الاكتشاف. الخادم متوافق."
+    fun connectionTestFailed(language: String?, code: String?, detail: String?): String =
+        if (isEnglish(language)) "Connection failed (${code ?: "error"}): ${detail.orEmpty()}"
+        else "فشل الاتصال (${code ?: "خطأ"}): ${detail.orEmpty()}"
+    fun connectionMustTestFirst(language: String?): String =
+        if (isEnglish(language)) "Run a successful connection test before saving." else "نفّذ اختبار اتصال ناجحاً قبل الحفظ."
+    fun connectionSaved(language: String?): String =
+        if (isEnglish(language)) "Server bound. Sign in again if the host changed." else "تم ربط الخادم. أعد تسجيل الدخول إذا تغيّر المضيف."
+    fun connectionDisconnected(language: String?): String =
+        if (isEnglish(language)) "Disconnected. Session cleared. Central mode restored." else "تم قطع الاتصال ومسح الجلسة. الوضع المركزي مفعّل."
+    fun connectionStatusTitle(language: String?): String =
+        if (isEnglish(language)) "Last probe" else "آخر فحص"
+    fun connectionFieldUrl(language: String?): String = if (isEnglish(language)) "URL" else "العنوان"
+    fun connectionFieldService(language: String?): String = if (isEnglish(language)) "Service" else "الخدمة"
+    fun connectionFieldVersion(language: String?): String = if (isEnglish(language)) "API version" else "إصدار API"
+    fun connectionFieldProtocol(language: String?): String = if (isEnglish(language)) "Protocol" else "البروتوكول"
+    fun connectionFieldCapabilities(language: String?): String = if (isEnglish(language)) "Capabilities" else "القدرات"
+    fun connectionFieldOauthClient(language: String?): String = if (isEnglish(language)) "OAuth client" else "عميل OAuth"
+    fun connectionFieldError(language: String?): String = if (isEnglish(language)) "Error" else "الخطأ"
+    fun connectionSecurityNote(language: String?): String =
+        if (isEnglish(language)) "HTTPS is required in release builds. Tokens stay in the encrypted vault. Sessions do not transfer between servers. The app never opens PostgreSQL directly."
+        else "HTTPS إلزامي في إصدارات الإطلاق. الرموز تبقى في الخزنة المشفّرة. لا تنتقل الجلسات بين الخوادم. التطبيق لا يتصل بـ PostgreSQL مباشرة."
 
 }

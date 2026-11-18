@@ -200,6 +200,20 @@ test('PostgreSQL API enforces authenticated tenant ownership and record invarian
   });
 
 
+
+  await t.test('public meta discovery exposes protocol without secrets', async () => {
+    const response = await api('/api/meta');
+    assert.equal(response.status, 200);
+    const body = await response.json();
+    assert.equal(body.service, 'ai-iz-api');
+    assert.equal(body.protocol, 'ai-iz-identity/v1');
+    assert.ok(Array.isArray(body.capabilities) && body.capabilities.includes('auth.google_oidc'));
+    assert.ok(body.oauth && typeof body.oauth.googleClientId === 'string');
+    assert.equal(JSON.stringify(body).toLowerCase().includes('password'), false);
+    assert.equal(JSON.stringify(body).toLowerCase().includes('hmac'), false);
+    assert.equal(JSON.stringify(body).includes(process.env.DATABASE_URL || 'postgresql'), false);
+  });
+
   await t.test('Studio projects persist per account and cannot cross tenant boundaries', async () => {
     const project = {
       projectName: 'durable-studio-project',

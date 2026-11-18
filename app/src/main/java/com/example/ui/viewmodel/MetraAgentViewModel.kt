@@ -2416,6 +2416,32 @@ class MetraAgentViewModel(
     }
 
 
+
+    fun selectStudioFile(path: String) {
+        val proj = _workspace.value.activeStudioProject ?: return
+        val file = proj.files.find { it.path == path } ?: return
+        studioProjectOpenRequests.invalidate()
+        _workspace.update {
+            it.copy(
+                isGeneratingStudioProject = false,
+                studioSelectedFilePath = path,
+                studioEditedContent = file.content,
+                statusBannerMessage = null
+            )
+        }
+    }
+
+    fun updateStudioFileContent(newContent: String) {
+        studioProjectOpenRequests.invalidate()
+        _workspace.update {
+            it.copy(
+                isGeneratingStudioProject = false,
+                studioEditedContent = newContent,
+                statusBannerMessage = "توجد تعديلات غير محفوظة في مساحة العمل."
+            )
+        }
+    }
+
     fun saveStudioFileChanges() {
         val proj = _workspace.value.activeStudioProject ?: return
         studioProjectOpenRequests.invalidate()

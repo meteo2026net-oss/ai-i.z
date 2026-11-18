@@ -39,8 +39,9 @@ import java.util.concurrent.TimeUnit
  * All persistence is performed by the AI I.Z API; ownership is derived from
  * the authenticated server session and never trusted from a client userId.
  */
-class UserDataRepository(context: Context, connectionStore: ServerConnectionStore? = null) {
-    private val connectionStore = connectionStore ?: ServerConnectionStore(context.applicationContext)
+class UserDataRepository(context: Context, connectionStoreArg: ServerConnectionStore? = null) {
+    private val connectionStore: ServerConnectionStore =
+        connectionStoreArg ?: ServerConnectionStore(context.applicationContext)
     private val vault = SecretVault(context.applicationContext)
     private val moshi = Moshi.Builder()
         .add(Date::class.java, ServerDateJsonAdapter)

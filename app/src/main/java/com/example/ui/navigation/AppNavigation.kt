@@ -117,6 +117,7 @@ fun MetraRootApp(
 ) {
     val context = LocalContext.current
     val vault = remember(context) { SecretVault(context) }
+    val connectionStore = remember(context) { ServerConnectionStore(context) }
     val authScope = androidx.compose.runtime.rememberCoroutineScope()
     // Never trust a locally cached user ID as an authenticated session.
     // AuthScreen restores/rotates the server session before entering the app.
